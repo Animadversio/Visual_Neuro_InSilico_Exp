@@ -185,6 +185,13 @@ class ExperimentEvolve:
         if show:
             plt.show()
         return fig
+    def visualize_codenorm(self, show=True):
+        code_norm = np.sqrt((self.codes_all ** 2).sum(axis=1))
+        figh = plt.figure()
+        plt.scatter(self.generations, code_norm, s=16, alpha=0.6, label="all score")
+        if show:
+            plt.show()
+        return figh
 
     def visualize_trajectory(self, show=True):
         """ Visualize the Score Trajectory
