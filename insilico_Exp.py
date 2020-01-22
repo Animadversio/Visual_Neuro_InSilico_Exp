@@ -118,7 +118,7 @@ class ExperimentEvolve:
             self.optimizer = CholeskyCMAES(recorddir=recorddir, space_dimen=code_length, init_sigma=init_sigma,
                                            init_code=np.zeros([1, code_length]), Aupdate_freq=Aupdate_freq) # , optim_params=optim_params
         else:
-            assert issubclass(type(optimizer), Optimizer)
+            # assert issubclass(type(optimizer), Optimizer)
             self.optimizer = optimizer
         self.max_steps = max_step
 
