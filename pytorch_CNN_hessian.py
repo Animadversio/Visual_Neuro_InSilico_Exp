@@ -36,7 +36,7 @@ unit_arr = [('caffe-net', 'fc6', 1),
             ('caffe-net', 'conv5', 5, 10, 10),
             ]
 #%% Prepare PyTorch version of the Caffe networks
-from torch_net_utils import load_caffenet,load_generator
+from torch_net_utils import load_caffenet, load_generator, visualize
 net = load_caffenet()
 Generator = load_generator()
 import net_utils

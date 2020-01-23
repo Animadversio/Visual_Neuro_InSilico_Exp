@@ -87,6 +87,70 @@ class CNNmodel:
             return scores, self.recordings
         else:
             return scores
+#%%
+from torch_net_utils import load_caffenet, load_generator, visualize
+class CNNmodel_Torch:
+    """ Basic CNN scorer
+    Demo:
+        CNN = CNNmodel('caffe-net')  #
+        CNN.select_unit( ('caffe-net', 'conv1', 5, 10, 10) )
+        scores = CNN.score(imgs)
+        # if you want to record all the activation in conv1 layer you can use
+        CNN.set_recording( 'conv1' ) # then CNN.artiphys = True
+        scores, activations = CNN.score(imgs)
+
+    """
+    def __init__(self, model_name):
+        if model_name == "caffe-net":
+            self._classifier = load_caffenet()
+        self._transformer = net_utils.get_transformer(self._classifier, scale=1)
+        self.artiphys = False
+
+    def select_unit(self, unit_tuple):
+        self._classifier_name = str(unit_tuple[0])
+        self._net_layer = str(unit_tuple[1])
+        # `self._net_layer` is used to determine which layer to stop forwarding
+        self._net_iunit = int(unit_tuple[2])
+        # this index is used to extract the scalar response `self._net_iunit`
+        if len(unit_tuple) == 5:
+            self._net_unit_x = int(unit_tuple[3])
+            self._net_unit_y = int(unit_tuple[4])
+        else:
+            self._net_unit_x = None
+            self._net_unit_y = None
+
+    def set_recording(self, record_layers):
+        self.artiphys = True  # flag to record the neural activity in one layer
+        self.record_layers = record_layers
+        self.recordings = {}
+        for layername in record_layers:  # will be arranged in a dict of lists
+            self.recordings[layername] = []
+
+    # def forward(self, imgs):
+    #     return recordings
+
+    def score(self, images):
+        scores = np.zeros(len(images))
+        for i, img in enumerate(images):
+            # Note: now only support single repetition
+            tim = self._transformer.preprocess('data', img)  # shape=(3, 227, 227) # assuming input scale is 0,1 output will be 0,255
+            self._classifier.blobs['data'].data[...] = tim
+            self._classifier.forward(end=self._net_layer)  # propagate the image the target layer
+            # record only the neuron intended
+            score = self._classifier.blobs[self._net_layer].data[0, self._net_iunit]
+            if self._net_unit_x is not None:
+                # if `self._net_unit_x/y` (inside dimension) are provided, then use them to slice the output score
+                score = score[self._net_unit_x, self._net_unit_y]
+            scores[i] = score
+            if self.artiphys:  # record the whole layer's activation
+                for layername in self.record_layers:
+                    score_full = self._classifier.blobs[layername].data[0, :]
+                    # self._pattern_array.append(score_full)
+                    self.recordings[layername].append(score_full.copy())
+        if self.artiphys:
+            return scores, self.recordings
+        else:
+            return scores
 
 def render(codes, scale=255):
     '''Render a list of codes to list of images'''
