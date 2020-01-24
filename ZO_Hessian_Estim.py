@@ -90,7 +90,7 @@ class HessAware_Gauss:
         fbasis = scores[0]
         fpos = scores[-2*self.HB:-self.HB]
         fneg = scores[-self.HB:]
-        weights = abs((fpos + fneg - 2 * fbasis) / 2 / self.mu ** 2 / self.B)  # use abs to enforce positive definiteness
+        weights = abs((fpos + fneg - 2 * fbasis) / 2 / self.mu ** 2 / self.HB)  # use abs to enforce positive definiteness
         C = sqrt(weights[:, np.newaxis]) * self.HinnerU  # or the sqrt may not work.
         # H = C^TC + Lambda * I
         self.HessV, self.HessD, self.HessUC = np.linalg.svd(C, full_matrices=False)
@@ -140,7 +140,38 @@ class HessAware_Gauss:
             new_samples = np.concatenate((new_samples, H_pos_samples, H_neg_samples), axis=0)
         self._istep += 1
         return new_samples
+#%%
+class HessEstim_Gauss:
+    """Code to generate samples and estimate Hessian from it"""
+    def __init__(self, space_dimen):
+        self.dimen = space_dimen
+        self.HB = 0
+        self.std = 2
 
+    def GaussSampling(self, xmean, batch=100, std=2):
+        xmean = xmean.reshape(1, -1)
+        self.std = std
+        self.HB = batch
+        self.HinnerU = randn(self.HB, self.dimen) # / sqrt(self.dimen)  # make it unit var along the code vector dimension
+        H_pos_samples = xmean + self.std * self.HinnerU
+        H_neg_samples = xmean - self.std * self.HinnerU
+        new_samples = np.concatenate((xmean, H_pos_samples, H_neg_samples), axis=0)
+        return new_samples
+
+    def HessEstim(self, scores):
+        fbasis = scores[0]
+        fpos = scores[-2 * self.HB:-self.HB]
+        fneg = scores[-self.HB:]
+        weights = abs(
+            (fpos + fneg - 2 * fbasis) / 2 / self.std ** 2 / self.HB)  # use abs to enforce positive definiteness
+        C = sqrt(weights[:, np.newaxis]) * self.HinnerU  # or the sqrt may not work.
+        # H = C^TC + Lambda * I
+        self.HessV, self.HessD, self.HessUC = np.linalg.svd(C, full_matrices=False)
+        # self.HessV.shape = (HB, HB); self.HessD.shape = (HB,), self.HessUC.shape = (HB, dimen)
+        # self.HUDiag = 1 / sqrt(self.HessD ** 2 + self.Lambda) - 1 / sqrt(self.Lambda)
+        print("Hessian Samples Spectrum", self.HessD)
+        print("Hessian Samples Full Power:%f" % ((self.HessD ** 2).sum()))
+        return self.HessV, self.HessD, self.HessUC
 #%%
 unit = ('caffe-net', 'fc6', 1)
 optim = HessAware_ADAM(4096, population_size=40, lr=2, mu=0.5, nu=0.99, maximize=True)
@@ -159,7 +190,22 @@ experiment3 = ExperimentEvolve(unit, max_step=50, optimizer=optim)
 experiment3.run()
 experiment3.visualize_trajectory(show=True)
 experiment3.visualize_best(show=True)
-print()
+#%%
+np.save("tmpcodes.npy", experiment3.codes_all)
+#%%
+meancode = experiment3.codes_all[-5, :]
+HEstim = HessEstim_Gauss(4096)
+codes = HEstim.GaussSampling(meancode, batch=400, std=2)
+#CNNmodel = CNNmodel(model_unit[0])  # 'caffe-net'
+#CNNmodel.select_unit(model_unit)
+
+cur_images = render(codes)
+scores = CNNmodel.score(cur_images)
+HV, HD, HU = HEstim.HessEstim(scores)
+np.savez("HEstim_VDU.npz", V=HV, D=HD, U=HU, innerU=HEstim.HinnerU, scores=scores, xmean=meancode)
+#%%
+imgs = render(experiment3.codes_all[-40:,:])
+experiment3.CNNmodel.score(imgs)
 #%%
 # #%%
 # # Hessian Estimate in Pytorch

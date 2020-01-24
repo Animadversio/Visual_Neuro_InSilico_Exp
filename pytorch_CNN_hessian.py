@@ -36,12 +36,84 @@ unit_arr = [('caffe-net', 'fc6', 1),
             ('caffe-net', 'conv5', 5, 10, 10),
             ]
 #%% Prepare PyTorch version of the Caffe networks
-from torch_net_utils import load_caffenet, load_generator, visualize
+from torch_net_utils import load_caffenet, load_generator, visualize, BGR_mean
+from time import time
+class GAN_CNN_pipeline:
+    def __init__(self):
+        self.net = load_caffenet()
+        self.G = load_generator()
+
+    def select_unit(self, unit):
+        self.unit = unit
+
+    def forward(self, feat):
+        '''Assume feat has already been torchify, forward only one vector and get one score'''
+        unit = self.unit
+        blobs = self.G(feat)  # forward the feature vector through the GAN
+        out_img = blobs['deconv0']  # get raw output image from GAN
+        clamp_out_img = torch.clamp(out_img + BGR_mean, 0, 255)
+        resz_out_img = F.interpolate(clamp_out_img - BGR_mean, (227, 227), mode='bilinear', align_corners=True)
+        blobs_CNN = self.net(resz_out_img)
+        if len(unit) == 5:
+            score = blobs_CNN[unit[1]][0, unit[2], unit[3], unit[4]]
+        elif len(unit) == 3:
+            score = blobs_CNN[unit[1]][0, unit[2]]
+        return score
+
+    def visualize(self, codes):
+        # img = visualize(self.G, code)
+        code_num = codes.shape[0]
+        assert codes.shape[1] == 4096
+        imgs = [visualize(self.G, codes[i, :]) for i in range(code_num)]
+        return imgs
+
+    def score(self, codes, with_grad=False):
+        """Validated that this score is approximately the same with caffe Model"""
+        code_num = codes.shape[0]
+        assert codes.shape[1] == 4096
+        scores = []
+        for i in range(code_num):
+            # make sure the array has 2 dimensions
+            feat = Variable(torch.from_numpy(np.float32(codes[i:i+1, :])), requires_grad=with_grad)
+            score = self.forward(feat)
+            scores.append(score)
+        return np.array(scores)
+
+    def compute_H(self, center_x):
+        center_x = center_x.reshape(1, -1)
+        feat = Variable(torch.from_numpy(np.float32(center_x)), requires_grad=True)
+        score = self.forward(feat)
+        neg_activ = - score
+        t0 = time()
+        gradient = torch.autograd.grad(neg_activ, feat, retain_graph=True)[0]  # First order gradient
+        H = hessian(neg_activ, feat, create_graph=False)  # Second order gradient
+        t1 = time()
+        eigval, eigvec = np.linalg.eigh(H.detach().numpy())
+        t2 = time()
+        print("%.1f sec computing Hessian; %.1f eig decomposition" % (t1 - t0, t2 - t1))  # Each Calculation may take 1050s esp for deep layer in the network!
+        return H, eigval, eigvec, gradient
+#%%
+codes_all = np.load("tmpcodes.npy")
+code = codes_all[-5:-4, :]
+#%%
+Pipe = GAN_CNN_pipeline()
+Pipe.select_unit( ('caffe-net', 'fc8', 1))
+activ = Pipe.score(code)
+#%%
+H, eigval, eigvec, gradient = Pipe.compute_H(code)
+#%%
+unit = ('caffe-net', 'fc8', 1)
+np.savez(join("hessian_result_%s_%d.npz" % (unit[1], unit[2])),
+             z=code,
+             activation=activ.detach().numpy(),
+             grad=gradient.numpy(), H=H.detach().numpy(),
+             heig=eigval,heigvec=eigvec)
+#%%
 net = load_caffenet()
 Generator = load_generator()
-import net_utils
-detfmr = net_utils.get_detransformer(net_utils.load('generator'))
-tfmr = net_utils.get_transformer(net_utils.load('caffe-net'))
+# import net_utils
+# detfmr = net_utils.get_detransformer(net_utils.load('generator'))
+# tfmr = net_utils.get_transformer(net_utils.load('caffe-net'))
 #%% Script for running Evolution and hessian computation!
 # def display_image(ax, out_img):
 #     deproc_img = detfmr.deprocess('data', out_img.data.numpy())
@@ -140,11 +212,11 @@ for unit in unit_arr:
     plt.figure(figsize=[12,6])
     plt.subplot(211)
     plt.plot(g[0,::-1])
-    plt.xticks(np.arange(0,4200,200))
+    plt.xticks(np.arange(0, 4200, 200))
     plt.ylabel("Gradient")
     plt.subplot(212)
     plt.plot(eigval[::-1])
-    plt.xticks(np.arange(0,4200,200))
+    plt.xticks(np.arange(0, 4200, 200))
     plt.ylabel("EigenVal of Hessian")
     plt.suptitle("Gradient and Hessian Spectrum of Hotspot")
     plt.savefig(join(output_dir, "%s_%s_%d_hessian_eig.png"%(unit[0], unit[1], unit[2])))

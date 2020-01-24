@@ -73,6 +73,9 @@ def visualize(G, code):
     clamp_out_img = torch.clamp(out_img + BGR_mean, 0, 255)
     vis_img = clamp_out_img[:, [2, 1, 0], :, :].permute([2, 3, 1, 0]).squeeze() / 255
     return vis_img
+
+def preprocess(img):
+    return img
 # import net_utils
 # detfmr = net_utils.get_detransformer(net_utils.load('generator'))
 # tfmr = net_utils.get_transformer(net_utils.load('caffe-net'))

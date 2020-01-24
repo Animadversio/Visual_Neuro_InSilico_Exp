@@ -129,7 +129,7 @@ class CNNmodel_Torch:
     # def forward(self, imgs):
     #     return recordings
 
-    def score(self, images):
+    def score(self, images, with_grad=False):
         scores = np.zeros(len(images))
         for i, img in enumerate(images):
             # Note: now only support single repetition
