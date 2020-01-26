@@ -1,4 +1,4 @@
-
+"""Some collection of functions to help analyze hessian matrix and spectrum"""
 import sys
 import os
 from os.path import join
@@ -6,29 +6,21 @@ from time import time
 from importlib import reload
 import re
 import numpy as np
-# import torch
-# import torch.optim as optim
-# import torch.nn.functional as F
-# from cv2 import imread, imwrite
 import matplotlib
 matplotlib.use('Agg') # if you dont want image show up
 import matplotlib.pylab as plt
+import torch
 sys.path.append("D:\Github\pytorch-caffe")
-sys.path.append("D:\Github\pytorch-receptive-field")
-from torch_receptive_field import receptive_field, receptive_field_for_unit
 from caffenet import *
-from hessian import hessian
 import utils
 from utils import generator
 from insilico_Exp import CNNmodel
 sys.path.append(r"D:\Github\PerceptualSimilarity")
-import torch
 import models
 model = models.PerceptualLoss(model='net-lin', net='alex', use_gpu=1, gpu_ids=[0])
 #%%
 hess_dir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Artiphysiology\Hessian"
 output_dir = r"D:\Generator_DB_Windows\data\with_CNN\hessian"
-
 def perturb_images_sphere(cent_vec, perturb_vec, PC2_ang_step = 18, PC3_ang_step = 18):
     sphere_norm = np.linalg.norm(cent_vec)
     vectors = np.zeros((3, cent_vec.size))
@@ -120,7 +112,6 @@ def visualize_img_scores_sim(img_list, scores, similarity, ticks, DS_num=4):
 
 def vec_cos(v1, v2):
     return np.vdot(v1,v2)/np.linalg.norm(v1)/np.linalg.norm(v2)
-# %
 
 def similarity_score(img_list, img):
     d_sim_curv = model.forward(torch.from_numpy(np.array(img[np.newaxis, :])).permute([0, 3, 1, 2]),

@@ -11,6 +11,7 @@ sys.path.append("D:\Github\pytorch-receptive-field")
 from torch_receptive_field import receptive_field, receptive_field_for_unit
 from caffenet import *
 from hessian import hessian
+from hessian_analysis import perturb_images_line, visualize_img_and_tuning, perturb_images_arc
 #%%
 import utils
 from utils import generator

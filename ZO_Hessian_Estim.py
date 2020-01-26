@@ -193,16 +193,24 @@ experiment3.visualize_best(show=True)
 #%%
 np.save("tmpcodes.npy", experiment3.codes_all)
 #%%
+t0 = time()
+sample_num = 1000
 meancode = experiment3.codes_all[-5, :]
 HEstim = HessEstim_Gauss(4096)
-codes = HEstim.GaussSampling(meancode, batch=400, std=2)
+codes = HEstim.GaussSampling(meancode, batch=sample_num, std=2)
 #CNNmodel = CNNmodel(model_unit[0])  # 'caffe-net'
 #CNNmodel.select_unit(model_unit)
-
-cur_images = render(codes)
-scores = CNNmodel.score(cur_images)
-HV, HD, HU = HEstim.HessEstim(scores)
-np.savez("HEstim_VDU.npz", V=HV, D=HD, U=HU, innerU=HEstim.HinnerU, scores=scores, xmean=meancode)
+BSize = 100
+scores_all = []
+for i in range(np.int32(np.ceil(codes.shape[0] / BSize))):
+    cur_images = render(codes[i*BSize:min((i+1)*BSize, codes.shape[0]), :])
+    scores = CNNmodel.score(cur_images)
+    scores_all.extend(list(scores))
+scores_all = np.array(scores_all)
+HV, HD, HU = HEstim.HessEstim(scores_all)
+np.savez("HEstim_VDU3.npz", V=HV, D=HD, U=HU, innerU=HEstim.HinnerU, scores=scores, xmean=meancode)
+t1 = time()
+print(t1- t0, 'secs')
 #%%
 imgs = render(experiment3.codes_all[-40:,:])
 experiment3.CNNmodel.score(imgs)
