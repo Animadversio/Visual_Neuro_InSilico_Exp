@@ -166,7 +166,7 @@ def render(codes, scale=255):
 # - resize and evolution
 # - evolution in a restricted linear subspace
 # - tuning among major axis of the GAN model and rotated O(N) axis for GAN model
-
+#%%
 class ExperimentEvolve:
     """
     Default behavior is to use the current CMAES optimizer to optimize for 200 steps for the given unit.
@@ -221,45 +221,48 @@ class ExperimentEvolve:
         self.scores_all = np.array(self.scores_all)
         self.generations = np.array(self.generations)
 
-    def visualize_exp(self, show=False):
+    def visualize_exp(self, show=False, title_str=""):
         """ Visualize the experiment by showing the maximal activating images and the scores in each generations
         """
         idx_list = []
-        for geni in range(min(self.generations), max(self.generations)+1):
+        for geni in range(min(self.generations), max(self.generations) + 1):
             rel_idx = np.argmax(self.scores_all[self.generations == geni])
             idx_list.append(np.nonzero(self.generations == geni)[0][rel_idx])
         idx_list = np.array(idx_list)
         select_code = self.codes_all[idx_list, :]
         score_select = self.scores_all[idx_list]
         img_select = render(select_code)
-        fig = utils.visualize_img_list(img_select, score_select, show=show)
+        fig = utils.visualize_img_list(img_select, score_select, show=show, nrow=None, title_str=title_str)
+        if show:
+            fig.show()
         return fig
 
-    def visualize_best(self, show=False):
+    def visualize_best(self, show=False, title_str=""):
         """ Just Visualize the best Images for the experiment
         """
         idx = np.argmax(self.scores_all)
-        select_code = self.codes_all[idx:idx+1, :]
+        select_code = self.codes_all[idx:idx + 1, :]
         score_select = self.scores_all[idx]
         img_select = render(select_code)
         fig = plt.figure(figsize=[3, 3])
         plt.imshow(img_select[0])
         plt.axis('off')
-        plt.title("{0:.2f}".format(score_select), fontsize=16)
+        plt.title("{0:.2f}\n".format(score_select) + title_str, fontsize=16)
         if show:
             plt.show()
         return fig
-    def visualize_codenorm(self, show=True):
+
+    def visualize_codenorm(self, show=True, title_str=""):
         code_norm = np.sqrt((self.codes_all ** 2).sum(axis=1))
         figh = plt.figure()
         plt.scatter(self.generations, code_norm, s=16, alpha=0.6, label="all score")
+        plt.title("Optimization Trajectory of Code Norm\n" + title_str)
         if show:
             plt.show()
         return figh
 
-    def visualize_trajectory(self, show=True):
-        """ Visualize the Score Trajectory
-        """
+    def visualize_trajectory(self, show=True, title_str=""):
+        """ Visualize the Score Trajectory """
         gen_slice = np.arange(min(self.generations), max(self.generations) + 1)
         AvgScore = np.zeros_like(gen_slice)
         MaxScore = np.zeros_like(gen_slice)
@@ -272,12 +275,12 @@ class ExperimentEvolve:
         plt.plot(gen_slice, MaxScore, color='red', label="Max score")
         plt.xlabel("generation #")
         plt.ylabel("CNN unit score")
-        plt.title("Optimization Trajectory of Score\n")# + title_str)
+        plt.title("Optimization Trajectory of Score\n" + title_str)
         plt.legend()
         if show:
             plt.show()
         return figh
-
+#%%
 from cv2 import resize
 import cv2
 sys.path.append("D:\Github\pytorch-receptive-field")

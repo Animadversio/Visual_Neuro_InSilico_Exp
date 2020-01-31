@@ -616,7 +616,7 @@ def visualize_image_score_each_block(CurDataDir, block_num, save=False, exp_titl
     plt.show()
     return fig
 
-def visualize_img_list(img_list, scores=None, ncol=11, nrow=11, title_cmap=plt.cm.viridis, show=True):
+def visualize_img_list(img_list, scores=None, ncol=11, nrow=11, title_cmap=plt.cm.viridis, show=True, title_str=""):
     """Visualize images from a list and maybe label the score on it!"""
     if scores is not None and not title_cmap == None:
         cmap_flag = True
@@ -624,10 +624,10 @@ def visualize_img_list(img_list, scores=None, ncol=11, nrow=11, title_cmap=plt.c
         lb = scores.min()
     else:
         cmap_flag = False
-    if not len(img_list) <= ncol * nrow:
-        ncol = int(np.ceil(len(img_list) / nrow))
-    figH = 30
-    figW = figH / nrow * ncol + 1
+    if nrow is None or not len(img_list) <= ncol * nrow:
+        nrow = int(np.ceil(len(img_list) / ncol))
+    figW = 30
+    figH = figW / ncol * nrow + 1
     fig = plt.figure(figsize=[figW, figH])
     for i, img in enumerate(img_list):
         plt.subplot(nrow, ncol, i + 1)
@@ -640,6 +640,7 @@ def visualize_img_list(img_list, scores=None, ncol=11, nrow=11, title_cmap=plt.c
             plt.title("{0:.2f}".format(scores[i]), fontsize=16)
         else:
             pass
+    plt.suptitle(title_str)
     if not show:
         plt.show()
     return fig
