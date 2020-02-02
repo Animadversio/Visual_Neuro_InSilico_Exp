@@ -189,7 +189,7 @@ def radial_proj(codes, max_norm):
 
 class HessAware_Gauss_DC:
     """Gaussian Sampling method for estimating Hessian"""
-    def __init__(self, space_dimen, population_size=40, lr=0.1, mu=1, Lambda=0.9, Hupdate_freq=5, maximize=True, max_norm=300):
+    def __init__(self, space_dimen, population_size=40, lr=0.1, mu=1, Lambda=0.9, Hupdate_freq=5, maximize=True, max_norm=300, nat_grad=True):
         self.dimen = space_dimen  # dimension of input space
         self.B = population_size  # population batch size
         self.mu = mu  # scale of the Gaussian distribution to estimate gradient
@@ -216,6 +216,7 @@ class HessAware_Gauss_DC:
         self.score_stored = np.array([])
         self.N_in_samp = 0
         self.max_norm = max_norm
+        self.nat_grad = nat_grad
 
     def new_generation(self, init_score, init_code):
         self.xscore = init_score
@@ -238,14 +239,14 @@ class HessAware_Gauss_DC:
         print("Hessian Samples Spectrum", self.HessD)
         print("Hessian Samples Full Power:%f \nLambda:%f" % ((self.HessD ** 2).sum(), self.Lambda) )
 
-    def compute_grad(self, scores, nat_grad=True):
+    def compute_grad(self, scores):
         # add the new scores to storage
         self.score_stored = np.concatenate((self.score_stored, scores), axis=0) if self.score_stored.size else scores
-        if nat_grad:
+        if self.nat_grad:
             hagrad = (self.score_stored - self.xscore)/self.mu @ (self.code_stored - self.xnew) / self.N_in_samp # /self.mu
         else:
             Hdcode = self.Lambda * (self.code_stored - self.xnew) + (
-                    ((self.code_stored - self.xnew) @ self.HessUC.T) * self.HessD **2) @ self.HessUC
+                    ((self.code_stored - self.xnew) @ self.HessUC.T) * self.HessD **2) @ self.HessUC  # Take care! Check equation.
             hagrad = (self.score_stored - self.xscore) / self.mu @ Hdcode / self.N_in_samp  # /self.mu
         print("Gradient Norm %.2f" % (np.linalg.norm(hagrad)))
         if self.maximize:
@@ -281,7 +282,7 @@ class HessAware_Gauss_DC:
 #%%
 class HessAware_ADAM_DC:
     """Gaussian Sampling method for estimating Hessian"""
-    def __init__(self, space_dimen, population_size=40, lr=0.1, mu=1, nu=0.9, maximize=True, max_norm=300):
+    def __init__(self, space_dimen, population_size=40, lr=0.1, mu=1, nu=0.9, maximize=True, max_norm=300, nat_grad=True):
         self.dimen = space_dimen  # dimension of input space
         self.B = population_size  # population batch size
         self.mu = mu  # scale of estimating gradient
@@ -302,6 +303,7 @@ class HessAware_ADAM_DC:
         self.score_stored = np.array([])
         self.N_in_samp = 0
         self.max_norm = max_norm
+        self.nat_grad = nat_grad
 
     def new_generation(self, init_score, init_code):
         self.xscore = init_score
@@ -315,14 +317,14 @@ class HessAware_ADAM_DC:
         print("Hess Diagonal Estimate: Mean %.2f, Max %.2f, Min %.2f" % (
             self.Hdiag.mean(), self.Hdiag.max(), self.Hdiag.min()))
 
-    def compute_grad(self, scores, nat_grad=True):
+    def compute_grad(self, scores):
         # add the new scores to storage
         self.score_stored = np.concatenate((self.score_stored, scores), axis=0) if self.score_stored.size else scores
-        if nat_grad:
+        if self.nat_grad:
             hagrad = (self.score_stored - self.xscore) /self.mu @ (self.code_stored - self.xnew) / self.N_in_samp # /self.mu
         else:
             hagrad = (self.score_stored - self.xscore) / self.mu @ (self.code_stored - self.xnew) * self.Hdiag / self.N_in_samp  # non nat_grad
-        self.D = self.nu * self.D + (1 - self.nu) * hagrad**2  # running average of gradient square
+        self.D = self.nu * self.D + (1 - self.nu) * hagrad**2  # running average of gradient square  # TODO: Note this part is not numerical stable 
         self.Hdiag = self.D / (1 - self.nu ** (self._istep+1))  # Diagonal of estimated Hessian
         print("Gradient Norm %.2f" % (np.linalg.norm(hagrad)))
         print("Hess Diagonal Estimate: Mean %.2f, Max %.2f, Min %.2f" % (self.Hdiag.mean(), self.Hdiag.max(), self.Hdiag.min()))
@@ -355,7 +357,7 @@ class ExperimentEvolve_DC:
     """
     Default behavior is to use the current CMAES optimizer to optimize for 200 steps for the given unit.
     """
-    def __init__(self, model_unit, max_step=200, optimizer=None, nat_grad=True):
+    def __init__(self, model_unit, max_step=200, optimizer=None):
         self.recording = []
         self.scores_all = []
         self.codes_all = []
@@ -391,7 +393,7 @@ class ExperimentEvolve_DC:
             new_codes = self.optimizer.generate_sample(samp_num) # self.optimizer.N_in_samp += samp_num
             new_imgs = render(new_codes)
             new_scores = self.CNNmodel.score(new_imgs)
-            y_code = self.optimizer.compute_grad(new_scores)
+            y_code = self.optimizer.compute_grad(new_scores) # , nat_grad=True
             y_img = render(y_code)
             y_score = self.CNNmodel.score(y_img)
             self.codes_all = np.concatenate((self.codes_all, new_codes, y_code), axis=0)
@@ -554,38 +556,72 @@ class ExperimentEvolve_DC:
 #                 sys.stdout = orig_stdout
 #                 f.close()
 #%%
-# savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
-# unit = ('caffe-net', 'fc8', 1)
-# expdir = join(savedir, "%s_%s_%d_ADAM_DC_real" % unit)
-# os.makedirs(expdir, exist_ok=True)
-# lr_list = [1, 2, 0.5, 5, 0.2, 10, 20]
-# mu_list = [1, 2, 0.5, 5, 0.2, 10, 0.1, ]
-# nu_list = [0.9, 0.99, 0.8, 0.999]
-# for i, nu in enumerate(nu_list):
-#     for j, lr in enumerate(lr_list):
-#         for k, mu in enumerate(mu_list):
-#             idxno = k + j * len(mu_list) + i * len(lr_list) * len(mu_list)
-#             for trial_i in range(1):
-#                 fn_str = "lr%.1f_mu%.1f_nu%.2f_tr%d" % (lr, mu, nu, trial_i)
-#                 f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
-#                 sys.stdout = f
-#                 optim = HessAware_ADAM_DC(4096, population_size=40, lr=lr, mu=mu, nu=nu, maximize=True, max_norm=400)
-#                 experiment = ExperimentEvolve_DC(unit, max_step=100, optimizer=optim)
-#                 experiment.run(init_code=np.zeros((1, 4096)))
-#                 param_str = "lr=%.1f, mu=%.1f, nu=%.1f." % (optim.lr, optim.mu, optim.nu)
-#                 fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
-#                 fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
-#                 fig2 = experiment.visualize_best(show=False, title_str=param_str)
-#                 fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
-#                 fig3 = experiment.visualize_exp(show=False, title_str=param_str)
-#                 fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
-#                 fig4 = experiment.visualize_codenorm(show=False, title_str=param_str)
-#                 fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
-#                 plt.show(block=False)
-#                 time.sleep(5)
-#                 plt.close('all')
-#                 sys.stdout = orig_stdout
-#                 f.close()
+savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+unit = ('caffe-net', 'fc8', 1)
+expdir = join(savedir, "%s_%s_%d_ADAM_DC_grad" % unit)
+os.makedirs(expdir, exist_ok=True)
+lr_list = [1, 2, 0.5, 5, 0.2, 10, 20]
+mu_list = [1, 2, 0.5, 5, 0.2, 10, 0.1]
+nu_list = [0.9, 0.99, 0.8, 0.999]
+for i, nu in enumerate(nu_list):
+    for j, lr in enumerate(lr_list):
+        for k, mu in enumerate(mu_list):
+            idxno = k + j * len(mu_list) + i * len(lr_list) * len(mu_list)
+            for trial_i in range(1):
+                fn_str = "lr%.1f_mu%.1f_nu%.2f_tr%d" % (lr, mu, nu, trial_i)
+                f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
+                sys.stdout = f
+                optim = HessAware_ADAM_DC(4096, population_size=40, lr=lr, mu=mu, nu=nu, maximize=True, max_norm=400, nat_grad=False)
+                experiment = ExperimentEvolve_DC(unit, max_step=100, optimizer=optim)
+                experiment.run(init_code=np.zeros((1, 4096)))
+                param_str = "lr=%.1f, mu=%.1f, nu=%.1f." % (optim.lr, optim.mu, optim.nu)
+                fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
+                fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
+                fig2 = experiment.visualize_best(show=False, title_str=param_str)
+                fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
+                fig3 = experiment.visualize_exp(show=False, title_str=param_str)
+                fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
+                fig4 = experiment.visualize_codenorm(show=False, title_str=param_str)
+                fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
+                plt.show(block=False)
+                time.sleep(5)
+                plt.close('all')
+                sys.stdout = orig_stdout
+                f.close()
+#%% Note: If Hessian is not updated, then doing nat_grad vs non nat_grad should be the same! So no need to try
+# But the Hessian fraction may be tured .
+savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+unit = ('caffe-net', 'fc8', 1)
+expdir = join(savedir, "%s_%s_%d_Gauss_DC_nohess_grad" % unit)
+os.makedirs(expdir, exist_ok=True)
+lr_list = [1, 2, 0.5, 5, 0.2, 10, 20]
+mu_list = [1, 2, 0.5, 5, 0.2, 10, 0.1]
+nu_list = [0.9, 0.99, 0.8, 0.999]
+for i, nu in enumerate(nu_list):
+    for j, lr in enumerate(lr_list):
+        for k, mu in enumerate(mu_list):
+            idxno = k + j * len(mu_list) + i * len(lr_list) * len(mu_list)
+            for trial_i in range(1):
+                fn_str = "lr%.1f_mu%.1f_nu%.2f_tr%d" % (lr, mu, nu, trial_i)
+                f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
+                sys.stdout = f
+                optim = HessAware_Gauss_DC(4096, population_size=40, lr=lr, mu=mu, Lambda=0.1, Hupdate_freq=UF, nat_grad=False)
+                experiment = ExperimentEvolve_DC(unit, max_step=100, optimizer=optim)
+                experiment.run(init_code=np.zeros((1, 4096)))
+                param_str = "lr=%.1f, mu=%.1f, nu=%.1f." % (optim.lr, optim.mu, optim.nu)
+                fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
+                fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
+                fig2 = experiment.visualize_best(show=False, title_str=param_str)
+                fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
+                fig3 = experiment.visualize_exp(show=False, title_str=param_str)
+                fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
+                fig4 = experiment.visualize_codenorm(show=False, title_str=param_str)
+                fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
+                plt.show(block=False)
+                time.sleep(5)
+                plt.close('all')
+                sys.stdout = orig_stdout
+                f.close()
 #%%
 # # #%%
 # # unit = ('caffe-net', 'fc6', 1)
@@ -615,7 +651,7 @@ fn_str = "lr%.1f_mu%.1f_nu%.2f_tr%d" % (lr, mu, nu, trial_i)
 #f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
 #sys.stdout = f
 optim = HessAware_ADAM_DC(4096, population_size=40, lr=lr, mu=mu, nu=nu, maximize=True, max_norm=300)
-experiment = ExperimentEvolve_DC(unit, max_step=70, optimizer=optim)
+experiment = ExperimentEvolve_DC(unit, max_step=70, optimizer=optim, nat_grad=True)
 experiment.run(init_code=np.zeros((1, 4096)))
 param_str = "lr=%.1f, mu=%.1f, nu=%.1f." % (optim.lr, optim.mu, optim.nu)
 fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
