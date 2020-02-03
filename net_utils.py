@@ -3,7 +3,6 @@ import numpy as np
 import caffe
 # Note this is the only code zone that depend on caffe.
 # So if another High level platform of CNN is to be used, only change this file
-
 caffe.set_mode_gpu()
 from sys import platform
 if platform == "linux":  # CHPC cluster
@@ -12,6 +11,9 @@ if platform == "linux":  # CHPC cluster
 else:
     if os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':  # PonceLab-Desktop 3
         homedir = "D:/Generator_DB_Windows"
+        netsdir = os.path.join(homedir, 'nets')
+    elif os.environ['COMPUTERNAME'] == 'PONCELAB-ML2C':  # PonceLab-Desktop Victoria
+        homedir = r"C:\Users\ponce\Documents\Generator_DB_Windows"
         netsdir = os.path.join(homedir, 'nets')
     elif os.environ['COMPUTERNAME'] == 'DESKTOP-MENSD6S':  # Home_WorkStation
         homedir = "D:/Monkey_Data/Generator_DB_Windows"

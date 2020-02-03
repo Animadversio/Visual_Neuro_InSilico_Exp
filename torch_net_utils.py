@@ -3,27 +3,40 @@ import os
 from os.path import join
 import torch
 import sys
-sys.path.append("D:\Github\pytorch-caffe")
-from caffenet import *  # Pytorch-caffe converter
 import numpy as np
 #%%
+# Depend on 2 packages, you should clone from
+# https://github.com/Animadversio/pytorch-receptive-field
+# https://github.com/Animadversio/pytorch-caffe.git
 from sys import platform
 if platform == "linux":  # CHPC cluster
     homedir = os.path.expanduser('~')
     netsdir = os.path.join(homedir, 'Generate_DB/nets')
 else:
     if os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':  # PonceLab-Desktop 3
+        sys.path.append("D:\Github\pytorch-caffe")
+        sys.path.append("D:\Github\pytorch-receptive-field")
         homedir = "D:/Generator_DB_Windows"
         netsdir = os.path.join(homedir, 'nets')
+    elif os.environ['COMPUTERNAME'] == 'PONCELAB-ML2C':  # PonceLab-Desktop Victoria
+        sys.path.append(r"C:\Users\ponce\Documents\GitHub\pytorch-caffe")
+        sys.path.append(r"C:\Users\ponce\Documents\GitHub\pytorch-receptive-field")
+        homedir = r"C:\Users\ponce\Documents\Generator_DB_Windows"
+        netsdir = os.path.join(homedir, 'nets')
     elif os.environ['COMPUTERNAME'] == 'DESKTOP-MENSD6S':  # Home_WorkStation
+        sys.path.append("E:\Github\pytorch-caffe")
+        sys.path.append("E:\Github\pytorch-receptive-field")
         homedir = "D:/Monkey_Data/Generator_DB_Windows"
         netsdir = os.path.join(homedir, 'nets')
     else:
+        sys.path.append("D:\Github\pytorch-caffe")
         homedir = os.path.expanduser('~')
         netsdir = os.path.join(homedir, 'Documents/nets')
+from caffenet import *  # Pytorch-caffe converter
+from torch_receptive_field import receptive_field, receptive_field_for_unit
 #%% Prepare PyTorch version of the Caffe networks
 def load_caffenet():
-    netsdir = r"D:\Generator_DB_Windows\nets"
+    # netsdir = r"D:\Generator_DB_Windows\nets"
     protofile = join(netsdir, r"caffenet\caffenet.prototxt") # 'resnet50/deploy.prototxt'
     weightfile = join(netsdir, 'bvlc_reference_caffenet.caffemodel') # 'resnet50/resnet50.caffemodel'
     save_path = join(netsdir, r"caffenet\caffenet_state_dict.pt")
@@ -42,7 +55,7 @@ def load_caffenet():
     return net
 
 def load_generator():
-    netsdir = r"D:/Generator_DB_Windows/nets"
+    # netsdir = r"D:/Generator_DB_Windows/nets"
     save_path = os.path.join(netsdir, r"upconv/fc6/generator_state_dict.pt")
     protofile = os.path.join(netsdir, r"upconv/fc6/generator.prototxt")  # 'resnet50/deploy.prototxt'
     weightfile = os.path.join(netsdir, r'upconv/fc6/generator.caffemodel')  # 'resnet50/resnet50.caffemodel'
