@@ -283,8 +283,8 @@ class ExperimentEvolve:
 #%%
 from cv2 import resize
 import cv2
-sys.path.append("D:\Github\pytorch-receptive-field")
-from torch_receptive_field import receptive_field, receptive_field_for_unit
+from torch_net_utils import receptive_field, receptive_field_for_unit
+
 def resize_and_pad(img_list, size, coord, canvas_size=(227, 227)):
     '''Render a list of codes to list of images
     Note this function is assuming the image is in (0,1) scale so padding with 0.5 as gray background.
