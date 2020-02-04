@@ -320,12 +320,11 @@ class HessAware_ADAM_DC:
     def compute_grad(self, scores):
         # add the new scores to storage
         self.score_stored = np.concatenate((self.score_stored, scores), axis=0) if self.score_stored.size else scores
-        if self.nat_grad:
-            hagrad = (self.score_stored - self.xscore) /self.mu @ (self.code_stored - self.xnew) / self.N_in_samp # /self.mu
-        else:
-            hagrad = (self.score_stored - self.xscore) / self.mu @ (self.code_stored - self.xnew) * self.Hdiag / self.N_in_samp  # non nat_grad
-        self.D = self.nu * self.D + (1 - self.nu) * hagrad**2  # running average of gradient square  # TODO: Note this part is not numerical stable 
+        hagrad = (self.score_stored - self.xscore) /self.mu @ (self.code_stored - self.xnew) / self.N_in_samp # /self.mu
+        self.D = self.nu * self.D + (1 - self.nu) * hagrad**2  # running average of gradient square  # TODO: Note this part is not numerical stable
         self.Hdiag = self.D / (1 - self.nu ** (self._istep+1))  # Diagonal of estimated Hessian
+        if not self.nat_grad:
+            hagrad = hagrad * self.Hdiag  # non nat_grad
         print("Gradient Norm %.2f" % (np.linalg.norm(hagrad)))
         print("Hess Diagonal Estimate: Mean %.2f, Max %.2f, Min %.2f" % (self.Hdiag.mean(), self.Hdiag.max(), self.Hdiag.min()))
         if self.maximize:
@@ -558,7 +557,7 @@ class ExperimentEvolve_DC:
 #%%
 savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
 unit = ('caffe-net', 'fc8', 1)
-expdir = join(savedir, "%s_%s_%d_ADAM_DC_grad" % unit)
+expdir = join(savedir, "%s_%s_%d_ADAM_DC_grad_db" % unit)
 os.makedirs(expdir, exist_ok=True)
 lr_list = [1, 2, 0.5, 5, 0.2, 10, 20]
 mu_list = [1, 2, 0.5, 5, 0.2, 10, 0.1]
