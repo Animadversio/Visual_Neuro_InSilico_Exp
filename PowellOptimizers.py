@@ -7,6 +7,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch_net_utils import load_caffenet, load_generator, visualize, BGR_mean
+import matplotlib.pylab as plt
 from time import time
 #%%
 class GAN_CNN_pipeline:
@@ -59,6 +60,13 @@ class GAN_CNN_pipeline:
 
 Scorer = GAN_CNN_pipeline(('caffe-net', 'fc8', 10))
 #%%
+t0 = time()
 z0 = np.zeros((4096, ))
-rst = solver.solve(Scorer.optim_score, z0, maxfun=5000, rhobeg=5, bounds=(-300 * np.ones_like(z0), 300 * np.ones_like(z0)))
+rst = solver.solve(Scorer.optim_score, z1, maxfun=20000, rhobeg=0.2, bounds=(-300 * np.ones_like(z0), 300 * np.ones_like(z0)), scaling_within_bounds=True)
 print(rst)
+t1 = time()
+print("%.1f sec" % (t1-t0))
+z1 = rst.x
+img = Scorer.visualize(rst.x[np.newaxis, ])
+plt.imshow(img[0])
+plt.show()
