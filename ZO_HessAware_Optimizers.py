@@ -5,6 +5,10 @@ plt.ioff()
 from insilico_Exp import *
 import time
 import sys
+import utils
+import numpy as np
+from numpy.linalg import norm
+import os
 orig_stdout = sys.stdout
 # model_unit = ('caffe-net', 'fc6', 1)
 # CNN = CNNmodel(model_unit[0])  # 'caffe-net'
@@ -145,6 +149,128 @@ class HessAware_Gauss:
             new_samples = np.concatenate((new_samples, H_pos_samples, H_neg_samples), axis=0)
         self._istep += 1
         return new_samples
+#%%
+class HessAware_Gauss_Spherical:
+    """Gaussian Sampling method for estimating Hessian"""
+    def __init__(self, space_dimen, population_size=40, lr=0.1, mu=1, Lambda=0.9, Hupdate_freq=5, sphere_norm=300, maximize=True):
+        self.dimen = space_dimen  # dimension of input space
+        self.B = population_size  # population batch size
+        self.mu = mu  # scale of the Gaussian distribution to estimate gradient
+        assert Lambda > 0
+        self.Lambda = Lambda  # diagonal regularizer for Hessian matrix
+        self.lr = lr  # learning rate (step size) of moving along gradient
+        self.sphere_norm = sphere_norm
+        self.tang_codes = zeros((self.B, self.dimen))
+        # Initialize dynamic (internal) strategy parameters and constants
+        self.pc = zeros((1, self.dimen))
+        self.ps = zeros((1, self.dimen))  # evolution paths for C and sigma
+
+        self.grad = np.zeros((1, self.dimen))  # estimated gradient
+        self.innerU = np.zeros((self.B, self.dimen))  # inner random vectors with covariance matrix Id
+        self.outerV = np.zeros((self.B, self.dimen))  # outer random vectors with covariance matrix H^{-1}, equals self.innerU @ H^{-1/2}
+        self.xcur = np.zeros((1, self.dimen))  # current base point
+        self.xnew = np.zeros((1, self.dimen))  # new base point
+        self.fcur = 0  # f(xcur)
+        self.fnew = 0  # f(xnew)
+        self.Hupdate_freq = int(Hupdate_freq)  # Update Hessian (add additional samples every how many generations)
+        self.HB = population_size  # Batch size of samples to estimate Hessian, can be different from self.B
+        self.HinnerU = np.zeros((self.HB, self.dimen))  # sample deviation vectors for Hessian construction
+        # SVD of the weighted HinnerU for Hessian construction
+        self.HessUC = np.zeros((self.HB, self.dimen))  # Basis vector for the linear subspace defined by the samples
+        self.HessD  = np.zeros(self.HB)  # diagonal values of the Lambda matrix
+        self.HessV  = np.zeros((self.HB, self.HB))  # seems not used....
+        self.HUDiag = np.zeros(self.HB)
+        self.hess_comp = False
+        self._istep = 0  # step counter
+        self.maximize = maximize  # maximize / minimize the function
+        print("Spereical Space dimension: %d, Population size: %d, Select size:%d, Optimization Parameters:\n Learning rate: %.3f"
+              % (self.dimen, self.B, self.mu, self.lr))
+    def step_hessian(self, scores):
+        '''Currently only use part of the samples to estimate hessian, maybe need more '''
+        fbasis = scores[0]
+        fpos = scores[-2*self.HB:-self.HB]
+        fneg = scores[-self.HB:]
+        weights = abs((fpos + fneg - 2 * fbasis) / 2 / self.mu ** 2 / self.HB)  # use abs to enforce positive definiteness
+        C = sqrt(weights[:, np.newaxis]) * self.HinnerU  # or the sqrt may not work.
+        # H = C^TC + Lambda * I
+        self.HessV, self.HessD, self.HessUC = np.linalg.svd(C, full_matrices=False)
+        self.HUDiag = 1 / sqrt(self.HessD ** 2 + self.Lambda) - 1 / sqrt(self.Lambda)
+        print("Hessian Samples Spectrum", self.HessD)
+        print("Hessian Samples Full Power:%f \nLambda:%f" % ((self.HessD ** 2).sum(), self.Lambda) )
+
+
+    def step_simple(self, scores, codes):
+        ''' Assume the 1st row of codes is the  xnew  new starting point '''
+        # set short name for everything to simplify equations
+        N = self.dimen
+        if self.hess_comp:  # if this flag is True then more samples have been added to the trial
+            self.step_hessian(scores)
+            # you should only get images for gradient estimation, get rid of the Hessian samples, or make use of it to estimate gradient
+            codes = codes[:self.B+1, :]
+            scores = scores[:self.B+1]
+            self.hess_comp = False
+
+
+        if self._istep == 0:
+            # Population Initialization: if without initialization, the first xmean is evaluated from weighted average all the natural images
+            print('First generation\n')
+            self.xcur = codes[0:1, :]
+            self.xnew = codes[0:1, :]
+        else:
+            # self.xcur = self.xnew # should be same as following line
+            self.xcur = codes[0:1, :]
+            self.weights = (scores - scores[0]) # / self.mu
+            # estimate gradient from the codes and scores
+            # HAgrad = self.weights[1:] @ (codes[1:] - self.xcur) / self.B  # it doesn't matter if it includes the 0 row!
+            HAgrad = self.weights[np.newaxis, 1:] @ self.tang_codes / self.B
+            print("Estimated Gradient Norm %f" % np.linalg.norm(HAgrad))
+            if self.maximize is True:
+                self.xnew = self.ExpMap(self.xcur,   self.lr * HAgrad) # add - operator it will do maximization.
+            else:
+                self.xnew = self.ExpMap(self.xcur, - self.lr * HAgrad)
+
+            # vtan_new = self.VecTransport(self.xcur, self.xnew, vtan_old)
+            # uni_vtan_old = vtan_old / np.linalg.norm(vtan_old);
+            # uni_vtan_new = vtan_new / np.linalg.norm(vtan_new);  # uniform the tangent vector
+
+        # Generate new sample by sampling from Gaussian distribution
+        self.tang_codes = zeros((self.B, N))
+        new_samples = zeros((self.B + 1, N))
+        self.innerU = randn(self.B, N)  # Isotropic gaussian distributions
+        self.outerV = self.innerU / sqrt(self.Lambda) + ((self.innerU @ self.HessUC.T) * self.HUDiag) @ self.HessUC # H^{-1/2}U
+        new_samples[0:1, :] = self.xnew
+        self.tang_codes[: , :] = self.mu * self.outerV  # m + sig * Normal(0,C)
+        new_samples[1:, ] = self.ExpMap(self.xnew, self.tang_codes)
+        if (self._istep + 1) % self.Hupdate_freq == 0:
+            # add more samples to next batch for hessian computation
+            self.hess_comp = True
+            self.HinnerU = randn(self.HB, N)
+            H_pos_samples = self.xnew + self.mu * self.HinnerU
+            H_neg_samples = self.xnew - self.mu * self.HinnerU
+            new_samples = np.concatenate((new_samples, H_pos_samples, H_neg_samples), axis=0)
+        self._istep += 1
+        self._curr_samples = new_samples / norm(new_samples, axis=1)[:, np.newaxis] * self.sphere_norm
+        return self._curr_samples
+
+    def ExpMap(self, x, tang_vec, EPS = 1E-4):
+        angle_dist = sqrt((tang_vec ** 2).sum(axis=1))  # vectorized
+        angle_dist = angle_dist[:, np.newaxis]
+        print("Angular distance for Exponentiation ", angle_dist[:,0])
+        uni_tang_vec = tang_vec / angle_dist
+        # x = repmat(x, size(tang_vec, 1), 1); # vectorized
+        xnorm = np.linalg.norm(x)
+        assert(xnorm > EPS)
+        y = (np.cos(angle_dist) @ (x[:] / xnorm) + np.sin(angle_dist) * uni_tang_vec) * xnorm
+        return y
+
+    def VecTransport(self, xold, xnew, v):
+        xold = xold / np.linalg.norm(xold)
+        xnew = xnew / np.linalg.norm(xnew)
+        x_symm_axis = xold + xnew
+        v_transport = v - 2 * v @ x_symm_axis.T / np.linalg.norm(
+            x_symm_axis) ** 2 * x_symm_axis  # Equation for vector parallel transport along geodesic
+        # Don't use dot in numpy, it will have wierd behavior if the array is not single dimensional
+        return v_transport
 #%%
 class HessEstim_Gauss:
     """Code to generate samples and estimate Hessian from it"""
@@ -351,6 +477,7 @@ class HessAware_ADAM_DC:
         # set short name for everything to simplify equations
 
 #%%
+
 class ExperimentEvolve_DC:
     """
     Default behavior is to use the current CMAES optimizer to optimize for 200 steps for the given unit.
@@ -605,24 +732,46 @@ class ExperimentEvolve_DC:
 # experiment3.run()
 # experiment3.visualize_trajectory(show=True)
 # experiment3.visualize_best(show=True)
-#%%
-savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+# # #%%
 unit = ('caffe-net', 'fc8', 1)
-expdir = join(savedir, "%s_%s_%d_ADAM_DC" % unit)
+savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+expdir = join(savedir, "%s_%s_%d_Gauss_Sph" % unit)
 os.makedirs(expdir, exist_ok=True)
-lr=2; mu=1; nu=0.9; trial_i=0
-fn_str = "lr%.1f_mu%.1f_nu%.2f_tr%d" % (lr, mu, nu, trial_i)
-#f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
-#sys.stdout = f
-optim = HessAware_ADAM_DC(4096, population_size=40, lr=lr, mu=mu, nu=nu, maximize=True, max_norm=300)
-experiment = ExperimentEvolve_DC(unit, max_step=70, optimizer=optim)
-experiment.run(init_code=np.zeros((1, 4096)))
-param_str = "lr=%.1f, mu=%.1f, nu=%.1f." % (optim.lr, optim.mu, optim.nu)
+lr=0.25; mu=0.01; Lambda=0.99; UF = 200; trial_i=0
+fn_str = "lr%.1f_mu%.2f_Lambda%.3f_UF%d_tr%d" % (lr, mu, Lambda, UF, trial_i)
+optim = HessAware_Gauss_Spherical(4096, population_size=40, lr=lr, mu=mu, Lambda=Lambda, Hupdate_freq=UF, sphere_norm=300, maximize=True)
+experiment = ExperimentEvolve(unit, max_step=100, optimizer=optim)
+experiment.run(init_code=np.random.randn(1, 4096))
+experiment.visualize_trajectory(show=True)
+experiment.visualize_best(show=True)
+param_str = "lr=%.2f, mu=%.2f, Lambda=%.2f, UpdateFreq=%d" % (optim.lr, optim.mu, optim.Lambda, optim.Hupdate_freq)
 fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
 fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
-fig2 = experiment.visualize_best(show=False, title_str=param_str)
+fig2 = experiment.visualize_best(show=False)# , title_str=param_str)
 fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
 fig3 = experiment.visualize_exp(show=False, title_str=param_str)
 fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
 fig4 = experiment.visualize_codenorm(show=False, title_str=param_str)
 fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
+#%%
+
+#savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+#unit = ('caffe-net', 'fc8', 1)
+#expdir = join(savedir, "%s_%s_%d_ADAM_DC" % unit)
+#os.makedirs(expdir, exist_ok=True)
+#lr=2; mu=1; nu=0.9; trial_i=0
+#fn_str = "lr%.1f_mu%.1f_nu%.2f_tr%d" % (lr, mu, nu, trial_i)
+#f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
+#sys.stdout = f
+#optim = HessAware_ADAM_DC(4096, population_size=40, lr=lr, mu=mu, nu=nu, maximize=True, max_norm=300)
+#experiment = ExperimentEvolve_DC(unit, max_step=70, optimizer=optim)
+#experiment.run(init_code=np.zeros((1, 4096)))
+#param_str = "lr=%.1f, mu=%.1f, nu=%.1f." % (optim.lr, optim.mu, optim.nu)
+#fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
+#fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
+#fig2 = experiment.visualize_best(show=False, title_str=param_str)
+#fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
+#fig3 = experiment.visualize_exp(show=False, title_str=param_str)
+#fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
+#fig4 = experiment.visualize_codenorm(show=False, title_str=param_str)
+#fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
