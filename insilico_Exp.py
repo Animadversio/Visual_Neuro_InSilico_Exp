@@ -247,7 +247,7 @@ class ExperimentEvolve:
         fig = plt.figure(figsize=[3, 3])
         plt.imshow(img_select[0])
         plt.axis('off')
-        plt.title("{0:.2f}\n".format(score_select) + title_str, fontsize=16)
+        plt.title("{0:.2f}".format(score_select) + title_str, fontsize=14)
         if show:
             plt.show()
         return fig

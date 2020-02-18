@@ -164,6 +164,10 @@ class HessAware_Gauss_Spherical:
         # Initialize dynamic (internal) strategy parameters and constants
         self.pc = zeros((1, self.dimen))
         self.ps = zeros((1, self.dimen))  # evolution paths for C and sigma
+        self.weights = np.log(mu + 1 / 2) - (np.log(np.arange(1, 1 + np.floor(mu))))  # muXone array for weighted recombination
+        self.fmu = int(np.floor(mu))
+        self.weights = self.weights / sum(self.weights)  # normalize recombination weights array
+        self.weights.shape = (1, -1)  # Add the 1st dim 1 to the weights mat
 
         self.grad = np.zeros((1, self.dimen))  # estimated gradient
         self.innerU = np.zeros((self.B, self.dimen))  # inner random vectors with covariance matrix Id
@@ -209,7 +213,12 @@ class HessAware_Gauss_Spherical:
             codes = codes[:self.B+1, :]
             scores = scores[:self.B+1]
             self.hess_comp = False
-
+        # Sort by fitness and compute weighted mean into xmean
+        if self.maximize is False:
+            code_sort_index = np.argsort(scores)  # add - operator it will do maximization.
+        else:
+            code_sort_index = np.argsort(-scores)
+        sorted_score = scores[code_sort_index]
 
         if self._istep == 0:
             # Population Initialization: if without initialization, the first xmean is evaluated from weighted average all the natural images
@@ -732,28 +741,44 @@ class ExperimentEvolve_DC:
 # experiment3.run()
 # experiment3.visualize_trajectory(show=True)
 # experiment3.visualize_best(show=True)
-# # #%%
+# %%
 unit = ('caffe-net', 'fc8', 1)
 savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
 expdir = join(savedir, "%s_%s_%d_Gauss_Sph" % unit)
 os.makedirs(expdir, exist_ok=True)
-lr=0.25; mu=0.01; Lambda=0.99; UF = 200; trial_i=0
-fn_str = "lr%.1f_mu%.2f_Lambda%.3f_UF%d_tr%d" % (lr, mu, Lambda, UF, trial_i)
-optim = HessAware_Gauss_Spherical(4096, population_size=40, lr=lr, mu=mu, Lambda=Lambda, Hupdate_freq=UF, sphere_norm=300, maximize=True)
-experiment = ExperimentEvolve(unit, max_step=100, optimizer=optim)
-experiment.run(init_code=np.random.randn(1, 4096))
-experiment.visualize_trajectory(show=True)
-experiment.visualize_best(show=True)
-param_str = "lr=%.2f, mu=%.2f, Lambda=%.2f, UpdateFreq=%d" % (optim.lr, optim.mu, optim.Lambda, optim.Hupdate_freq)
-fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
-fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
-fig2 = experiment.visualize_best(show=False)# , title_str=param_str)
-fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
-fig3 = experiment.visualize_exp(show=False, title_str=param_str)
-fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
-fig4 = experiment.visualize_codenorm(show=False, title_str=param_str)
-fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
-#%%
+# lr=0.25; mu=0.01; Lambda=0.99; trial_i=0
+UF = 200
+lr_list = [1,2] # lr_list = [0.1, 0.05, 0.5, 0.25, 0.01]
+mu_list = [0.01, 0.005] # mu_list = [0.01, 0.02, 0.005, 0.04, 0.002, 0.001]
+Lambda_list = [1]
+for i, Lambda in enumerate(Lambda_list):
+    for j, lr in enumerate(lr_list):
+        for k, mu in enumerate(mu_list):
+            idxno = k + j * len(mu_list) + i * len(lr_list) * len(mu_list)
+            for trial_i in range(3):
+                fn_str = "lr%.2f_mu%.3f_Lambda%.1f_UF%d_tr%d" % (lr, mu, Lambda, UF, trial_i)
+                f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
+                sys.stdout = f
+                optim = HessAware_Gauss_Spherical(4096, population_size=40, lr=lr, mu=mu, Lambda=Lambda, Hupdate_freq=UF, sphere_norm=300, maximize=True)
+                experiment = ExperimentEvolve(unit, max_step=100, optimizer=optim)
+                experiment.run(init_code=np.random.randn(1, 4096))
+                experiment.visualize_trajectory(show=True)
+                experiment.visualize_best(show=True)
+                param_str = "lr=%.2f, mu=%.3f, Lambda=%.1f, UpdateFreq=%d" % (optim.lr, optim.mu, optim.Lambda, optim.Hupdate_freq)
+                fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
+                fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
+                fig2 = experiment.visualize_best(show=False)# , title_str=param_str)
+                fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
+                fig3 = experiment.visualize_exp(show=False, title_str=param_str)
+                fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
+                fig4 = experiment.visualize_codenorm(show=False, title_str=param_str)
+                fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
+                time.sleep(5)
+                plt.close('all')
+                sys.stdout = orig_stdout
+                f.close()
+
+# %%
 
 #savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
 #unit = ('caffe-net', 'fc8', 1)
