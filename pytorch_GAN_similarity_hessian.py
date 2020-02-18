@@ -1,3 +1,7 @@
+"""
+Example code for computing Hessian of GAN image similarity output with PyTorch autogradient mechanism.
+Adapted from pytorch_CNN_hessian code. 
+"""
 import os
 from os.path import join
 from time import time

@@ -11,6 +11,7 @@ import matplotlib.pylab as plt
 from time import time
 #%%
 class GAN_CNN_pipeline:
+    """Concatenate GAN and CNN as a function to send into pybobya"""
     def __init__(self, unit=None):
         self.net = load_caffenet()
         self.G = load_generator()

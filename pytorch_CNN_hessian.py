@@ -1,3 +1,6 @@
+"""
+Example code for computing Hessian of CNN activation with PyTorch autogradient mechanism.
+"""
 import sys
 import os
 from os.path import join

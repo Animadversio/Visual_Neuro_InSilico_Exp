@@ -1,3 +1,5 @@
+"""Example code for generating figures of Restrict Evolution in silico experiments"""
+
 basedir = r"D:\Generator_DB_Windows\data\with_CNN"
 unit_arr = [('caffe-net', 'conv3', 5, 10, 10),
             #('caffe-net', 'conv5', 5, 10, 10),
