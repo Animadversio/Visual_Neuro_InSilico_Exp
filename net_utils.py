@@ -16,7 +16,7 @@ else:
         homedir = r"C:\Users\ponce\Documents\Generator_DB_Windows"
         netsdir = os.path.join(homedir, 'nets')
     elif os.environ['COMPUTERNAME'] == 'DESKTOP-MENSD6S':  # Home_WorkStation
-        homedir = "D:/Monkey_Data/Generator_DB_Windows"
+        homedir = "E:/Monkey_Data/Generator_DB_Windows"
         netsdir = os.path.join(homedir, 'nets')
     else:
         homedir = os.path.expanduser('~')

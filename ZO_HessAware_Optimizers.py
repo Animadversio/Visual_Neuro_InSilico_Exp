@@ -13,7 +13,7 @@ orig_stdout = sys.stdout
 # model_unit = ('caffe-net', 'fc6', 1)
 # CNN = CNNmodel(model_unit[0])  # 'caffe-net'
 # CNN.select_unit(model_unit)
-from numpy import sqrt, zeros, abs
+from numpy import sqrt, zeros, abs, floor, log
 from numpy.random import randn
 
 #%%
@@ -150,7 +150,7 @@ class HessAware_Gauss:
         self._istep += 1
         return new_samples
 #%%
-def rankweight(lambda_, mu=None)
+def rankweight(lambda_, mu=None):
     """ Rank weight inspired by CMA-ES code
     mu is the cut off number, how many samples will be kept while `lambda_ - mu` will be ignore
     """
@@ -292,7 +292,7 @@ def ExpMap(x, tang_vec, EPS = 1E-4):
     uni_tang_vec = tang_vec / angle_dist
     # x = repmat(x, size(tang_vec, 1), 1); # vectorized
     xnorm = np.linalg.norm(x)
-    assert(xnorm > EPS)
+    assert(xnorm > EPS, "Exponential Map from a basis point at origin is degenerate, examine the code. (May caused by 0 initialization)")
     y = (np.cos(angle_dist) @ (x[:] / xnorm) + np.sin(angle_dist) * uni_tang_vec) * xnorm
     return y
 
@@ -558,7 +558,7 @@ class HessAware_Gauss_Spherical_DC:
         self.hess_comp = False
         self._istep = 0  # step counter
         self.maximize = maximize  # maximize / minimize the function
-        self.code_stored = np.array([]).reshape((0, self.dimen))
+        self.tang_code_stored = np.array([]).reshape((0, self.dimen))
         self.score_stored = np.array([])
         self.N_in_samp = 0
         self.max_norm = max_norm
@@ -570,7 +570,7 @@ class HessAware_Gauss_Spherical_DC:
         self.xscore = init_score
         self.score_stored = np.array([])
         self.xnew = init_code
-        self.code_stored = np.array([]).reshape((0, self.dimen))
+        self.tang_code_stored = np.array([]).reshape((0, self.dimen))
         self.N_in_samp = 0
 
     def compute_hess(self, scores, Lambda_Frac=100):
@@ -604,14 +604,16 @@ class HessAware_Gauss_Spherical_DC:
                 code_rank = np.argsort(np.argsort(-self.score_stored))
             # Consider do we need to consider the basis code and score here? Or no? 
             # Note the weights here are internally normalized s.t. sum up to 1, no need to normalize more. 
-            self.weights = rankweight(len(scores)-1,mu=20)[code_rank] # map the rank to the corresponding weight of recombination
-            # only keep the top 20 codes and recombine them. 
+            self.weights = rankweight(self.score_stored.size, mu=self.B / 2)[code_rank] # map the rank to the corresponding weight of recombination
+            self.weights = self.weights[np.newaxis, :]
+            # only keep the top 20 codes and recombine them.
 
         if self.nat_grad: # if or not using the Hessian to rescale the codes 
-            hagrad = self.weights @ (self.code_stored - self.xnew) # /self.mu
+            # hagrad = self.weights @ (self.code_stored - self.xnew) # /self.mu
+            hagrad = self.weights @ self.tang_code_stored # /self.mu
         else:
-            Hdcode = self.Lambda * (self.code_stored - self.xnew) + (
-                    ((self.code_stored - self.xnew) @ self.HessUC.T) * self.HessD **2) @ self.HessUC
+            Hdcode = self.Lambda * self.tang_code_stored + (
+                    (self.tang_code_stored @ self.HessUC.T) * self.HessD **2) @ self.HessUC
             hagrad = self.weights @ Hdcode  # /self.mu
 
         print("Gradient Norm %.2f" % (np.linalg.norm(hagrad)))
@@ -630,7 +632,7 @@ class HessAware_Gauss_Spherical_DC:
         else: # if using rankweight, then the maximization if performed in the recombination step. 
             ynew = ExpMap(self.xnew, self.lr * hagrad)
 
-        ynew = ynew / norm(ynew)
+        ynew = ynew / norm(ynew) * self.max_norm
         return ynew
 
     def generate_sample(self, samp_num=None, hess_comp=False):
@@ -646,15 +648,14 @@ class HessAware_Gauss_Spherical_DC:
             new_samples = np.concatenate((H_pos_samples, H_neg_samples), axis=0)
             # new_samples = radial_proj(new_samples, self.max_norm)
         else:
-            new_samples = zeros((samp_num, N))
+            # new_samples = zeros((samp_num, N))
             self.innerU = randn(samp_num, N)  # Isotropic gaussian distributions
             self.outerV = self.innerU / sqrt(self.Lambda) + (
                         (self.innerU @ self.HessUC.T) * self.HUDiag) @ self.HessUC  # H^{-1/2}U
             tang_codes = self.mu * self.outerV # TODO: orthogonalize 
             new_samples = ExpMap(self.xnew, tang_codes) # m + sig * Normal(0,C) self.mu *
             new_samples = radial_proj(new_samples, self.max_norm)
-            self.code_stored = np.concatenate((self.code_stored, tang_codes), axis=0) if 
-                                self.code_stored.size else tang_codes  # only store the tangent codes. 
+            self.tang_code_stored = np.concatenate((self.tang_code_stored, tang_codes), axis=0) if self.tang_code_stored.size else tang_codes  # only store the tangent codes.
             self.N_in_samp += samp_num
         return new_samples
         # set short name for everything to simplify equations
@@ -915,55 +916,57 @@ class ExperimentEvolve_DC:
 # experiment3.run()
 # experiment3.visualize_trajectory(show=True)
 # experiment3.visualize_best(show=True)
-# %%
-unit = ('caffe-net', 'fc8', 1)
-savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
-expdir = join(savedir, "%s_%s_%d_Gauss_Sph" % unit)
-os.makedirs(expdir, exist_ok=True)
-# lr=0.25; mu=0.01; Lambda=0.99; trial_i=0
-UF = 200
-lr_list = [1,2] # lr_list = [0.1, 0.05, 0.5, 0.25, 0.01]
-mu_list = [0.01, 0.005] # mu_list = [0.01, 0.02, 0.005, 0.04, 0.002, 0.001]
-Lambda_list = [1]
-for i, Lambda in enumerate(Lambda_list):
-    for j, lr in enumerate(lr_list):
-        for k, mu in enumerate(mu_list):
-            idxno = k + j * len(mu_list) + i * len(lr_list) * len(mu_list)
-            for trial_i in range(3):
-                fn_str = "lr%.2f_mu%.3f_Lambda%.1f_UF%d_tr%d" % (lr, mu, Lambda, UF, trial_i)
-                f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
-                sys.stdout = f
-                optim = HessAware_Gauss_Spherical(4096, population_size=40, lr=lr, mu=mu, Lambda=Lambda, Hupdate_freq=UF, sphere_norm=300, maximize=True)
-                experiment = ExperimentEvolve(unit, max_step=100, optimizer=optim)
-                experiment.run(init_code=np.random.randn(1, 4096))
-                experiment.visualize_trajectory(show=True)
-                experiment.visualize_best(show=True)
-                param_str = "lr=%.2f, mu=%.3f, Lambda=%.1f, UpdateFreq=%d" % (optim.lr, optim.mu, optim.Lambda, optim.Hupdate_freq)
-                fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
-                fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
-                fig2 = experiment.visualize_best(show=False)# , title_str=param_str)
-                fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
-                fig3 = experiment.visualize_exp(show=False, title_str=param_str)
-                fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
-                fig4 = experiment.visualize_codenorm(show=False, title_str=param_str)
-                fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
-                time.sleep(5)
-                plt.close('all')
-                sys.stdout = orig_stdout
-                f.close()
+# %% HessAware_Gauss_Spherical Testing
+# unit = ('caffe-net', 'fc8', 1)
+# savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+# expdir = join(savedir, "%s_%s_%d_Gauss_Sph" % unit)
+# os.makedirs(expdir, exist_ok=True)
+# # lr=0.25; mu=0.01; Lambda=0.99; trial_i=0
+# UF = 200
+# lr_list = [1,2] # lr_list = [0.1, 0.05, 0.5, 0.25, 0.01]
+# mu_list = [0.01, 0.005] # mu_list = [0.01, 0.02, 0.005, 0.04, 0.002, 0.001]
+# Lambda_list = [1]
+# for i, Lambda in enumerate(Lambda_list):
+#     for j, lr in enumerate(lr_list):
+#         for k, mu in enumerate(mu_list):
+#             idxno = k + j * len(mu_list) + i * len(lr_list) * len(mu_list)
+#             for trial_i in range(3):
+#                 fn_str = "lr%.2f_mu%.3f_Lambda%.1f_UF%d_tr%d" % (lr, mu, Lambda, UF, trial_i)
+#                 f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
+#                 sys.stdout = f
+#                 optim = HessAware_Gauss_Spherical(4096, population_size=40, lr=lr, mu=mu, Lambda=Lambda, Hupdate_freq=UF, sphere_norm=300, maximize=True)
+#                 experiment = ExperimentEvolve(unit, max_step=100, optimizer=optim)
+#                 experiment.run(init_code=np.random.randn(1, 4096))
+#                 experiment.visualize_trajectory(show=True)
+#                 experiment.visualize_best(show=True)
+#                 param_str = "lr=%.2f, mu=%.3f, Lambda=%.1f, UpdateFreq=%d" % (optim.lr, optim.mu, optim.Lambda, optim.Hupdate_freq)
+#                 fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
+#                 fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
+#                 fig2 = experiment.visualize_best(show=False)# , title_str=param_str)
+#                 fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
+#                 fig3 = experiment.visualize_exp(show=False, title_str=param_str)
+#                 fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
+#                 fig4 = experiment.visualize_codenorm(show=False, title_str=param_str)
+#                 fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
+#                 time.sleep(5)
+#                 plt.close('all')
+#                 sys.stdout = orig_stdout
+#                 f.close()
 
-# %%
+# %% HessAware_Gauss_Spherical_DC Testing
 unit = ('caffe-net', 'fc8', 1)
-savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+# savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+savedir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
 expdir = join(savedir, "%s_%s_%d_Gauss_DC_Sph" % unit)
 os.makedirs(expdir, exist_ok=True)
-fn_str = "lr%.1f_mu%.1f_nu%.2f_tr%d" % (lr, mu, nu, trial_i)
+lr = 3; mu = 0.002; Lambda=1;trial_i=0
+fn_str = "lr%.1f_mu%.1f_Lambda%.2f_tr%d" % (lr, mu, Lambda, trial_i)
 #f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
 #sys.stdout = f
-optim = HessAware_Gauss_Spherical_DC(4096, population_size=40, lr=1, mu=0.005, Lambda=0.9, Hupdate_freq=201, 
+optim = HessAware_Gauss_Spherical_DC(4096, population_size=40, lr=lr, mu=mu, Lambda=Lambda, Hupdate_freq=201,
             rankweight=True, nat_grad=True, maximize=True, max_norm=300)
 experiment = ExperimentEvolve_DC(unit, max_step=100, optimizer=optim)
-experiment.run(init_code=np.zeros((1, 4096)))
+experiment.run(init_code=np.random.randn(1, 4096))
 param_str = "lr=%.1f, mu=%.4f, Lambda=%.2f." % (optim.lr, optim.mu, optim.Lambda)
 fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
 fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
@@ -977,6 +980,7 @@ plt.show(block=False)
 time.sleep(5)
 plt.close('all')
 
+#%% ADAM DC
 #savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
 #unit = ('caffe-net', 'fc8', 1)
 #expdir = join(savedir, "%s_%s_%d_ADAM_DC" % unit)

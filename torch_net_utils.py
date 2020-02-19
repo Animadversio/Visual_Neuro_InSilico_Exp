@@ -24,9 +24,9 @@ else:
         homedir = r"C:\Users\ponce\Documents\Generator_DB_Windows"
         netsdir = os.path.join(homedir, 'nets')
     elif os.environ['COMPUTERNAME'] == 'DESKTOP-MENSD6S':  # Home_WorkStation
-        sys.path.append("E:\Github\pytorch-caffe")
-        sys.path.append("E:\Github\pytorch-receptive-field")
-        homedir = "D:/Monkey_Data/Generator_DB_Windows"
+        sys.path.append(r"E:\Github_Projects\pytorch-caffe")
+        sys.path.append(r"E:\Github_Projects\pytorch-receptive-field")
+        homedir = "E:/Monkey_Data/Generator_DB_Windows"
         netsdir = os.path.join(homedir, 'nets')
     else:
         sys.path.append("D:\Github\pytorch-caffe")
