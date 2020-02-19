@@ -615,13 +615,22 @@ class HessAware_Gauss_Spherical_DC:
             hagrad = self.weights @ Hdcode  # /self.mu
 
         print("Gradient Norm %.2f" % (np.linalg.norm(hagrad)))
+        # if self.rankweight is False:
+        #     if self.maximize:
+        #         ynew = radial_proj(self.xnew + self.lr * hagrad, max_norm=self.max_norm)
+        #     else:
+        #         ynew = radial_proj(self.xnew - self.lr * hagrad, max_norm=self.max_norm)
+        # else: # if using rankweight, then the maximization if performed in the recombination step. 
+        #     ynew = radial_proj(self.xnew + self.lr * hagrad, max_norm=self.max_norm)
         if self.rankweight is False:
             if self.maximize:
-                ynew = radial_proj(self.xnew + self.lr * hagrad, max_norm=self.max_norm)
+                ynew = ExpMap(self.xnew, self.lr * hagrad)
             else:
-                ynew = radial_proj(self.xnew - self.lr * hagrad, max_norm=self.max_norm)
+                ynew = ExpMap(self.xnew, - self.lr * hagrad)
         else: # if using rankweight, then the maximization if performed in the recombination step. 
-            ynew = radial_proj(self.xnew + self.lr * hagrad, max_norm=self.max_norm)
+            ynew = ExpMap(self.xnew, self.lr * hagrad)
+
+        ynew = ynew / norm(ynew)
         return ynew
 
     def generate_sample(self, samp_num=None, hess_comp=False):
@@ -629,6 +638,7 @@ class HessAware_Gauss_Spherical_DC:
         N = self.dimen
         # Generate new sample by sampling from Gaussian distribution
         if hess_comp: 
+            # Not implemented yet 
             # self.hess_comp = True
             self.HinnerU = randn(self.HB, N)
             H_pos_samples = self.xnew + self.mu * self.HinnerU
@@ -640,20 +650,21 @@ class HessAware_Gauss_Spherical_DC:
             self.innerU = randn(samp_num, N)  # Isotropic gaussian distributions
             self.outerV = self.innerU / sqrt(self.Lambda) + (
                         (self.innerU @ self.HessUC.T) * self.HUDiag) @ self.HessUC  # H^{-1/2}U
-            # new_samples[0:1, :] = self.xnew
-            new_samples[:, :] = self.xnew + self.mu * self.outerV  # m + sig * Normal(0,C) self.mu *
+            tang_codes = self.mu * self.outerV # TODO: orthogonalize 
+            new_samples = ExpMap(self.xnew, tang_codes) # m + sig * Normal(0,C) self.mu *
             new_samples = radial_proj(new_samples, self.max_norm)
-            self.code_stored = np.concatenate((self.code_stored, new_samples), axis=0) if self.code_stored.size else new_samples
+            self.code_stored = np.concatenate((self.code_stored, tang_codes), axis=0) if 
+                                self.code_stored.size else tang_codes  # only store the tangent codes. 
             self.N_in_samp += samp_num
         return new_samples
         # set short name for everything to simplify equations
-
 
 #%%
 
 class ExperimentEvolve_DC:
     """
     Default behavior is to use the current CMAES optimizer to optimize for 200 steps for the given unit.
+    This Experimental Class is defined to test out the new Descent checking 
     """
     def __init__(self, model_unit, max_step=200, optimizer=None, nat_grad=True):
         self.recording = []
@@ -739,8 +750,7 @@ class ExperimentEvolve_DC:
         return fig
 
     def visualize_best(self, show=False, title_str=""):
-        """ Just Visualize the best Images for the experiment
-        """
+        """ Just Visualize the best Images for the experiment """
         idx = np.argmax(self.scores_all)
         select_code = self.codes_all[idx:idx + 1, :]
         score_select = self.scores_all[idx]
@@ -748,7 +758,7 @@ class ExperimentEvolve_DC:
         fig = plt.figure(figsize=[3, 3])
         plt.imshow(img_select[0])
         plt.axis('off')
-        plt.title("{0:.2f}\n".format(score_select)+title_str, fontsize=16)
+        plt.title("{0:.2f}".format(score_select)+title_str, fontsize=16)
         if show:
             plt.show()
         return fig
@@ -943,6 +953,29 @@ for i, Lambda in enumerate(Lambda_list):
                 f.close()
 
 # %%
+unit = ('caffe-net', 'fc8', 1)
+savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+expdir = join(savedir, "%s_%s_%d_Gauss_DC_Sph" % unit)
+os.makedirs(expdir, exist_ok=True)
+fn_str = "lr%.1f_mu%.1f_nu%.2f_tr%d" % (lr, mu, nu, trial_i)
+#f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
+#sys.stdout = f
+optim = HessAware_Gauss_Spherical_DC(4096, population_size=40, lr=1, mu=0.005, Lambda=0.9, Hupdate_freq=201, 
+            rankweight=True, nat_grad=True, maximize=True, max_norm=300)
+experiment = ExperimentEvolve_DC(unit, max_step=100, optimizer=optim)
+experiment.run(init_code=np.zeros((1, 4096)))
+param_str = "lr=%.1f, mu=%.4f, Lambda=%.2f." % (optim.lr, optim.mu, optim.Lambda)
+fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
+fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
+fig2 = experiment.visualize_best(show=False, title_str=param_str)
+fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
+fig3 = experiment.visualize_exp(show=False, title_str=param_str)
+fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
+fig4 = experiment.visualize_codenorm(show=False, title_str=param_str)
+fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
+plt.show(block=False)
+time.sleep(5)
+plt.close('all')
 
 #savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
 #unit = ('caffe-net', 'fc8', 1)
