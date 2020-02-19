@@ -349,7 +349,7 @@ def radial_proj(codes, max_norm):
 class HessAware_Gauss_DC:
     """Gaussian Sampling method for estimating Hessian"""
     def __init__(self, space_dimen, population_size=40, lr=0.1, mu=1, Lambda=0.9, Hupdate_freq=5, 
-        maximize=True, max_norm=300, nat_grad=False):
+        maximize=True, max_norm=300, rankweight=False, nat_grad=False):
         self.dimen = space_dimen  # dimension of input space
         self.B = population_size  # population batch size
         self.mu = mu  # scale of the Gaussian distribution to estimate gradient
@@ -377,7 +377,8 @@ class HessAware_Gauss_DC:
         self.N_in_samp = 0
         self.max_norm = max_norm
         self.nat_grad = nat_grad # use the natural gradient definition, or normal gradient. 
-
+        self.rankweight = rankweight
+        
     def new_generation(self, init_score, init_code):
         self.xscore = init_score
         self.score_stored = np.array([])
@@ -402,17 +403,37 @@ class HessAware_Gauss_DC:
     def compute_grad(self, scores):
         # add the new scores to storage
         self.score_stored = np.concatenate((self.score_stored, scores), axis=0) if self.score_stored.size else scores
-        if self.nat_grad:
-            hagrad = (self.score_stored - self.xscore)/self.mu @ (self.code_stored - self.xnew) / self.N_in_samp # /self.mu
+        if self.rankweight is False: # use the score difference as weight
+            # B normalizer should go here larger cohort of codes gives more estimates 
+            self.weights = (self.score_stored - self.xscore) / self.score_stored.size # / self.mu 
+            # assert(self.N_in_samp == self.score_stored.size)
+        else:  # use a function of rank as weight, not really gradient. 
+            # Note descent check **could be** built into ranking weight? 
+            # If not better just don't give weights to that sample 
+            if self.maximize is False: # note for weighted recombination, the maximization flag is here. 
+                code_rank = np.argsort(np.argsort( self.score_stored))  # add - operator it will do maximization.
+            else:
+                code_rank = np.argsort(np.argsort(-self.score_stored))
+            # Consider do we need to consider the basis code and score here? Or no? 
+            # Note the weights here are internally normalized s.t. sum up to 1, no need to normalize more. 
+            self.weights = rankweight(len(scores)-1,mu=20)[code_rank] # map the rank to the corresponding weight of recombination
+            # only keep the top 20 codes and recombine them. 
+
+        if self.nat_grad: # if or not using the Hessian to rescale the codes 
+            hagrad = self.weights @ (self.code_stored - self.xnew) # /self.mu
         else:
             Hdcode = self.Lambda * (self.code_stored - self.xnew) + (
                     ((self.code_stored - self.xnew) @ self.HessUC.T) * self.HessD **2) @ self.HessUC
-            hagrad = (self.score_stored - self.xscore) / self.mu @ Hdcode / self.N_in_samp  # /self.mu
+            hagrad = self.weights @ Hdcode  # /self.mu
+
         print("Gradient Norm %.2f" % (np.linalg.norm(hagrad)))
-        if self.maximize:
+        if self.rankweight is False:
+            if self.maximize:
+                ynew = radial_proj(self.xnew + self.lr * hagrad, max_norm=self.max_norm)
+            else:
+                ynew = radial_proj(self.xnew - self.lr * hagrad, max_norm=self.max_norm)
+        else: # if using rankweight, then the maximization if performed in the recombination step. 
             ynew = radial_proj(self.xnew + self.lr * hagrad, max_norm=self.max_norm)
-        else:
-            ynew = radial_proj(self.xnew - self.lr * hagrad, max_norm=self.max_norm)
         return ynew
 
     def generate_sample(self, samp_num=None, hess_comp=False):
@@ -568,7 +589,7 @@ class HessAware_Gauss_Spherical_DC:
 
     def compute_grad(self, scores):
         # add the new scores to storage
-        # refer to the original one 
+        # refer to the original one, adapt from the HessAware_Gauss version. 
         self.score_stored = np.concatenate((self.score_stored, scores), axis=0) if self.score_stored.size else scores
         if self.rankweight is False: # use the score difference as weight
             # B normalizer should go here larger cohort of codes gives more estimates 
@@ -586,7 +607,7 @@ class HessAware_Gauss_Spherical_DC:
             self.weights = rankweight(len(scores)-1,mu=20)[code_rank] # map the rank to the corresponding weight of recombination
             # only keep the top 20 codes and recombine them. 
 
-        if self.nat_grad:
+        if self.nat_grad: # if or not using the Hessian to rescale the codes 
             hagrad = self.weights @ (self.code_stored - self.xnew) # /self.mu
         else:
             Hdcode = self.Lambda * (self.code_stored - self.xnew) + (
@@ -594,10 +615,13 @@ class HessAware_Gauss_Spherical_DC:
             hagrad = self.weights @ Hdcode  # /self.mu
 
         print("Gradient Norm %.2f" % (np.linalg.norm(hagrad)))
-        if self.maximize:
+        if self.rankweight is False:
+            if self.maximize:
+                ynew = radial_proj(self.xnew + self.lr * hagrad, max_norm=self.max_norm)
+            else:
+                ynew = radial_proj(self.xnew - self.lr * hagrad, max_norm=self.max_norm)
+        else: # if using rankweight, then the maximization if performed in the recombination step. 
             ynew = radial_proj(self.xnew + self.lr * hagrad, max_norm=self.max_norm)
-        else:
-            ynew = radial_proj(self.xnew - self.lr * hagrad, max_norm=self.max_norm)
         return ynew
 
     def generate_sample(self, samp_num=None, hess_comp=False):
