@@ -1,3 +1,5 @@
 *.npz
 .idea/*
 *.pyc
+*.pyc
+__pycache__/torch_net_utils.cpython-36.pyc

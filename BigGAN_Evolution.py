@@ -5,7 +5,6 @@ import numpy as np
 # Load pre-trained model tokenizer (vocabulary)
 model = BigGAN.from_pretrained('biggan-deep-256')
 
-
 # Prepare a input
 batch_size = 5
 truncation = 0.4
