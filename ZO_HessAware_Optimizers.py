@@ -663,7 +663,7 @@ class HessAware_Gauss_Spherical_DC:
             self.N_in_samp += samp_num
         return new_samples
         # set short name for everything to simplify equations
-
+#%%
 class HessAware_Gauss_Hybrid_DC:
     """Gaussian Sampling method Hessian Aware Algorithm
     With a automatic switch between linear exploration and spherical exploration
@@ -1158,16 +1158,17 @@ savedir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Optimiz
 expdir = join(savedir, "%s_%s_%d_Gauss_DC_Hybrid" % unit)
 os.makedirs(expdir, exist_ok=True)
 # lr = 3; mu = 0.002;
-lr = 0.1; mu = 1
+lr = 2; mu = 2
+lr_sph=2; mu_sph=0.005
 Lambda=1; trial_i=0
-fn_str = "lr%.1f_mu%.1f_Lambda%.2f_tr%d" % (lr, mu, Lambda, trial_i)
-#f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
-#sys.stdout = f
-optim = HessAware_Gauss_Hybrid_DC(4096, population_size=40, lr=lr, mu=mu, lr_sph=2, mu_sph=0.005,Lambda=Lambda, Hupdate_freq=201,
+fn_str = "lr%.1f_mu%.4f_lrsph%.1f_musph%.4f_Lambda%.2f_tr%d" % (lr, mu, lr_sph, mu_sph, Lambda, trial_i)
+f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
+sys.stdout = f
+optim = HessAware_Gauss_Hybrid_DC(4096, population_size=40, lr=lr, mu=mu, lr_sph=lr_sph, mu_sph=mu_sph, Lambda=Lambda, Hupdate_freq=201,
             rankweight=True, nat_grad=True, maximize=True, max_norm=300)
 experiment = ExperimentEvolve_DC(unit, max_step=100, optimizer=optim)
 experiment.run(init_code=np.random.randn(1, 4096))
-param_str = "lr=%.1f, mu=%.4f, Lambda=%.2f." % (optim.lr, optim.mu, optim.Lambda)
+param_str = "lr=%.1f, mu=%.4f, lr_sph=%.1f, mu_sph=%.4f, Lambda=%.2f." % (lr, mu, lr_sph, mu_sph, optim.Lambda)
 fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
 fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
 fig2 = experiment.visualize_best(show=False, title_str="")
