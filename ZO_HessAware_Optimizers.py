@@ -702,6 +702,8 @@ class HessAware_Gauss_Hybrid_DC:
         self.rankweight = rankweight # Switch between using raw score as weight VS use rank weight as score
         self.nat_grad = nat_grad # use the natural gradient definition, or normal gradient. 
         self.sphere_flag = False # initialize the whole system as linear?
+        self.lr_sph = lr_sph
+        self.mu_sph = mu_sph
 
     def new_generation(self, init_score, init_code):
         self.xscore = init_score
@@ -1100,16 +1102,68 @@ class ExperimentEvolve_DC:
 #                 f.close()
 
 # %% HessAware_Gauss_Spherical_DC Testing
+# unit = ('caffe-net', 'fc8', 1)
+# # savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+# savedir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+# expdir = join(savedir, "%s_%s_%d_Gauss_DC_Sph" % unit)
+# os.makedirs(expdir, exist_ok=True)
+# lr = 3; mu = 0.002; Lambda=1;trial_i=0
+# fn_str = "lr%.1f_mu%.1f_Lambda%.2f_tr%d" % (lr, mu, Lambda, trial_i)
+# #f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
+# #sys.stdout = f
+# optim = HessAware_Gauss_Spherical_DC(4096, population_size=40, lr=lr, mu=mu, Lambda=Lambda, Hupdate_freq=201,
+#             rankweight=True, nat_grad=True, maximize=True, max_norm=300)
+# experiment = ExperimentEvolve_DC(unit, max_step=100, optimizer=optim)
+# experiment.run(init_code=np.random.randn(1, 4096))
+# param_str = "lr=%.1f, mu=%.4f, Lambda=%.2f." % (optim.lr, optim.mu, optim.Lambda)
+# fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
+# fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
+# fig2 = experiment.visualize_best(show=False, title_str=param_str)
+# fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
+# fig3 = experiment.visualize_exp(show=False, title_str=param_str)
+# fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
+# fig4 = experiment.visualize_codenorm(show=False, title_str=param_str)
+# fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
+# plt.show(block=False)
+# time.sleep(5)
+# plt.close('all')unit = ('caffe-net', 'fc8', 1)
+# # savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+# savedir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+# expdir = join(savedir, "%s_%s_%d_Gauss_DC_Sph" % unit)
+# os.makedirs(expdir, exist_ok=True)
+# lr = 3; mu = 0.002; Lambda=1;trial_i=0
+# fn_str = "lr%.1f_mu%.1f_Lambda%.2f_tr%d" % (lr, mu, Lambda, trial_i)
+# #f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
+# #sys.stdout = f
+# optim = HessAware_Gauss_Spherical_DC(4096, population_size=40, lr=lr, mu=mu, Lambda=Lambda, Hupdate_freq=201,
+#             rankweight=True, nat_grad=True, maximize=True, max_norm=300)
+# experiment = ExperimentEvolve_DC(unit, max_step=100, optimizer=optim)
+# experiment.run(init_code=np.random.randn(1, 4096))
+# param_str = "lr=%.1f, mu=%.4f, Lambda=%.2f." % (optim.lr, optim.mu, optim.Lambda)
+# fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
+# fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
+# fig2 = experiment.visualize_best(show=False, title_str=param_str)
+# fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
+# fig3 = experiment.visualize_exp(show=False, title_str=param_str)
+# fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
+# fig4 = experiment.visualize_codenorm(show=False, title_str=param_str)
+# fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
+# plt.show(block=False)
+# time.sleep(5)
+# plt.close('all')
+#%%
 unit = ('caffe-net', 'fc8', 1)
-# savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
-savedir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
-expdir = join(savedir, "%s_%s_%d_Gauss_DC_Sph" % unit)
+savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+# savedir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+expdir = join(savedir, "%s_%s_%d_Gauss_DC_Hybrid" % unit)
 os.makedirs(expdir, exist_ok=True)
-lr = 3; mu = 0.002; Lambda=1;trial_i=0
+# lr = 3; mu = 0.002;
+lr = 0.1; mu = 1
+Lambda=1; trial_i=0
 fn_str = "lr%.1f_mu%.1f_Lambda%.2f_tr%d" % (lr, mu, Lambda, trial_i)
 #f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
 #sys.stdout = f
-optim = HessAware_Gauss_Spherical_DC(4096, population_size=40, lr=lr, mu=mu, Lambda=Lambda, Hupdate_freq=201,
+optim = HessAware_Gauss_Hybrid_DC(4096, population_size=40, lr=lr, mu=mu, lr_sph=2, mu_sph=0.005,Lambda=Lambda, Hupdate_freq=201,
             rankweight=True, nat_grad=True, maximize=True, max_norm=300)
 experiment = ExperimentEvolve_DC(unit, max_step=100, optimizer=optim)
 experiment.run(init_code=np.random.randn(1, 4096))
@@ -1125,7 +1179,6 @@ fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
 plt.show(block=False)
 time.sleep(5)
 plt.close('all')
-
 #%% ADAM DC
 #savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
 #unit = ('caffe-net', 'fc8', 1)
