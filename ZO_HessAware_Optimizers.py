@@ -1153,8 +1153,8 @@ class ExperimentEvolve_DC:
 # plt.close('all')
 #%%
 unit = ('caffe-net', 'fc8', 1)
-savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
-# savedir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+# savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+savedir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
 expdir = join(savedir, "%s_%s_%d_Gauss_DC_Hybrid" % unit)
 os.makedirs(expdir, exist_ok=True)
 # lr = 3; mu = 0.002;
@@ -1170,7 +1170,7 @@ experiment.run(init_code=np.random.randn(1, 4096))
 param_str = "lr=%.1f, mu=%.4f, Lambda=%.2f." % (optim.lr, optim.mu, optim.Lambda)
 fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
 fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
-fig2 = experiment.visualize_best(show=False, title_str=param_str)
+fig2 = experiment.visualize_best(show=False, title_str="")
 fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
 fig3 = experiment.visualize_exp(show=False, title_str=param_str)
 fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
@@ -1179,6 +1179,7 @@ fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
 plt.show(block=False)
 time.sleep(5)
 plt.close('all')
+sys.stdout = orig_stdout
 #%% ADAM DC
 #savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
 #unit = ('caffe-net', 'fc8', 1)
