@@ -668,9 +668,10 @@ class HessAware_Gauss_Hybrid_DC:
     """Gaussian Sampling method Hessian Aware Algorithm
     With a automatic switch between linear exploration and spherical exploration
     Our ultimate Optimizer. It's an automatic blend of Spherical class and normal class.
+    TODO: Add automatic tuning of mu and step size according to the norm of the mean vector.
     """
-    def __init__(self, space_dimen, population_size=40, lr=0.1, mu=1, Lambda=0.9, Hupdate_freq=5, 
-            maximize=True, max_norm=300, rankweight=False, nat_grad=False):
+    def __init__(self, space_dimen, population_size=40, lr=0.1, mu=1, lr_sph=2, mu_sph=0.005, 
+            Lambda=0.9, Hupdate_freq=5, maximize=True, max_norm=300, rankweight=False, nat_grad=False):
         self.dimen = space_dimen  # dimension of input space
         self.B = population_size  # population batch size
         self.mu = mu  # scale of the Gaussian distribution to estimate gradient
@@ -766,12 +767,16 @@ class HessAware_Gauss_Hybrid_DC:
         mov_sign = -1 if (not self.maximize) and (not self.rankweight) else 1 
         if not self.sphere_flag: 
             ynew = self.xnew + mov_sign * self.lr * hagrad # Linear space ExpMap reduced to just normal linear addition.
-        else: 
+            if norm(ynew) > self.max_norm:
+                print("Travelling outside the spherer\n Changing to Spherical mode at step %d",self._istep)
+                self.sphere_flag = True 
+                self.mu = self.mu_sph # changing the new parameters
+                self.lr = self.lr_sph # changing the new parameters
+                # maybe save the old ones
+        else:  # Spherically move mean
             ynew = ExpMap(self.xnew, mov_sign * self.lr * hagrad)
-        if norm(ynew) > self.max_norm:
-            print("Travelling outside the spherer\n Changing to Spherical mode at step %d",self._istep)
+            ynew = ynew / norm(ynew) * self.max_norm # exact normalization to the sphere.
         # ynew = radial_proj(ynew, max_norm=self.max_norm) # Projection 
-        ynew = ynew / norm(ynew) * self.max_norm # exact normalization. 
         return ynew
 
     def generate_sample(self, samp_num=None, hess_comp=False):
@@ -794,7 +799,7 @@ class HessAware_Gauss_Hybrid_DC:
             tang_codes = self.mu * self.outerV # TODO: orthogonalize 
             if not self.sphere_flag: 
                 new_samples = self.xnew + tang_codes # Linear space ExpMap reduced to just normal linear addition.
-            else: 
+            else:  # Spherically move mean
                 new_samples = ExpMap(self.xnew, tang_codes) # m + sig * Normal(0,C) self.mu *
             new_samples = radial_proj(new_samples, self.max_norm)
             self.tang_code_stored = np.concatenate((self.tang_code_stored, tang_codes), axis=0) if self.tang_code_stored.size else tang_codes  # only store the tangent codes.
