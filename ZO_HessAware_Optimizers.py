@@ -1352,16 +1352,16 @@ savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimiz
 expdir = join(savedir, "%s_%s_%d_Gauss_DC_Cylind" % unit)
 os.makedirs(expdir, exist_ok=True)
 # lr = 3; mu = 0.002;
-lr_norm = 1; mu_norm = 2
+lr_norm = 5; mu_norm = 1
 lr_sph = 2; mu_sph = 0.005
 Lambda=1; trial_i=0
-fn_str = "lrnorm%.1f_munorm%.4f_lrsph%.1f_musph%.4f_Lambda%.2f_tr%d" % (lr_norm, mu_norm, lr_sph, mu_sph, Lambda, trial_i)
+fn_str = "lrnorm%.1f_munorm%.4f_lrsph%.1f_musph%.4f_Lambda%.2f_unbound_tr%d" % (lr_norm, mu_norm, lr_sph, mu_sph, Lambda, trial_i)
 f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
 sys.stdout = f
 optim = HessAware_Gauss_Cylind_DC(4096, population_size=40, lr_norm=lr_norm, mu_norm=mu_norm, lr_sph=lr_sph, mu_sph=mu_sph, Lambda=Lambda, Hupdate_freq=201,
-            rankweight=True, nat_grad=True, maximize=True, max_norm=300)
+            rankweight=True, nat_grad=True, maximize=True, max_norm=400)
 experiment = ExperimentEvolve_DC(unit, max_step=100, optimizer=optim)
-experiment.run(init_code=2 * np.random.randn(1, 4096))
+experiment.run(init_code=4 * np.random.randn(1, 4096))
 param_str = "lr_norm=%.1f, mu_norm=%.2f, lr_sph=%.1f, mu_sph=%.4f, Lambda=%.2f." % (lr_norm, mu_norm, lr_sph, mu_sph, optim.Lambda)
 fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
 fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))

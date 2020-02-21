@@ -1,30 +1,74 @@
+import sys
+sys.path.append("D:\Github\pytorch-pretrained-BigGAN")
 from pytorch_pretrained_biggan import (BigGAN, one_hot_from_names, truncated_noise_sample,
-                                       save_as_images, display_in_terminal)
+                                       save_as_images, display_in_terminal, convert_to_images)
 import torch
 import numpy as np
+import matplotlib.pylab as plt
+#%%
+from scipy.stats import truncnorm
+def convert_to_images(obj):
+    """ Convert an output tensor from BigGAN in a list of images.
+        Params:
+            obj: tensor or numpy array of shape (batch_size, channels, height, width)
+        Output:
+            list of Pillow Images of size (height, width)
+    """
+    try:
+        from PIL import Image
+    except ImportError:
+        raise ImportError("Please install Pillow to use images: pip install Pillow")
+
+    if not isinstance(obj, np.ndarray):
+        obj = obj.detach().numpy()
+
+    obj = obj.transpose((0, 2, 3, 1))
+    obj = np.clip(((obj + 1) / 2.0) * 256, 0, 255)
+
+    img = []
+    for i, out in enumerate(obj):
+        out_array = np.asarray(np.uint8(out), dtype=np.uint8)
+        img.append(Image.fromarray(out_array))
+    return img
+
+def truncated_noise_sample(batch_size=1, dim_z=128, truncation=1., seed=None):
+    """ Create a truncated noise vector.
+        Params:
+            batch_size: batch size.
+            dim_z: dimension of z
+            truncation: truncation value to use
+            seed: seed for the random generator
+        Output:
+            array of shape (batch_size, dim_z)
+    """
+    state = None if seed is None else np.random.RandomState(seed)
+    values = truncnorm.rvs(-2, 2, size=(batch_size, dim_z), random_state=state).astype(np.float32)
+    return truncation * values
+
+#%%
 # Load pre-trained model tokenizer (vocabulary)
 model = BigGAN.from_pretrained('biggan-deep-256')
-
 # Prepare a input
-batch_size = 5
-truncation = 0.4
+batch_size = 3
+truncation = 1
 class_vector = one_hot_from_names(['soap bubble', 'coffee', 'mushroom'], batch_size=batch_size)
 noise_vector = truncated_noise_sample(truncation=truncation, batch_size=batch_size)
-
 # All in tensors
-noise_vector = torch.from_numpy(noise_vector)
+#noise_vector = torch.from_numpy(np.ones([3, 128]).astype(np.float32)) #
+noise_vector =  torch.from_numpy(noise_vector)
 class_vector = torch.from_numpy(class_vector)
-
 # If you have a GPU, put everything on cuda
 noise_vector = noise_vector.to('cuda')
 class_vector = class_vector.to('cuda')
 model.to('cuda')
-
 # Generate an image
 with torch.no_grad():
     output = model(noise_vector, class_vector, truncation)
-
-
+imgs = convert_to_images(output.cpu())
+#%
+plt.imshow(imgs[2])
+plt.show()
+#%%
 def render(codes, scale=255):
     '''Render a list of codes to list of images'''
     if type(codes) is list:
