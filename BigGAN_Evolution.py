@@ -2,14 +2,19 @@ import sys
 from os.path import join
 # sys.path.append("D:\Github\pytorch-pretrained-BigGAN")
 # sys.path.append("E:\Github_Projects\pytorch-pretrained-BigGAN")
-from pytorch_pretrained_biggan import (BigGAN, one_hot_from_names, truncated_noise_sample,
-                                       save_as_images, display_in_terminal, convert_to_images)
+from pytorch_pretrained_biggan import (BigGAN, one_hot_from_names, truncated_noise_sample,convert_to_images)
 import torch
 import numpy as np
 import matplotlib.pylab as plt
 #%%
+#%%
+from numpy.linalg import norm
+def orthonorm(ref, vec2):
+    res = vec2 - vec2 @ ref.T * ref / norm(ref, axis=1)**2
+    return res / norm(res) * norm(ref)
+#%%
 from scipy.stats import truncnorm
-def convert_to_images(obj):
+def convert_to_images_np(obj, scale=1.0):
     """ Convert an output tensor from BigGAN in a list of images.
         Params:
             obj: tensor or numpy array of shape (batch_size, channels, height, width)
@@ -25,12 +30,10 @@ def convert_to_images(obj):
         obj = obj.detach().numpy()
 
     obj = obj.transpose((0, 2, 3, 1))
-    obj = np.clip(((obj + 1) / 2.0) * 256, 0, 255)
-
+    obj = np.clip(((obj + 1) / 2.0) * scale, 0, scale)
     img = []
     for i, out in enumerate(obj):
-        out_array = np.asarray(np.uint8(out), dtype=np.uint8)
-        img.append(Image.fromarray(out_array))
+        img.append(out)
     return img
 
 def truncated_noise_sample(batch_size=1, dim_z=128, truncation=1., seed=None):
@@ -81,8 +84,9 @@ def BigGAN_embed_render(embed_vecs, noise_vecs=None, truncation=0.7, scale=1.0):
                 input_vecs = torch.cat((torch.from_numpy(noise_vecs), torch.from_numpy(embed_vecs)), dim=1)
     with torch.no_grad():
         output = model.generator(input_vecs.float().cuda(), truncation)
-    imgs = convert_to_images(output.cpu())
-    imgs = [np.array(img).astype(np.float64) / 255 * scale for img in imgs]
+    # imgs = convert_to_images(output.cpu())
+    # imgs = [np.array(img).astype(np.float64) / 255 * scale for img in imgs]
+    imgs = convert_to_images_np(output.cpu(),scale)
     return imgs
 
 if __name__=="__main__":
@@ -146,11 +150,7 @@ if __name__=="__main__":
         plt.title("{0:.1f}".format(scale_vec[i]), fontsize=15,)
     plt.savefig(join(savedir, "%s_UL%.1f_BL%.1f_trunc%.1f_%04d.png" % (classname, scale_UL, scale_BL, truncation, np.random.randint(10000))))
     plt.show()
-    #%%
-    from numpy.linalg import norm
-    def orthonorm(ref, vec2):
-        res = vec2 - vec2 @ ref.T * ref / norm(ref, axis=1)**2
-        return res / norm(res) * norm(ref)
+
     #%% 2d linear interpolation through center
     savedir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Generator_Testing\BigGAN256"
     truncation = 0.7

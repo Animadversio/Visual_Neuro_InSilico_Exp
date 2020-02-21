@@ -88,7 +88,7 @@ class CNNmodel:
         else:
             return scores
 #%%
-from torch_net_utils import load_caffenet, load_generator, visualize
+from torch_net_utils import load_caffenet, load_generator, visualize, preprocess
 class CNNmodel_Torch:
     """ Basic CNN scorer
     Demo:
@@ -103,8 +103,11 @@ class CNNmodel_Torch:
     def __init__(self, model_name):
         if model_name == "caffe-net":
             self._classifier = load_caffenet()
-        self._transformer = net_utils.get_transformer(self._classifier, scale=1)
+            self.preprocess = preprocess
+        # self._transformer = net_utils.get_transformer(self._classifier, scale=1)
         self.artiphys = False
+
+    # def preprocess(self, img):
 
     def select_unit(self, unit_tuple):
         self._classifier_name = str(unit_tuple[0])
@@ -133,18 +136,16 @@ class CNNmodel_Torch:
         scores = np.zeros(len(images))
         for i, img in enumerate(images):
             # Note: now only support single repetition
-            tim = self._transformer.preprocess('data', img)  # shape=(3, 227, 227) # assuming input scale is 0,1 output will be 0,255
-            self._classifier.blobs['data'].data[...] = tim
-            self._classifier.forward(end=self._net_layer)  # propagate the image the target layer
-            # record only the neuron intended
-            score = self._classifier.blobs[self._net_layer].data[0, self._net_iunit]
+            resz_out_img = self.preprocess(img)  # shape=(3, 227, 227) # assuming input scale is 0,1 output will be 0,255
+            blobs_CNN = self._classifier(resz_out_img)
             if self._net_unit_x is not None:
-                # if `self._net_unit_x/y` (inside dimension) are provided, then use them to slice the output score
-                score = score[self._net_unit_x, self._net_unit_y]
+                score = blobs_CNN[self._net_layer][0, self._net_iunit, self._net_unit_x, self._net_unit_y]
+            else:
+                score = blobs_CNN[self._net_layer][0, self._net_iunit]
             scores[i] = score
             if self.artiphys:  # record the whole layer's activation
                 for layername in self.record_layers:
-                    score_full = self._classifier.blobs[layername].data[0, :]
+                    score_full = blobs_CNN[layername][0, :]
                     # self._pattern_array.append(score_full)
                     self.recordings[layername].append(score_full.copy())
         if self.artiphys:
