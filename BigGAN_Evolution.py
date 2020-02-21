@@ -1,5 +1,7 @@
 import sys
+from os.path import join
 sys.path.append("D:\Github\pytorch-pretrained-BigGAN")
+sys.path.append("E:\Github_Projects\pytorch-pretrained-BigGAN")
 from pytorch_pretrained_biggan import (BigGAN, one_hot_from_names, truncated_noise_sample,
                                        save_as_images, display_in_terminal, convert_to_images)
 import torch
@@ -48,14 +50,29 @@ def truncated_noise_sample(batch_size=1, dim_z=128, truncation=1., seed=None):
 #%%
 # Load pre-trained model tokenizer (vocabulary)
 model = BigGAN.from_pretrained('biggan-deep-256')
+model.to('cuda')
+def BigGAN_render(class_vector, noise_vector, truncation):
+    if class_vector.shape[0] == 1:
+        class_vector = np.tile(class_vector, [noise_vector.shape[0], 1])
+    if noise_vector.shape[0] == 1:
+        noise_vector = np.tile(noise_vector, [class_vector.shape[0], 1])
+    class_vector = torch.from_numpy(class_vector.astype(np.float32)).to('cuda')
+    noise_vector = torch.from_numpy(noise_vector.astype(np.float32)).to('cuda')
+    with torch.no_grad():
+        output = model(noise_vector, class_vector, truncation)
+    imgs = convert_to_images(output.cpu())
+    return imgs
+#%%
 # Prepare a input
 batch_size = 3
-truncation = 1
+truncation = 0.5
 class_vector = one_hot_from_names(['soap bubble', 'coffee', 'mushroom'], batch_size=batch_size)
 noise_vector = truncated_noise_sample(truncation=truncation, batch_size=batch_size)
+
+noise_vector = truncated_noise_sample(truncation=truncation, batch_size=1)
 # All in tensors
 #noise_vector = torch.from_numpy(np.ones([3, 128]).astype(np.float32)) #
-noise_vector =  torch.from_numpy(noise_vector)
+noise_vector = torch.from_numpy(noise_vector)
 class_vector = torch.from_numpy(class_vector)
 # If you have a GPU, put everything on cuda
 noise_vector = noise_vector.to('cuda')
@@ -65,18 +82,159 @@ model.to('cuda')
 with torch.no_grad():
     output = model(noise_vector, class_vector, truncation)
 imgs = convert_to_images(output.cpu())
+#%% 1d interpolation
+truncation = 0.7
+batch_size = 11
+class_vector = one_hot_from_names(['mushroom']*batch_size, batch_size=1)
+noise_vector = truncated_noise_sample(truncation=truncation, batch_size=1)
+scale_vec = np.arange(-1, 1.1, 0.2)
+noise_vec_scale = scale_vec.reshape([-1, 1])*noise_vector
+imgs = BigGAN_render(class_vector, noise_vec_scale, truncation=truncation)
 #%
-plt.imshow(imgs[2])
+figh = plt.figure(figsize=[25, 3])
+gs = figh.add_gridspec(1, len(imgs)) # 1d interpolation
+for i, img in enumerate(imgs):
+    plt.subplot(gs[i])
+    plt.imshow(img)
+    plt.axis('off')
+    plt.title("{0:.2f}".format(scale_vec[i]), fontsize=15,)
 plt.show()
 #%%
-def render(codes, scale=255):
-    '''Render a list of codes to list of images'''
-    if type(codes) is list:
-        images = [generator.visualize(codes[i], scale) for i in range(len(codes))]
-    else:
-        images = [generator.visualize(codes[i, :], scale) for i in range(codes.shape[0])]
-    return images
+savedir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Generator_Testing\BigGAN256"
+truncation = 0.7
+# batch_size = 11
+classname = 'goldfish'
+class_vector = one_hot_from_names([classname], batch_size=1)
+#%% 1d interpolation and save
+truncation = 0.7
+noise_vector = truncated_noise_sample(truncation=truncation, batch_size=1)
+scale_UL = 1; scale_BL = -scale_UL; sample_n = 11
+scale_vec = np.linspace(scale_BL, scale_UL, sample_n)
+# scale_vec = np.linspace(-2.5, -0.9, sample_n)
+noise_vec_scale = scale_vec.reshape([-1, 1])*noise_vector
+imgs = BigGAN_render(class_vector, noise_vec_scale, truncation=truncation)
+figh = plt.figure(figsize=[25, 3])
+gs = figh.add_gridspec(1, len(imgs)) # 1d interpolation
+for i, img in enumerate(imgs):
+    plt.subplot(gs[i])
+    plt.imshow(img)
+    plt.axis('off')
+    plt.title("{0:.1f}".format(scale_vec[i]), fontsize=15,)
+plt.savefig(join(savedir, "%s_UL%.1f_BL%.1f_trunc%.1f_%04d.png" % (classname, scale_UL, scale_BL, truncation, np.random.randint(10000))))
+plt.show()
+#%%
+from numpy.linalg import norm
+def orthonorm(ref, vec2):
+    res = vec2 - vec2 @ ref.T * ref / norm(ref, axis=1)**2
+    return res / norm(res) * norm(ref)
+#%% 2d linear interpolation through center
+savedir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Generator_Testing\BigGAN256"
+truncation = 0.7
+# batch_size = 11
+classname = 'goldfish'
+class_vector = one_hot_from_names([classname], batch_size=1)
+truncation = 0.7
+noise_vector = truncated_noise_sample(truncation=truncation, batch_size=2)
+vec1 = noise_vector[0:1, :]
+vec2 = orthonorm(vec1, noise_vector[1:2, :])
+xlim = (-1, 1)
+ylim = (-1, 1); sample_n = 11
+x_scale_vec = np.linspace(*xlim, sample_n)
+y_scale_vec = np.linspace(*ylim, sample_n)
+# scale_vec = np.linspace(-2.5, -0.9, sample_n)
+imgs = []
+for ydeg in y_scale_vec:
+    noise_vec_scale = x_scale_vec[:, np.newaxis] * vec1 + ydeg * vec2
+    img_row = BigGAN_render(class_vector, noise_vec_scale, truncation=truncation)
+    imgs.append(img_row)
+#%
+figh = plt.figure(figsize=[25, 25])
+gs = figh.add_gridspec(len(y_scale_vec), len(x_scale_vec))  # 2d interpolation
+for i, img_row in enumerate(imgs):
+    for j, img in enumerate(img_row):
+        plt.subplot(gs[i, j])
+        plt.imshow(img)
+        plt.axis('off')
+        plt.title("%.1f, %.1f"%(x_scale_vec[i], y_scale_vec[j]), fontsize=15,)
+plt.tight_layout()
+plt.savefig(join(savedir, "%s_[%.1f-%.1f]_[%.1f-%.1f]_trunc%.1f_%04d.png" % (classname, *xlim, *ylim, truncation, np.random.randint(10000))))
+plt.show()
 
+#%% 2d interpolation in sphere
+savedir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Generator_Testing\BigGAN256"
+truncation = 0.4
+# batch_size = 11
+classname = 'goldfish'
+class_vector = one_hot_from_names([classname], batch_size=1)
+truncation = 0.4
+noise_vector = truncated_noise_sample(truncation=truncation, batch_size=3)
+vec1 = noise_vector[0:1, :]
+vec2 = orthonorm(vec1, noise_vector[1:2, :])
+vec3 = orthonorm(vec2, noise_vector[2:3, :])
+vec3 = orthonorm(vec1, vec3)
+
+sample_n = 11
+phi_scale_vec = np.linspace(-90, 90, sample_n)
+theta_scale_vec = np.linspace(-90, 90, sample_n)
+# scale_vec = np.linspace(-2.5, -0.9, sample_n)
+imgs = []
+for phi in phi_scale_vec:
+    phi = phi / 180 * np.pi
+    theta = theta_scale_vec[:, np.newaxis] / 180 * np.pi
+    noise_vec_arc = np.cos(phi) * np.cos(theta) * vec1 + \
+                      np.cos(phi) * np.sin(theta) * vec2 + \
+                      np.sin(phi) * vec3
+    img_row = BigGAN_render(class_vector, noise_vec_arc, truncation=truncation)
+    imgs.append(img_row)
+#%
+figh = plt.figure(figsize=[25, 25])
+gs = figh.add_gridspec(len(theta_scale_vec), len(phi_scale_vec))  # 2d interpolation
+for i, img_row in enumerate(imgs):
+    for j, img in enumerate(img_row):
+        plt.subplot(gs[i, j])
+        plt.imshow(img)
+        plt.axis('off')
+        plt.title("%.1f, %.1f"%(theta_scale_vec[i], phi_scale_vec[j]), fontsize=15,)
+plt.tight_layout()
+plt.savefig(join(savedir, "%s_hemisph_trunc%.1f_%04d.png" % (classname, truncation, np.random.randint(10000))))
+plt.show()
+#%% Multi class sampling
+from scipy.special import softmax
+#%%
+savedir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Generator_Testing\BigGAN256"
+truncation = 0.7
+# batch_size = 11
+noise_vector = truncated_noise_sample(truncation=truncation, batch_size=1)
+classname = 'goldfish'
+class_vector = np.ones([1, 1000])  # one_hot_from_names([classname], # batch_size=1)
+sample_n = 11
+mu = 40
+class_vectors = class_vector + np.random.randn(sample_n, 1000) / 32 * mu
+class_vectors = np.concatenate((class_vector, class_vectors), axis=0)
+# class_vectors = np.clip(class_vectors, 0, np.inf)
+# class_vectors = class_vectors / 1000
+class_vectors = 2*softmax(class_vectors, axis=1)
+    # np.exp(class_vectors) / np.sum(np.exp(class_vectors), axis=1)
+imgs = BigGAN_render(class_vectors, noise_vector, truncation=truncation)
+figh = plt.figure(figsize=[25, 3])
+gs = figh.add_gridspec(1, len(imgs)) # 1d interpolation
+for i, img in enumerate(imgs):
+    plt.subplot(gs[i])
+    plt.imshow(img)
+    plt.axis('off')
+    #plt.title("{0:.1f}".format(scale_vec[i]), fontsize=15,)
+plt.savefig(join(savedir, "%s_multiclass_softmax_mu%s_trunc%.1f_%04d.png" % (classname, mu, truncation, np.random.randint(10000))))
+plt.show()
+
+
+#%%
+plt.figure(figsize=[4, 4])
+plt.imshow(imgs[0])
+plt.axis("image")
+plt.axis("off")
+plt.tight_layout()
+plt.show()
+#%%
 # Generate Gaussian on simplex...?
 # Generate Gaussian noise, (With Small enough sigma and variance)
 class CNNmodel_Torch:
