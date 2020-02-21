@@ -979,13 +979,25 @@ class ExperimentEvolve_DC:
     Default behavior is to use the current CMAES optimizer to optimize for 200 steps for the given unit.
     This Experimental Class is defined to test out the new Descent checking 
     """
-    def __init__(self, model_unit, max_step=200, optimizer=None, nat_grad=True):
+    def __init__(self, model_unit, max_step=200, optimizer=None, backend="caffe", GAN="fc7"):
         self.recording = []
         self.scores_all = []
         self.codes_all = []
         self.generations = []
-        self.CNNmodel = CNNmodel(model_unit[0])  # 'caffe-net'
+        if backend is "caffe":
+            self.CNNmodel = CNNmodel(model_unit[0])  # 'caffe-net'
+        elif backend is "torch":
+            self.CNNmodel = CNNmodel_Torch(model_unit[0])
+        else:
+            raise NotImplementedError
         self.CNNmodel.select_unit(model_unit)
+        if GAN == "fc7":
+            self.render = render
+        elif GAN == "BigGAN":
+            from BigGAN_Evolution import BigGAN_embed_render
+            self.render = BigGAN_embed_render
+        else:
+            raise NotImplementedError
         if optimizer is None:  # Default optimizer is this
             self.optimizer = HessAware_Gauss_DC(space_dimen=4096, )    # , optim_params=optim_params
             # CholeskyCMAES(recorddir=recorddir, space_dimen=code_length, init_sigma=init_sigma,
@@ -1001,7 +1013,7 @@ class ExperimentEvolve_DC:
         self.scores_all = []
         self.codes_all = []
         self.generations = []
-        x_img = render(init_code)
+        x_img = self.render(init_code)
         x_score = self.CNNmodel.score(x_img) # initial code and image and score
         self.optimizer.new_generation(x_score, init_code)
         MAX_IN_ITER = 100
@@ -1013,10 +1025,10 @@ class ExperimentEvolve_DC:
         self.generations = np.array([self.istep])
         while True:
             new_codes = self.optimizer.generate_sample(samp_num) # self.optimizer.N_in_samp += samp_num
-            new_imgs = render(new_codes)
+            new_imgs = self.render(new_codes)
             new_scores = self.CNNmodel.score(new_imgs)
             y_code = self.optimizer.compute_grad(new_scores)
-            y_img = render(y_code)
+            y_img = self.render(y_code)
             y_score = self.CNNmodel.score(y_img)
             self.codes_all = np.concatenate((self.codes_all, new_codes, y_code), axis=0)
             self.scores_all = np.concatenate((self.scores_all, new_scores[:, np.newaxis], y_score[:, np.newaxis]), axis=0)
