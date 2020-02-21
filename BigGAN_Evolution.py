@@ -1,7 +1,7 @@
 import sys
 from os.path import join
-sys.path.append("D:\Github\pytorch-pretrained-BigGAN")
-sys.path.append("E:\Github_Projects\pytorch-pretrained-BigGAN")
+# sys.path.append("D:\Github\pytorch-pretrained-BigGAN")
+# sys.path.append("E:\Github_Projects\pytorch-pretrained-BigGAN")
 from pytorch_pretrained_biggan import (BigGAN, one_hot_from_names, truncated_noise_sample,
                                        save_as_images, display_in_terminal, convert_to_images)
 import torch
@@ -225,8 +225,25 @@ for i, img in enumerate(imgs):
     #plt.title("{0:.1f}".format(scale_vec[i]), fontsize=15,)
 plt.savefig(join(savedir, "%s_multiclass_softmax_mu%s_trunc%.1f_%04d.png" % (classname, mu, truncation, np.random.randint(10000))))
 plt.show()
-
-
+#%% Directly manipulate the embedding
+savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Generator_Testing\BigGAN256"
+truncation = 0.7
+muembd = 0.02
+classname = 'goldfish'
+class_vector = one_hot_from_names([classname],  batch_size=1)
+ebd_class = model.cpu().embeddings(torch.from_numpy(class_vector))
+ebd_vecs = muembd * torch.randn((10, ebd_class.shape[1])) + ebd_class
+output = model.cuda().generator(torch.cat((torch.zeros_like(ebd_vecs.cuda()), ebd_vecs.cuda()), dim=1), truncation)
+imgs = convert_to_images(output.cpu())
+figh = plt.figure(figsize=[25, 3])
+gs = figh.add_gridspec(1, len(imgs)) # 1d interpolation
+for i, img in enumerate(imgs):
+    plt.subplot(gs[i])
+    plt.imshow(img)
+    plt.axis('off')
+    #plt.title("{0:.1f}".format(scale_vec[i]), fontsize=15,)
+plt.savefig(join(savedir, "%s_embdspace_mu%s_trunc%.1f_%04d.png" % (classname, muembd, truncation, np.random.randint(10000))))
+plt.show()
 #%%
 plt.figure(figsize=[4, 4])
 plt.imshow(imgs[0])
