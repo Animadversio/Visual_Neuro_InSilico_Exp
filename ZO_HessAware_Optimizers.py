@@ -417,7 +417,7 @@ class HessAware_Gauss_DC:
                 code_rank = np.argsort(np.argsort(-self.score_stored))
             # Consider do we need to consider the basis code and score here? Or no? 
             # Note the weights here are internally normalized s.t. sum up to 1, no need to normalize more. 
-            self.weights = rankweight(len(scores)-1,mu=20)[code_rank] # map the rank to the corresponding weight of recombination
+            self.weights = rankweight(len(self.score_stored), mu=20)[code_rank] # map the rank to the corresponding weight of recombination
             # only keep the top 20 codes and recombine them. 
 
         if self.nat_grad: # if or not using the Hessian to rescale the codes 
@@ -974,437 +974,295 @@ def renormalize(codes, norms):
     codes_renorm = norms.reshape([-1, 1]) * codes / norm(codes, axis=1).reshape([-1, 1])  # norms should be a 1d array
     return codes_renorm
 
-class ExperimentEvolve_DC:
-    """
-    Default behavior is to use the current CMAES optimizer to optimize for 200 steps for the given unit.
-    This Experimental Class is defined to test out the new Descent checking 
-    """
-    def __init__(self, model_unit, max_step=200, optimizer=None, backend="caffe", GAN="fc7"):
-        self.recording = []
-        self.scores_all = []
-        self.codes_all = []
-        self.generations = []
-        if backend is "caffe":
-            self.CNNmodel = CNNmodel(model_unit[0])  # 'caffe-net'
-        elif backend is "torch":
-            self.CNNmodel = CNNmodel_Torch(model_unit[0])
-        else:
-            raise NotImplementedError
-        self.CNNmodel.select_unit(model_unit)
-        if GAN == "fc7":
-            self.render = render
-        elif GAN == "BigGAN":
-            from BigGAN_Evolution import BigGAN_embed_render
-            self.render = BigGAN_embed_render
-        else:
-            raise NotImplementedError
-        if optimizer is None:  # Default optimizer is this
-            self.optimizer = HessAware_Gauss_DC(space_dimen=4096, )    # , optim_params=optim_params
-            # CholeskyCMAES(recorddir=recorddir, space_dimen=code_length, init_sigma=init_sigma,
-            #                                            init_code=np.zeros([1, code_length]), Aupdate_freq=Aupdate_freq)
-        else:
-            # assert issubclass(type(optimizer), Optimizer)
-            self.optimizer = optimizer
-        self.max_steps = max_step
-        self.istep = 0
-
-    def run(self, init_code=None):
-        self.recording = []
-        self.scores_all = []
-        self.codes_all = []
-        self.generations = []
-        x_img = self.render(init_code)
-        x_score = self.CNNmodel.score(x_img) # initial code and image and score
-        self.optimizer.new_generation(x_score, init_code)
-        MAX_IN_ITER = 100
-        Batch_Size = 40
-        INCRE_NUM = 10
-        samp_num = Batch_Size
-        self.codes_all = init_code
-        self.scores_all = np.array([x_score])
-        self.generations = np.array([self.istep])
-        while True:
-            new_codes = self.optimizer.generate_sample(samp_num) # self.optimizer.N_in_samp += samp_num
-            new_imgs = self.render(new_codes)
-            new_scores = self.CNNmodel.score(new_imgs)
-            y_code = self.optimizer.compute_grad(new_scores)
-            y_img = self.render(y_code)
-            y_score = self.CNNmodel.score(y_img)
-            self.codes_all = np.concatenate((self.codes_all, new_codes, y_code), axis=0)
-            self.scores_all = np.concatenate((self.scores_all, new_scores[:, np.newaxis], y_score[:, np.newaxis]), axis=0)
-            self.generations = np.concatenate((self.generations, np.array([self.istep] * (samp_num + 1))), axis=0)
-            print('Step {}\nsynthetic img scores: mean {}, all {}'.format(self.istep, np.nanmean(new_scores), new_scores))
-            if y_score < x_score and self.optimizer.N_in_samp <= MAX_IN_ITER:
-                samp_num = INCRE_NUM
-            else:
-                print("Accepted basis score: mean %.2f" % y_score)
-                print("Accepted basis code: norm %.2f" % np.linalg.norm(y_code))
-                x_code = y_code
-                x_score = y_score
-                self.istep += 1
-                self.optimizer.new_generation(x_score, x_code)  # clear score_store code_store N_in_samp
-                samp_num = Batch_Size
-                if self.istep > self.max_steps:
-                    break
-                if not self.istep % self.optimizer.Hupdate_freq:
-                    Hess_codes = self.optimizer.generate_sample(samp_num, hess_comp=True)
-                    Hess_imgs = render(Hess_codes)
-                    Hess_scores = self.CNNmodel.score(Hess_imgs)
-                    self.optimizer.compute_hess(Hess_scores)
-                    self.codes_all = np.concatenate((self.codes_all, Hess_codes), axis=0)
-                    self.scores_all = np.concatenate((self.scores_all, Hess_scores[:, np.newaxis]), axis=0)
-                    self.generations = np.concatenate((self.generations, np.array([self.istep] * len(Hess_scores))),
-                                                      axis=0)
-        self.scores_all = self.scores_all[:, 0]
-        print("Summary\nGenerations: %d, Image samples: %d, Best score: %.2f" % (self.istep, self.codes_all.shape[0], self.scores_all.max()))
-
-    def visualize_exp(self, show=False, title_str=""):
-        """ Visualize the experiment by showing the maximal activating images and the scores in each generations
-        """
-        idx_list = []
-        for geni in range(min(self.generations), max(self.generations) + 1):
-            rel_idx = np.argmax(self.scores_all[self.generations == geni])
-            idx_list.append(np.nonzero(self.generations == geni)[0][rel_idx])
-        idx_list = np.array(idx_list)
-        select_code = self.codes_all[idx_list, :]
-        score_select = self.scores_all[idx_list]
-        img_select = render(select_code)
-        fig = utils.visualize_img_list(img_select, score_select, show=show, nrow=None, title_str=title_str)
-        if show:
-            fig.show()
-        return fig
-
-    def visualize_best(self, show=False, title_str=""):
-        """ Just Visualize the best Images for the experiment """
-        idx = np.argmax(self.scores_all)
-        select_code = self.codes_all[idx:idx + 1, :]
-        score_select = self.scores_all[idx]
-        img_select = render(select_code)
-        fig = plt.figure(figsize=[3, 3])
-        plt.imshow(img_select[0])
-        plt.axis('off')
-        plt.title("{0:.2f}".format(score_select)+title_str, fontsize=16)
-        if show:
-            plt.show()
-        return fig
-
-    def visualize_codenorm(self, show=True, title_str=""):
-        code_norm = np.sqrt((self.codes_all ** 2).sum(axis=1))
-        figh = plt.figure()
-        plt.scatter(self.generations, code_norm, s=16, alpha=0.6, label="all score")
-        plt.title("Optimization Trajectory of Code Norm\n" + title_str)
-        if show:
-            plt.show()
-        return figh
-
-    def visualize_trajectory(self, show=True, title_str=""):
-        """ Visualize the Score Trajectory """
-        gen_slice = np.arange(min(self.generations), max(self.generations) + 1)
-        AvgScore = np.zeros_like(gen_slice)
-        MaxScore = np.zeros_like(gen_slice)
-        for i, geni in enumerate(gen_slice):
-            AvgScore[i] = np.mean(self.scores_all[self.generations == geni])
-            MaxScore[i] = np.max(self.scores_all[self.generations == geni])
-        figh = plt.figure()
-        plt.scatter(self.generations, self.scores_all, s=16, alpha=0.6, label="all score")
-        plt.plot(gen_slice, AvgScore, color='black', label="Average score")
-        plt.plot(gen_slice, MaxScore, color='red', label="Max score")
-        plt.xlabel("generation #")
-        plt.ylabel("CNN unit score")
-        plt.title("Optimization Trajectory of Score\n" + title_str)
-        plt.legend()
-        if show:
-            plt.show()
-        return figh
+if __name__ is "__main__":
 #%%
+    # savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+    # unit = ('caffe-net', 'fc8', 1)
+    # expdir = join(savedir, "%s_%s_%d_nohess" % unit)
+    # os.makedirs(expdir, exist_ok=True)
+    # for trial_i in range(2):
+    #     optim = HessAware_Gauss_DC(4096, population_size=40, lr=0.2, mu=0.6, Lambda=0.2, Hupdate_freq=101, maximize=True,max_norm=1000)
+    #     fn_str = "lr%.1f_mu%.1f_Labda%s_uf%d_tr%d" % (optim.lr, optim.mu, optim.Lambda, optim.Hupdate_freq, trial_i)
+    #     f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
+    #     sys.stdout = f
+    #     experiment = ExperimentEvolve_DC(unit, max_step=100, optimizer=optim)
+    #     experiment.run(init_code=np.zeros((1, 4096)))
+    #     param_str = "lr=%.1f, mu=%.1f, Lambda=%.1f, Hupdate_freq=%d" % (optim.lr, optim.mu, optim.Lambda, optim.Hupdate_freq)
+    #     fig1 = experiment.visualize_trajectory(show=True, title_str=param_str)
+    #     fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
+    #     fig2 = experiment.visualize_best(show=True, title_str=param_str)
+    #     fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
+    #     fig3 = experiment.visualize_exp(show=True, title_str=param_str)
+    #     fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
+    #     fig4 = experiment.visualize_codenorm(show=True, title_str=param_str)
+    #     fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
+    #     # plt.close(fig1)
+    #     # plt.close(fig2)
+    #     # plt.close(fig3)
+    #     # plt.close(fig4)
+    #     plt.show(block=False)
+    #     time.sleep(5)
+    #     plt.close('all')
+    #     sys.stdout = orig_stdout
+    #     f.close()
+    #
+    # #%%
+    # savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+    # unit = ('caffe-net', 'fc8', 1)
+    # expdir = join(savedir, "%s_%s_%d_lmbdadp" % unit)
+    # os.makedirs(expdir, exist_ok=True)
+    # lr_list = [0.2, 0.5, 1, 2, 5, 10, 20]
+    # mu_list = [0.1, 0.2, 0.5, 0.8, 1, 2, 5, 10, 20]
+    # UF_list = [5, 10, 20, 2]
+    # Lambda_list = []
+    # for i, UF in enumerate(UF_list):
+    #     for j, lr in enumerate(lr_list):
+    #         for k, mu in enumerate(mu_list):
+    #             idxno = k + j * len(mu_list) + i * len(lr_list) * len(mu_list)
+    #             if idxno < 77:
+    #                 continue
+    #             for trial_i in range(2):
+    #                 fn_str = "lr%.1f_mu%.1f_Labda%s_uf%d_tr%d" % (lr, mu, "Adp", UF, trial_i)
+    #                 f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
+    #                 sys.stdout = f
+    #                 optim = HessAware_Gauss_DC(4096, population_size=40, lr=lr, mu=mu, Lambda=0.1, Hupdate_freq=UF, maximize=True)
+    #                 experiment = ExperimentEvolve_DC(unit, max_step=50, optimizer=optim)
+    #                 experiment.run(init_code=np.zeros((1, 4096)))
+    #                 param_str = "lr=%.1f, mu=%.1f, Lambda=%.1f. Hupdate_freq=%d" % (optim.lr, optim.mu, optim.Lambda, optim.Hupdate_freq)
+    #                 fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
+    #                 fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
+    #                 fig2 = experiment.visualize_best(show=False, title_str=param_str)
+    #                 fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
+    #                 fig3 = experiment.visualize_exp(show=False, title_str=param_str)
+    #                 fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
+    #                 fig4 = experiment.visualize_codenorm(show=False, title_str=param_str)
+    #                 fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
+    #                 # plt.close(fig1)
+    #                 # plt.close(fig2)
+    #                 # plt.close(fig3)
+    #                 # plt.close(fig4)
+    #                 plt.show(block=False)
+    #                 time.sleep(5)
+    #                 plt.close('all')
+    #                 sys.stdout = orig_stdout
+    #                 f.close()
+    #%%
+    # savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+    # unit = ('caffe-net', 'fc8', 1)
+    # expdir = join(savedir, "%s_%s_%d_ADAM_DC_real" % unit)
+    # os.makedirs(expdir, exist_ok=True)
+    # lr_list = [1, 2, 0.5, 5, 0.2, 10, 20]
+    # mu_list = [1, 2, 0.5, 5, 0.2, 10, 0.1, ]
+    # nu_list = [0.9, 0.99, 0.8, 0.999]
+    # for i, nu in enumerate(nu_list):
+    #     for j, lr in enumerate(lr_list):
+    #         for k, mu in enumerate(mu_list):
+    #             idxno = k + j * len(mu_list) + i * len(lr_list) * len(mu_list)
+    #             for trial_i in range(1):
+    #                 fn_str = "lr%.1f_mu%.1f_nu%.2f_tr%d" % (lr, mu, nu, trial_i)
+    #                 f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
+    #                 sys.stdout = f
+    #                 optim = HessAware_ADAM_DC(4096, population_size=40, lr=lr, mu=mu, nu=nu, maximize=True, max_norm=400)
+    #                 experiment = ExperimentEvolve_DC(unit, max_step=100, optimizer=optim)
+    #                 experiment.run(init_code=np.zeros((1, 4096)))
+    #                 param_str = "lr=%.1f, mu=%.1f, nu=%.1f." % (optim.lr, optim.mu, optim.nu)
+    #                 fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
+    #                 fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
+    #                 fig2 = experiment.visualize_best(show=False, title_str=param_str)
+    #                 fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
+    #                 fig3 = experiment.visualize_exp(show=False, title_str=param_str)
+    #                 fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
+    #                 fig4 = experiment.visualize_codenorm(show=False, title_str=param_str)
+    #                 fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
+    #                 plt.show(block=False)
+    #                 time.sleep(5)
+    #                 plt.close('all')
+    #                 sys.stdout = orig_stdout
+    #                 f.close()
+    #%%
+    # # #%%
+    # # unit = ('caffe-net', 'fc6', 1)
+    # # optim = HessAware_ADAM(4096, population_size=40, lr=2, mu=0.5, nu=0.99, maximize=True)
+    # # experiment = ExperimentEvolve(unit, max_step=100, optimizer=optim)
+    # # experiment.run()
+    # # #%%
+    # # #optim = HessAware_ADAM(4096, population_size=40, lr=2, mu=0.5, nu=0.99, maximize=True)
+    # # experiment2 = ExperimentEvolve(unit, max_step=71)
+    # # experiment2.run()
+    # # experiment2.visualize_trajectory(show=True)
+    # # experiment2.visualize_best(show=True)
+    # # #%%
+    # unit = ('caffe-net', 'fc8', 1)
+    # optim = HessAware_Gauss(4096, population_size=40, lr=2, mu=0.5, Lambda=0.9, Hupdate_freq=5, maximize=True)
+    # experiment3 = ExperimentEvolve(unit, max_step=50, optimizer=optim)
+    # experiment3.run()
+    # experiment3.visualize_trajectory(show=True)
+    # experiment3.visualize_best(show=True)
+    # %% HessAware_Gauss_Spherical Testing
+    # unit = ('caffe-net', 'fc8', 1)
+    # savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+    # expdir = join(savedir, "%s_%s_%d_Gauss_Sph" % unit)
+    # os.makedirs(expdir, exist_ok=True)
+    # # lr=0.25; mu=0.01; Lambda=0.99; trial_i=0
+    # UF = 200
+    # lr_list = [1,2] # lr_list = [0.1, 0.05, 0.5, 0.25, 0.01]
+    # mu_list = [0.01, 0.005] # mu_list = [0.01, 0.02, 0.005, 0.04, 0.002, 0.001]
+    # Lambda_list = [1]
+    # for i, Lambda in enumerate(Lambda_list):
+    #     for j, lr in enumerate(lr_list):
+    #         for k, mu in enumerate(mu_list):
+    #             idxno = k + j * len(mu_list) + i * len(lr_list) * len(mu_list)
+    #             for trial_i in range(3):
+    #                 fn_str = "lr%.2f_mu%.3f_Lambda%.1f_UF%d_tr%d" % (lr, mu, Lambda, UF, trial_i)
+    #                 f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
+    #                 sys.stdout = f
+    #                 optim = HessAware_Gauss_Spherical(4096, population_size=40, lr=lr, mu=mu, Lambda=Lambda, Hupdate_freq=UF, sphere_norm=300, maximize=True)
+    #                 experiment = ExperimentEvolve(unit, max_step=100, optimizer=optim)
+    #                 experiment.run(init_code=np.random.randn(1, 4096))
+    #                 experiment.visualize_trajectory(show=True)
+    #                 experiment.visualize_best(show=True)
+    #                 param_str = "lr=%.2f, mu=%.3f, Lambda=%.1f, UpdateFreq=%d" % (optim.lr, optim.mu, optim.Lambda, optim.Hupdate_freq)
+    #                 fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
+    #                 fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
+    #                 fig2 = experiment.visualize_best(show=False)# , title_str=param_str)
+    #                 fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
+    #                 fig3 = experiment.visualize_exp(show=False, title_str=param_str)
+    #                 fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
+    #                 fig4 = experiment.visualize_codenorm(show=False, title_str=param_str)
+    #                 fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
+    #                 time.sleep(5)
+    #                 plt.close('all')
+    #                 sys.stdout = orig_stdout
+    #                 f.close()
 
-# savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
-# unit = ('caffe-net', 'fc8', 1)
-# expdir = join(savedir, "%s_%s_%d_nohess" % unit)
-# os.makedirs(expdir, exist_ok=True)
-# for trial_i in range(2):
-#     optim = HessAware_Gauss_DC(4096, population_size=40, lr=0.2, mu=0.6, Lambda=0.2, Hupdate_freq=101, maximize=True,max_norm=1000)
-#     fn_str = "lr%.1f_mu%.1f_Labda%s_uf%d_tr%d" % (optim.lr, optim.mu, optim.Lambda, optim.Hupdate_freq, trial_i)
-#     f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
-#     sys.stdout = f
-#     experiment = ExperimentEvolve_DC(unit, max_step=100, optimizer=optim)
-#     experiment.run(init_code=np.zeros((1, 4096)))
-#     param_str = "lr=%.1f, mu=%.1f, Lambda=%.1f, Hupdate_freq=%d" % (optim.lr, optim.mu, optim.Lambda, optim.Hupdate_freq)
-#     fig1 = experiment.visualize_trajectory(show=True, title_str=param_str)
-#     fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
-#     fig2 = experiment.visualize_best(show=True, title_str=param_str)
-#     fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
-#     fig3 = experiment.visualize_exp(show=True, title_str=param_str)
-#     fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
-#     fig4 = experiment.visualize_codenorm(show=True, title_str=param_str)
-#     fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
-#     # plt.close(fig1)
-#     # plt.close(fig2)
-#     # plt.close(fig3)
-#     # plt.close(fig4)
-#     plt.show(block=False)
-#     time.sleep(5)
-#     plt.close('all')
-#     sys.stdout = orig_stdout
-#     f.close()
-#
-# #%%
-# savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
-# unit = ('caffe-net', 'fc8', 1)
-# expdir = join(savedir, "%s_%s_%d_lmbdadp" % unit)
-# os.makedirs(expdir, exist_ok=True)
-# lr_list = [0.2, 0.5, 1, 2, 5, 10, 20]
-# mu_list = [0.1, 0.2, 0.5, 0.8, 1, 2, 5, 10, 20]
-# UF_list = [5, 10, 20, 2]
-# Lambda_list = []
-# for i, UF in enumerate(UF_list):
-#     for j, lr in enumerate(lr_list):
-#         for k, mu in enumerate(mu_list):
-#             idxno = k + j * len(mu_list) + i * len(lr_list) * len(mu_list)
-#             if idxno < 77:
-#                 continue
-#             for trial_i in range(2):
-#                 fn_str = "lr%.1f_mu%.1f_Labda%s_uf%d_tr%d" % (lr, mu, "Adp", UF, trial_i)
-#                 f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
-#                 sys.stdout = f
-#                 optim = HessAware_Gauss_DC(4096, population_size=40, lr=lr, mu=mu, Lambda=0.1, Hupdate_freq=UF, maximize=True)
-#                 experiment = ExperimentEvolve_DC(unit, max_step=50, optimizer=optim)
-#                 experiment.run(init_code=np.zeros((1, 4096)))
-#                 param_str = "lr=%.1f, mu=%.1f, Lambda=%.1f. Hupdate_freq=%d" % (optim.lr, optim.mu, optim.Lambda, optim.Hupdate_freq)
-#                 fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
-#                 fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
-#                 fig2 = experiment.visualize_best(show=False, title_str=param_str)
-#                 fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
-#                 fig3 = experiment.visualize_exp(show=False, title_str=param_str)
-#                 fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
-#                 fig4 = experiment.visualize_codenorm(show=False, title_str=param_str)
-#                 fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
-#                 # plt.close(fig1)
-#                 # plt.close(fig2)
-#                 # plt.close(fig3)
-#                 # plt.close(fig4)
-#                 plt.show(block=False)
-#                 time.sleep(5)
-#                 plt.close('all')
-#                 sys.stdout = orig_stdout
-#                 f.close()
-#%%
-# savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
-# unit = ('caffe-net', 'fc8', 1)
-# expdir = join(savedir, "%s_%s_%d_ADAM_DC_real" % unit)
-# os.makedirs(expdir, exist_ok=True)
-# lr_list = [1, 2, 0.5, 5, 0.2, 10, 20]
-# mu_list = [1, 2, 0.5, 5, 0.2, 10, 0.1, ]
-# nu_list = [0.9, 0.99, 0.8, 0.999]
-# for i, nu in enumerate(nu_list):
-#     for j, lr in enumerate(lr_list):
-#         for k, mu in enumerate(mu_list):
-#             idxno = k + j * len(mu_list) + i * len(lr_list) * len(mu_list)
-#             for trial_i in range(1):
-#                 fn_str = "lr%.1f_mu%.1f_nu%.2f_tr%d" % (lr, mu, nu, trial_i)
-#                 f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
-#                 sys.stdout = f
-#                 optim = HessAware_ADAM_DC(4096, population_size=40, lr=lr, mu=mu, nu=nu, maximize=True, max_norm=400)
-#                 experiment = ExperimentEvolve_DC(unit, max_step=100, optimizer=optim)
-#                 experiment.run(init_code=np.zeros((1, 4096)))
-#                 param_str = "lr=%.1f, mu=%.1f, nu=%.1f." % (optim.lr, optim.mu, optim.nu)
-#                 fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
-#                 fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
-#                 fig2 = experiment.visualize_best(show=False, title_str=param_str)
-#                 fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
-#                 fig3 = experiment.visualize_exp(show=False, title_str=param_str)
-#                 fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
-#                 fig4 = experiment.visualize_codenorm(show=False, title_str=param_str)
-#                 fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
-#                 plt.show(block=False)
-#                 time.sleep(5)
-#                 plt.close('all')
-#                 sys.stdout = orig_stdout
-#                 f.close()
-#%%
-# # #%%
-# # unit = ('caffe-net', 'fc6', 1)
-# # optim = HessAware_ADAM(4096, population_size=40, lr=2, mu=0.5, nu=0.99, maximize=True)
-# # experiment = ExperimentEvolve(unit, max_step=100, optimizer=optim)
-# # experiment.run()
-# # #%%
-# # #optim = HessAware_ADAM(4096, population_size=40, lr=2, mu=0.5, nu=0.99, maximize=True)
-# # experiment2 = ExperimentEvolve(unit, max_step=71)
-# # experiment2.run()
-# # experiment2.visualize_trajectory(show=True)
-# # experiment2.visualize_best(show=True)
-# # #%%
-# unit = ('caffe-net', 'fc8', 1)
-# optim = HessAware_Gauss(4096, population_size=40, lr=2, mu=0.5, Lambda=0.9, Hupdate_freq=5, maximize=True)
-# experiment3 = ExperimentEvolve(unit, max_step=50, optimizer=optim)
-# experiment3.run()
-# experiment3.visualize_trajectory(show=True)
-# experiment3.visualize_best(show=True)
-# %% HessAware_Gauss_Spherical Testing
-# unit = ('caffe-net', 'fc8', 1)
-# savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
-# expdir = join(savedir, "%s_%s_%d_Gauss_Sph" % unit)
-# os.makedirs(expdir, exist_ok=True)
-# # lr=0.25; mu=0.01; Lambda=0.99; trial_i=0
-# UF = 200
-# lr_list = [1,2] # lr_list = [0.1, 0.05, 0.5, 0.25, 0.01]
-# mu_list = [0.01, 0.005] # mu_list = [0.01, 0.02, 0.005, 0.04, 0.002, 0.001]
-# Lambda_list = [1]
-# for i, Lambda in enumerate(Lambda_list):
-#     for j, lr in enumerate(lr_list):
-#         for k, mu in enumerate(mu_list):
-#             idxno = k + j * len(mu_list) + i * len(lr_list) * len(mu_list)
-#             for trial_i in range(3):
-#                 fn_str = "lr%.2f_mu%.3f_Lambda%.1f_UF%d_tr%d" % (lr, mu, Lambda, UF, trial_i)
-#                 f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
-#                 sys.stdout = f
-#                 optim = HessAware_Gauss_Spherical(4096, population_size=40, lr=lr, mu=mu, Lambda=Lambda, Hupdate_freq=UF, sphere_norm=300, maximize=True)
-#                 experiment = ExperimentEvolve(unit, max_step=100, optimizer=optim)
-#                 experiment.run(init_code=np.random.randn(1, 4096))
-#                 experiment.visualize_trajectory(show=True)
-#                 experiment.visualize_best(show=True)
-#                 param_str = "lr=%.2f, mu=%.3f, Lambda=%.1f, UpdateFreq=%d" % (optim.lr, optim.mu, optim.Lambda, optim.Hupdate_freq)
-#                 fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
-#                 fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
-#                 fig2 = experiment.visualize_best(show=False)# , title_str=param_str)
-#                 fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
-#                 fig3 = experiment.visualize_exp(show=False, title_str=param_str)
-#                 fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
-#                 fig4 = experiment.visualize_codenorm(show=False, title_str=param_str)
-#                 fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
-#                 time.sleep(5)
-#                 plt.close('all')
-#                 sys.stdout = orig_stdout
-#                 f.close()
-
-# %% HessAware_Gauss_Spherical_DC Testing
-# unit = ('caffe-net', 'fc8', 1)
-# # savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
-# savedir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
-# expdir = join(savedir, "%s_%s_%d_Gauss_DC_Sph" % unit)
-# os.makedirs(expdir, exist_ok=True)
-# lr = 3; mu = 0.002; Lambda=1;trial_i=0
-# fn_str = "lr%.1f_mu%.1f_Lambda%.2f_tr%d" % (lr, mu, Lambda, trial_i)
-# #f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
-# #sys.stdout = f
-# optim = HessAware_Gauss_Spherical_DC(4096, population_size=40, lr=lr, mu=mu, Lambda=Lambda, Hupdate_freq=201,
-#             rankweight=True, nat_grad=True, maximize=True, max_norm=300)
-# experiment = ExperimentEvolve_DC(unit, max_step=100, optimizer=optim)
-# experiment.run(init_code=np.random.randn(1, 4096))
-# param_str = "lr=%.1f, mu=%.4f, Lambda=%.2f." % (optim.lr, optim.mu, optim.Lambda)
-# fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
-# fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
-# fig2 = experiment.visualize_best(show=False, title_str=param_str)
-# fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
-# fig3 = experiment.visualize_exp(show=False, title_str=param_str)
-# fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
-# fig4 = experiment.visualize_codenorm(show=False, title_str=param_str)
-# fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
-# plt.show(block=False)
-# time.sleep(5)
-# plt.close('all')unit = ('caffe-net', 'fc8', 1)
-# # savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
-# savedir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
-# expdir = join(savedir, "%s_%s_%d_Gauss_DC_Sph" % unit)
-# os.makedirs(expdir, exist_ok=True)
-# lr = 3; mu = 0.002; Lambda=1;trial_i=0
-# fn_str = "lr%.1f_mu%.1f_Lambda%.2f_tr%d" % (lr, mu, Lambda, trial_i)
-# #f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
-# #sys.stdout = f
-# optim = HessAware_Gauss_Spherical_DC(4096, population_size=40, lr=lr, mu=mu, Lambda=Lambda, Hupdate_freq=201,
-#             rankweight=True, nat_grad=True, maximize=True, max_norm=300)
-# experiment = ExperimentEvolve_DC(unit, max_step=100, optimizer=optim)
-# experiment.run(init_code=np.random.randn(1, 4096))
-# param_str = "lr=%.1f, mu=%.4f, Lambda=%.2f." % (optim.lr, optim.mu, optim.Lambda)
-# fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
-# fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
-# fig2 = experiment.visualize_best(show=False, title_str=param_str)
-# fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
-# fig3 = experiment.visualize_exp(show=False, title_str=param_str)
-# fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
-# fig4 = experiment.visualize_codenorm(show=False, title_str=param_str)
-# fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
-# plt.show(block=False)
-# time.sleep(5)
-# plt.close('all')
-#%%
-# unit = ('caffe-net', 'fc8', 1)
-# savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
-# # savedir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
-# expdir = join(savedir, "%s_%s_%d_Gauss_DC_Hybrid" % unit)
-# os.makedirs(expdir, exist_ok=True)
-# # lr = 3; mu = 0.002;
-# lr = 2; mu = 2
-# lr_sph=2; mu_sph=0.005
-# Lambda=1; trial_i=0
-# fn_str = "lr%.1f_mu%.4f_lrsph%.1f_musph%.4f_Lambda%.2f_tr%d" % (lr, mu, lr_sph, mu_sph, Lambda, trial_i)
-# f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
-# sys.stdout = f
-# optim = HessAware_Gauss_Hybrid_DC(4096, population_size=40, lr=lr, mu=mu, lr_sph=lr_sph, mu_sph=mu_sph, Lambda=Lambda, Hupdate_freq=201,
-#             rankweight=True, nat_grad=True, maximize=True, max_norm=300)
-# experiment = ExperimentEvolve_DC(unit, max_step=100, optimizer=optim)
-# experiment.run(init_code=np.random.randn(1, 4096))
-# param_str = "lr=%.1f, mu=%.4f, lr_sph=%.1f, mu_sph=%.4f, Lambda=%.2f." % (lr, mu, lr_sph, mu_sph, optim.Lambda)
-# fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
-# fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
-# fig2 = experiment.visualize_best(show=False, title_str="")
-# fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
-# fig3 = experiment.visualize_exp(show=False, title_str=param_str)
-# fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
-# fig4 = experiment.visualize_codenorm(show=False, title_str=param_str)
-# fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
-# plt.show(block=False)
-# time.sleep(5)
-# plt.close('all')
-# sys.stdout = orig_stdout
-#%% HessAware_Gauss_Cylind_DC
-unit = ('caffe-net', 'fc8', 1)
-savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
-# savedir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
-expdir = join(savedir, "%s_%s_%d_Gauss_DC_Cylind" % unit)
-os.makedirs(expdir, exist_ok=True)
-# lr = 3; mu = 0.002;
-lr_norm = 5; mu_norm = 1
-lr_sph = 2; mu_sph = 0.005
-Lambda=1; trial_i=0
-fn_str = "lrnorm%.1f_munorm%.4f_lrsph%.1f_musph%.4f_Lambda%.2f_unbound_tr%d" % (lr_norm, mu_norm, lr_sph, mu_sph, Lambda, trial_i)
-f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
-sys.stdout = f
-optim = HessAware_Gauss_Cylind_DC(4096, population_size=40, lr_norm=lr_norm, mu_norm=mu_norm, lr_sph=lr_sph, mu_sph=mu_sph, Lambda=Lambda, Hupdate_freq=201,
-            rankweight=True, nat_grad=True, maximize=True, max_norm=400)
-experiment = ExperimentEvolve_DC(unit, max_step=100, optimizer=optim)
-experiment.run(init_code=4 * np.random.randn(1, 4096))
-param_str = "lr_norm=%.1f, mu_norm=%.2f, lr_sph=%.1f, mu_sph=%.4f, Lambda=%.2f." % (lr_norm, mu_norm, lr_sph, mu_sph, optim.Lambda)
-fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
-fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
-fig2 = experiment.visualize_best(show=False, title_str="")
-fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
-fig3 = experiment.visualize_exp(show=False, title_str=param_str)
-fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
-fig4 = experiment.visualize_codenorm(show=False, title_str=param_str)
-fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
-plt.show(block=False)
-time.sleep(5)
-plt.close('all')
-sys.stdout = orig_stdout
-#%% ADAM DC
-#savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
-#unit = ('caffe-net', 'fc8', 1)
-#expdir = join(savedir, "%s_%s_%d_ADAM_DC" % unit)
-#os.makedirs(expdir, exist_ok=True)
-#lr=2; mu=1; nu=0.9; trial_i=0
-#fn_str = "lr%.1f_mu%.1f_nu%.2f_tr%d" % (lr, mu, nu, trial_i)
-#f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
-#sys.stdout = f
-#optim = HessAware_ADAM_DC(4096, population_size=40, lr=lr, mu=mu, nu=nu, maximize=True, max_norm=300)
-#experiment = ExperimentEvolve_DC(unit, max_step=70, optimizer=optim)
-#experiment.run(init_code=np.zeros((1, 4096)))
-#param_str = "lr=%.1f, mu=%.1f, nu=%.1f." % (optim.lr, optim.mu, optim.nu)
-#fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
-#fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
-#fig2 = experiment.visualize_best(show=False, title_str=param_str)
-#fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
-#fig3 = experiment.visualize_exp(show=False, title_str=param_str)
-#fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
-#fig4 = experiment.visualize_codenorm(show=False, title_str=param_str)
-#fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
+    # %% HessAware_Gauss_Spherical_DC Testing
+    # unit = ('caffe-net', 'fc8', 1)
+    # # savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+    # savedir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+    # expdir = join(savedir, "%s_%s_%d_Gauss_DC_Sph" % unit)
+    # os.makedirs(expdir, exist_ok=True)
+    # lr = 3; mu = 0.002; Lambda=1;trial_i=0
+    # fn_str = "lr%.1f_mu%.1f_Lambda%.2f_tr%d" % (lr, mu, Lambda, trial_i)
+    # #f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
+    # #sys.stdout = f
+    # optim = HessAware_Gauss_Spherical_DC(4096, population_size=40, lr=lr, mu=mu, Lambda=Lambda, Hupdate_freq=201,
+    #             rankweight=True, nat_grad=True, maximize=True, max_norm=300)
+    # experiment = ExperimentEvolve_DC(unit, max_step=100, optimizer=optim)
+    # experiment.run(init_code=np.random.randn(1, 4096))
+    # param_str = "lr=%.1f, mu=%.4f, Lambda=%.2f." % (optim.lr, optim.mu, optim.Lambda)
+    # fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
+    # fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
+    # fig2 = experiment.visualize_best(show=False, title_str=param_str)
+    # fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
+    # fig3 = experiment.visualize_exp(show=False, title_str=param_str)
+    # fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
+    # fig4 = experiment.visualize_codenorm(show=False, title_str=param_str)
+    # fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
+    # plt.show(block=False)
+    # time.sleep(5)
+    # plt.close('all')unit = ('caffe-net', 'fc8', 1)
+    # # savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+    # savedir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+    # expdir = join(savedir, "%s_%s_%d_Gauss_DC_Sph" % unit)
+    # os.makedirs(expdir, exist_ok=True)
+    # lr = 3; mu = 0.002; Lambda=1;trial_i=0
+    # fn_str = "lr%.1f_mu%.1f_Lambda%.2f_tr%d" % (lr, mu, Lambda, trial_i)
+    # #f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
+    # #sys.stdout = f
+    # optim = HessAware_Gauss_Spherical_DC(4096, population_size=40, lr=lr, mu=mu, Lambda=Lambda, Hupdate_freq=201,
+    #             rankweight=True, nat_grad=True, maximize=True, max_norm=300)
+    # experiment = ExperimentEvolve_DC(unit, max_step=100, optimizer=optim)
+    # experiment.run(init_code=np.random.randn(1, 4096))
+    # param_str = "lr=%.1f, mu=%.4f, Lambda=%.2f." % (optim.lr, optim.mu, optim.Lambda)
+    # fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
+    # fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
+    # fig2 = experiment.visualize_best(show=False, title_str=param_str)
+    # fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
+    # fig3 = experiment.visualize_exp(show=False, title_str=param_str)
+    # fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
+    # fig4 = experiment.visualize_codenorm(show=False, title_str=param_str)
+    # fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
+    # plt.show(block=False)
+    # time.sleep(5)
+    # plt.close('all')
+    #%%
+    # unit = ('caffe-net', 'fc8', 1)
+    # savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+    # # savedir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+    # expdir = join(savedir, "%s_%s_%d_Gauss_DC_Hybrid" % unit)
+    # os.makedirs(expdir, exist_ok=True)
+    # # lr = 3; mu = 0.002;
+    # lr = 2; mu = 2
+    # lr_sph=2; mu_sph=0.005
+    # Lambda=1; trial_i=0
+    # fn_str = "lr%.1f_mu%.4f_lrsph%.1f_musph%.4f_Lambda%.2f_tr%d" % (lr, mu, lr_sph, mu_sph, Lambda, trial_i)
+    # f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
+    # sys.stdout = f
+    # optim = HessAware_Gauss_Hybrid_DC(4096, population_size=40, lr=lr, mu=mu, lr_sph=lr_sph, mu_sph=mu_sph, Lambda=Lambda, Hupdate_freq=201,
+    #             rankweight=True, nat_grad=True, maximize=True, max_norm=300)
+    # experiment = ExperimentEvolve_DC(unit, max_step=100, optimizer=optim)
+    # experiment.run(init_code=np.random.randn(1, 4096))
+    # param_str = "lr=%.1f, mu=%.4f, lr_sph=%.1f, mu_sph=%.4f, Lambda=%.2f." % (lr, mu, lr_sph, mu_sph, optim.Lambda)
+    # fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
+    # fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
+    # fig2 = experiment.visualize_best(show=False, title_str="")
+    # fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
+    # fig3 = experiment.visualize_exp(show=False, title_str=param_str)
+    # fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
+    # fig4 = experiment.visualize_codenorm(show=False, title_str=param_str)
+    # fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
+    # plt.show(block=False)
+    # time.sleep(5)
+    # plt.close('all')
+    # sys.stdout = orig_stdout
+    #%% HessAware_Gauss_Cylind_DC
+    unit = ('caffe-net', 'fc8', 1)
+    savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+    # savedir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+    expdir = join(savedir, "%s_%s_%d_Gauss_DC_Cylind" % unit)
+    os.makedirs(expdir, exist_ok=True)
+    # lr = 3; mu = 0.002;
+    lr_norm = 5; mu_norm = 1
+    lr_sph = 2; mu_sph = 0.005
+    Lambda=1; trial_i=0
+    fn_str = "lrnorm%.1f_munorm%.4f_lrsph%.1f_musph%.4f_Lambda%.2f_unbound_tr%d" % (lr_norm, mu_norm, lr_sph, mu_sph, Lambda, trial_i)
+    f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
+    sys.stdout = f
+    optim = HessAware_Gauss_Cylind_DC(4096, population_size=40, lr_norm=lr_norm, mu_norm=mu_norm, lr_sph=lr_sph, mu_sph=mu_sph, Lambda=Lambda, Hupdate_freq=201,
+                rankweight=True, nat_grad=True, maximize=True, max_norm=400)
+    experiment = ExperimentEvolve_DC(unit, max_step=100, optimizer=optim)
+    experiment.run(init_code=4 * np.random.randn(1, 4096))
+    param_str = "lr_norm=%.1f, mu_norm=%.2f, lr_sph=%.1f, mu_sph=%.4f, Lambda=%.2f." % (lr_norm, mu_norm, lr_sph, mu_sph, optim.Lambda)
+    fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
+    fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
+    fig2 = experiment.visualize_best(show=False, title_str="")
+    fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
+    fig3 = experiment.visualize_exp(show=False, title_str=param_str)
+    fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
+    fig4 = experiment.visualize_codenorm(show=False, title_str=param_str)
+    fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))
+    plt.show(block=False)
+    time.sleep(5)
+    plt.close('all')
+    sys.stdout = orig_stdout
+    #%% ADAM DC
+    #savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
+    #unit = ('caffe-net', 'fc8', 1)
+    #expdir = join(savedir, "%s_%s_%d_ADAM_DC" % unit)
+    #os.makedirs(expdir, exist_ok=True)
+    #lr=2; mu=1; nu=0.9; trial_i=0
+    #fn_str = "lr%.1f_mu%.1f_nu%.2f_tr%d" % (lr, mu, nu, trial_i)
+    #f = open(join(expdir, 'output_%s.txt' % fn_str), 'w')
+    #sys.stdout = f
+    #optim = HessAware_ADAM_DC(4096, population_size=40, lr=lr, mu=mu, nu=nu, maximize=True, max_norm=300)
+    #experiment = ExperimentEvolve_DC(unit, max_step=70, optimizer=optim)
+    #experiment.run(init_code=np.zeros((1, 4096)))
+    #param_str = "lr=%.1f, mu=%.1f, nu=%.1f." % (optim.lr, optim.mu, optim.nu)
+    #fig1 = experiment.visualize_trajectory(show=False, title_str=param_str)
+    #fig1.savefig(join(expdir, "score_traj_%s.png" % fn_str))
+    #fig2 = experiment.visualize_best(show=False, title_str=param_str)
+    #fig2.savefig(join(expdir, "Best_Img_%s.png" % fn_str))
+    #fig3 = experiment.visualize_exp(show=False, title_str=param_str)
+    #fig3.savefig(join(expdir, "Evol_Exp_%s.png" % fn_str))
+    #fig4 = experiment.visualize_codenorm(show=False, title_str=param_str)
+    #fig4.savefig(join(expdir, "norm_traj_%s.png" % fn_str))

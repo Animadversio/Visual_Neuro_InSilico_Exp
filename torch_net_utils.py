@@ -87,7 +87,11 @@ def visualize(G, code):
     vis_img = clamp_out_img[:, [2, 1, 0], :, :].permute([2, 3, 1, 0]).squeeze() / 255
     return vis_img
 
-def preprocess(img):
+def preprocess(img, scale=1.0):
+    """"""
+    raise NotImplementedError
+    clamp_out_img = torch.clamp(img + BGR_mean, 0, 255)
+    resz_out_img = F.interpolate(clamp_out_img - BGR_mean, (227, 227), mode='bilinear', align_corners=True)
     return img
 # import net_utils
 # detfmr = net_utils.get_detransformer(net_utils.load('generator'))

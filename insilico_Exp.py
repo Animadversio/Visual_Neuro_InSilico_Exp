@@ -3,7 +3,7 @@
 import utils
 import net_utils
 from utils import generator
-from time import time
+from time import time, sleep
 import numpy as np
 from Optimizer import CholeskyCMAES, Genetic, Optimizer  # Optimizer is the base class for these things
 from sklearn.decomposition import PCA
@@ -249,6 +249,150 @@ class ExperimentEvolve:
         plt.imshow(img_select[0])
         plt.axis('off')
         plt.title("{0:.2f}".format(score_select) + title_str, fontsize=14)
+        if show:
+            plt.show()
+        return fig
+
+    def visualize_codenorm(self, show=True, title_str=""):
+        code_norm = np.sqrt((self.codes_all ** 2).sum(axis=1))
+        figh = plt.figure()
+        plt.scatter(self.generations, code_norm, s=16, alpha=0.6, label="all score")
+        plt.title("Optimization Trajectory of Code Norm\n" + title_str)
+        if show:
+            plt.show()
+        return figh
+
+    def visualize_trajectory(self, show=True, title_str=""):
+        """ Visualize the Score Trajectory """
+        gen_slice = np.arange(min(self.generations), max(self.generations) + 1)
+        AvgScore = np.zeros_like(gen_slice)
+        MaxScore = np.zeros_like(gen_slice)
+        for i, geni in enumerate(gen_slice):
+            AvgScore[i] = np.mean(self.scores_all[self.generations == geni])
+            MaxScore[i] = np.max(self.scores_all[self.generations == geni])
+        figh = plt.figure()
+        plt.scatter(self.generations, self.scores_all, s=16, alpha=0.6, label="all score")
+        plt.plot(gen_slice, AvgScore, color='black', label="Average score")
+        plt.plot(gen_slice, MaxScore, color='red', label="Max score")
+        plt.xlabel("generation #")
+        plt.ylabel("CNN unit score")
+        plt.title("Optimization Trajectory of Score\n" + title_str)
+        plt.legend()
+        if show:
+            plt.show()
+        return figh
+
+#%%
+class ExperimentEvolve_DC:
+    """
+    Default behavior is to use the current CMAES optimizer to optimize for 200 steps for the given unit.
+    This Experimental Class is defined to test out the new Descent checking
+    """
+    def __init__(self, model_unit, max_step=200, optimizer=None, backend="caffe", GAN="fc7"):
+        self.recording = []
+        self.scores_all = []
+        self.codes_all = []
+        self.generations = []
+        if backend is "caffe":
+            self.CNNmodel = CNNmodel(model_unit[0])  # 'caffe-net'
+        elif backend is "torch":
+            self.CNNmodel = CNNmodel_Torch(model_unit[0])
+        else:
+            raise NotImplementedError
+        self.CNNmodel.select_unit(model_unit)
+        if GAN == "fc7":
+            self.render = render
+        elif GAN == "BigGAN":
+            from BigGAN_Evolution import BigGAN_embed_render
+            self.render = BigGAN_embed_render
+        else:
+            raise NotImplementedError
+        if optimizer is None:  # Default optimizer is this
+            self.optimizer = HessAware_Gauss_DC(space_dimen=4096, )    # , optim_params=optim_params
+            # CholeskyCMAES(recorddir=recorddir, space_dimen=code_length, init_sigma=init_sigma,
+            #                                            init_code=np.zeros([1, code_length]), Aupdate_freq=Aupdate_freq)
+        else:
+            # assert issubclass(type(optimizer), Optimizer)
+            self.optimizer = optimizer
+        self.max_steps = max_step
+        self.istep = 0
+
+    def run(self, init_code=None):
+        self.recording = []
+        self.scores_all = []
+        self.codes_all = []
+        self.generations = []
+        x_img = self.render(init_code)
+        x_score = self.CNNmodel.score(x_img) # initial code and image and score
+        self.optimizer.new_generation(x_score, init_code)
+        MAX_IN_ITER = 100
+        Batch_Size = 40
+        INCRE_NUM = 10
+        samp_num = Batch_Size
+        self.codes_all = init_code
+        self.scores_all = np.array([x_score])
+        self.generations = np.array([self.istep])
+        while True:
+            new_codes = self.optimizer.generate_sample(samp_num) # self.optimizer.N_in_samp += samp_num
+            new_imgs = self.render(new_codes)
+            new_scores = self.CNNmodel.score(new_imgs)
+            y_code = self.optimizer.compute_grad(new_scores)
+            y_img = self.render(y_code)
+            y_score = self.CNNmodel.score(y_img)
+            self.codes_all = np.concatenate((self.codes_all, new_codes, y_code), axis=0)
+            self.scores_all = np.concatenate((self.scores_all, new_scores[:, np.newaxis], y_score[:, np.newaxis]), axis=0)
+            self.generations = np.concatenate((self.generations, np.array([self.istep] * (samp_num + 1))), axis=0)
+            print('Step {}\nsynthetic img scores: mean {}, all {}'.format(self.istep, np.nanmean(new_scores), new_scores))
+            if y_score < x_score and self.optimizer.N_in_samp <= MAX_IN_ITER:
+                samp_num = INCRE_NUM
+            else:
+                print("Accepted basis score: mean %.2f" % y_score)
+                print("Accepted basis code: norm %.2f" % np.linalg.norm(y_code))
+                x_code = y_code
+                x_score = y_score
+                self.istep += 1
+                self.optimizer.new_generation(x_score, x_code)  # clear score_store code_store N_in_samp
+                samp_num = Batch_Size
+                if self.istep > self.max_steps:
+                    break
+                if not self.istep % self.optimizer.Hupdate_freq:
+                    Hess_codes = self.optimizer.generate_sample(samp_num, hess_comp=True)
+                    Hess_imgs = render(Hess_codes)
+                    Hess_scores = self.CNNmodel.score(Hess_imgs)
+                    self.optimizer.compute_hess(Hess_scores)
+                    self.codes_all = np.concatenate((self.codes_all, Hess_codes), axis=0)
+                    self.scores_all = np.concatenate((self.scores_all, Hess_scores[:, np.newaxis]), axis=0)
+                    self.generations = np.concatenate((self.generations, np.array([self.istep] * len(Hess_scores))),
+                                                      axis=0)
+        self.scores_all = self.scores_all[:, 0]
+        print("Summary\nGenerations: %d, Image samples: %d, Best score: %.2f" % (self.istep, self.codes_all.shape[0], self.scores_all.max()))
+
+    def visualize_exp(self, show=False, title_str=""):
+        """ Visualize the experiment by showing the maximal activating images and the scores in each generations
+        """
+        idx_list = []
+        for geni in range(min(self.generations), max(self.generations) + 1):
+            rel_idx = np.argmax(self.scores_all[self.generations == geni])
+            idx_list.append(np.nonzero(self.generations == geni)[0][rel_idx])
+        idx_list = np.array(idx_list)
+        select_code = self.codes_all[idx_list, :]
+        score_select = self.scores_all[idx_list]
+        img_select = self.render(select_code, scale=1.0)
+        fig = utils.visualize_img_list(img_select, score_select, show=show, nrow=None, title_str=title_str)
+        if show:
+            fig.show()
+        return fig
+
+    def visualize_best(self, show=False, title_str=""):
+        """ Just Visualize the best Images for the experiment """
+        idx = np.argmax(self.scores_all)
+        select_code = self.codes_all[idx:idx + 1, :]
+        score_select = self.scores_all[idx]
+        img_select = self.render(select_code, scale=1.0)
+        fig = plt.figure(figsize=[3, 3])
+        plt.imshow(img_select[0])
+        plt.axis('off')
+        plt.title("{0:.2f}".format(score_select)+title_str, fontsize=16)
         if show:
             plt.show()
         return fig

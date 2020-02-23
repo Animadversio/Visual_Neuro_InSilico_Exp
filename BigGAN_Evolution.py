@@ -2,7 +2,7 @@ import sys
 from os.path import join
 # sys.path.append("D:\Github\pytorch-pretrained-BigGAN")
 # sys.path.append("E:\Github_Projects\pytorch-pretrained-BigGAN")
-from pytorch_pretrained_biggan import (BigGAN, one_hot_from_names, truncated_noise_sample,convert_to_images)
+from pytorch_pretrained_biggan import (BigGAN, one_hot_from_names, truncated_noise_sample, convert_to_images)
 import torch
 import numpy as np
 import matplotlib.pylab as plt
@@ -67,7 +67,7 @@ def BigGAN_render(class_vector, noise_vector, truncation):
     imgs = convert_to_images(output.cpu())
     return imgs
 #%
-def BigGAN_embed_render(embed_vecs, noise_vecs=None, truncation=0.7, scale=1.0):
+def BigGAN_embed_render(embed_vecs, noise_vecs=None, truncation=0.7, scale=255.0, batch=5):
     if embed_vecs.shape[1] == 256:
         input_vecs = torch.from_numpy(embed_vecs)
     elif embed_vecs.shape[1] == 128:
@@ -82,12 +82,20 @@ def BigGAN_embed_render(embed_vecs, noise_vecs=None, truncation=0.7, scale=1.0):
                 assert noise_vecs.shape[0] == 1
                 noise_vecs = np.tile(noise_vecs, [embed_vecs.shape[0], 1])
                 input_vecs = torch.cat((torch.from_numpy(noise_vecs), torch.from_numpy(embed_vecs)), dim=1)
-    with torch.no_grad():
-        output = model.generator(input_vecs.float().cuda(), truncation)
-    # imgs = convert_to_images(output.cpu())
-    # imgs = [np.array(img).astype(np.float64) / 255 * scale for img in imgs]
-    imgs = convert_to_images_np(output.cpu(),scale)
-    return imgs
+    sample_n = input_vecs.shape[0]
+    imgs_all = []
+    csr = 0
+    csr_end = 0
+    while csr_end < sample_n:
+        csr_end = min(csr + batch, sample_n)
+        with torch.no_grad():
+            output = model.generator(input_vecs[csr:csr_end, :].float().cuda(), truncation)
+            # imgs = convert_to_images(output.cpu())
+            # imgs = [np.array(img).astype(np.float64) / 255 * scale for img in imgs]
+            imgs = convert_to_images_np(output.cpu(), scale)
+            imgs_all.extend(imgs)
+        csr = csr_end
+    return imgs_all
 
 if __name__=="__main__":
     # %%
@@ -249,7 +257,7 @@ if __name__=="__main__":
         #plt.title("{0:.1f}".format(scale_vec[i]), fontsize=15,)
     plt.savefig(join(savedir, "%s_multiclass_softmax_mu%s_trunc%.1f_%04d.png" % (classname, mu, truncation, np.random.randint(10000))))
     plt.show()
-    #%% Directly manipulate the embedding
+    #%% Directly manipulate the 128D embedding space
     savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Generator_Testing\BigGAN256"
     truncation = 0.7
     muembd = 0.06
