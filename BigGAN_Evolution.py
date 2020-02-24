@@ -2,7 +2,7 @@ import sys
 from os.path import join
 # sys.path.append("D:\Github\pytorch-pretrained-BigGAN")
 # sys.path.append("E:\Github_Projects\pytorch-pretrained-BigGAN")
-from pytorch_pretrained_biggan import (BigGAN, one_hot_from_names, truncated_noise_sample, convert_to_images)
+from pytorch_pretrained_biggan import (BigGAN, one_hot_from_names, one_hot_from_int, truncated_noise_sample, convert_to_images)
 import torch
 import numpy as np
 import matplotlib.pylab as plt
@@ -262,6 +262,7 @@ if __name__=="__main__":
     truncation = 0.7
     muembd = 0.06
     classname = 'goldfish'
+    one_hot_from_int
     class_vector = one_hot_from_names([classname],  batch_size=1)
     ebd_class = model.embeddings(torch.from_numpy(class_vector).cuda())
     ebd_vecs = muembd * torch.randn((10, ebd_class.shape[1])).cuda() + ebd_class  # add Gaussian perturbation around
@@ -322,4 +323,8 @@ if __name__=="__main__":
     plt.show()
 #%%
 
-
+    truncation = 0.7
+    muembd = 0.1
+    classname = 'dog'
+    class_vector = one_hot_from_int([], batch_size=1)
+    ebd_class = model.embeddings(torch.from_numpy(class_vector).cuda())
