@@ -13,7 +13,7 @@ orig_stdout = sys.stdout
 # model_unit = ('caffe-net', 'fc6', 1)
 # CNN = CNNmodel(model_unit[0])  # 'caffe-net'
 # CNN.select_unit(model_unit)
-from numpy import sqrt, zeros, abs, floor, log, log2, eye
+from numpy import sqrt, zeros, abs, floor, log, log2, eye, exp
 from numpy.random import randn
 #%% Classic Optimizers as Reference 
 class CholeskyCMAES:
@@ -75,6 +75,7 @@ class CholeskyCMAES:
             self.update_crit = Aupdate_freq * self.lambda_
         self.chiN = sqrt(N) * (1 - 1 / (4 * N) + 1 / (21 * N ** 2))
         # expectation of ||N(0,I)|| == norm(randn(N,1)) in 1/N expansion formula
+        self._istep = 0
 
     def step_simple(self, scores, codes):
         """ Taking scores and codes to return new codes, without generating images
@@ -96,7 +97,9 @@ class CholeskyCMAES:
         if self._istep == 0:
             # Population Initialization: if without initialization, the first xmean is evaluated from weighted average all the natural images
             if self.init_x is None:
-                self.xmean = self.weights @ codes[code_sort_index[0:mu], :]
+                select_n = len(code_sort_index[0:mu])
+                temp_weight = self.weights[:, :select_n] / np.sum(self.weights[:, :select_n]) # in case the codes is not enough
+                self.xmean = temp_weight @ codes[code_sort_index[0:mu], :]
             else:
                 self.xmean = self.init_x
         else:
@@ -113,7 +116,7 @@ class CholeskyCMAES:
             # Update A and Ainv with search path
             if self.counteval - self.eigeneval > self.update_crit:  # to achieve O(N ^ 2) do decomposition less frequently
                 self.eigeneval = self.counteval
-                t1 = time()
+                t1 = time.time()
                 v = pc @ Ainv
                 normv = v @ v.T
                 # Directly update the A Ainv instead of C itself
@@ -121,7 +124,7 @@ class CholeskyCMAES:
                             sqrt(1 + normv * c1 / (1 - c1)) - 1) * v @ pc.T  # FIXME, dimension error
                 Ainv = 1 / sqrt(1 - c1) * Ainv - 1 / sqrt(1 - c1) / normv * (
                             1 - 1 / sqrt(1 + normv * c1 / (1 - c1))) * Ainv @ v.T @ v
-                t2 = time()
+                t2 = time.time()
                 print("A, Ainv update! Time cost: %.2f s" % (t2 - t1))
         # Generate new sample by sampling from Gaussian distribution
         new_samples = zeros((self.lambda_, N))
@@ -496,7 +499,7 @@ class HessAware_Gauss_Cylind:
                 # map the rank to the corresponding weight of recombination
             # estimate gradient from the codes and scores
             # HAgrad = self.weights[1:] @ (codes[1:] - self.xcur) / self.B  # it doesn't matter if it includes the 0 row!
-            tang_codes_aug = np.concatenate((np.zeros(1, self.tang_codes.shape[1]), self.tang_codes), axis=0)
+            tang_codes_aug = np.concatenate((np.zeros((1, self.tang_codes.shape[1])), self.tang_codes), axis=0)
             HAgrad = self.weights[np.newaxis, :] @ tang_codes_aug # self.tang_codes # Changed to take the current location into account. 
             normgrad = self.weights[np.newaxis, 1:] @ (self.code_norms - norm(self.xcur))  # Recombine norms to get,
             print("Estimated Angular Gradient Norm %f" % norm(HAgrad))
@@ -512,13 +515,13 @@ class HessAware_Gauss_Cylind:
                     (self.innerU @ self.HessUC.T) * self.HUDiag) @ self.HessUC  # H^{-1/2}U
         self.tang_codes = self.mu_sph * self.outerV  # m + sig * Normal(0,C)
         self.tang_codes = orthogonalize(self.xnew, self.tang_codes) # Tangent vectors of exploration
-        new_norms = self.xnorm + self.mu_norm * randn(self.B)
+        new_norms = norm(self.xnew) + self.mu_norm * randn(self.B)
         new_norms = np.minimum(self.max_norm, new_norms)
         
         new_samples = zeros((self.B + 1, N))
         new_samples[0:1, :] = self.xnew
         new_samples[1:, ] = ExpMap(self.xnew, self.tang_codes)
-        new_samples[1:, ] = renormalize(new_samples, new_norms)
+        new_samples[1:, ] = renormalize(new_samples[1:, ], new_norms)
         print("norm of new samples", norm(new_samples, axis=1))
         self.code_norms = new_norms # doesn't include the norm of the basis vector. 
         if (self._istep + 1) % self.Hupdate_freq == 0:
