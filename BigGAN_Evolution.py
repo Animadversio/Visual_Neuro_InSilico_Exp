@@ -327,5 +327,5 @@ if __name__=="__main__":
     muembd = 0.1
     classname = 'dog'
     class_vector = one_hot_from_int([], batch_size=1)
-    model.embeddings 
+    model.embeddings
     ebd_class = model.embeddings(torch.from_numpy(class_vector).cuda())

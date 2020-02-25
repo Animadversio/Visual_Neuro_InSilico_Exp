@@ -13,8 +13,134 @@ orig_stdout = sys.stdout
 # model_unit = ('caffe-net', 'fc6', 1)
 # CNN = CNNmodel(model_unit[0])  # 'caffe-net'
 # CNN.select_unit(model_unit)
-from numpy import sqrt, zeros, abs, floor, log
+from numpy import sqrt, zeros, abs, floor, log, log2, eye
 from numpy.random import randn
+#%%
+class CholeskyCMAES:
+    # functions to be added
+    #         load_init_population(initcodedir, size=population_size)
+    #         save_init_population()
+    #         step()
+    """ Note this is a variant of CMAES Cholesky suitable for high dimensional optimization"""
+    def __init__(self, space_dimen, population_size=None, init_sigma=3.0, init_code=None, Aupdate_freq=10,
+                 maximize=True, random_seed=None, optim_params={}):
+        N = space_dimen
+        self.space_dimen = space_dimen
+        # Overall control parameter
+        self.maximize = maximize  # if the program is to maximize or to minimize
+        # Strategy parameter setting: Selection
+        if population_size is None:
+            self.lambda_ = int(4 + floor(3 * log2(N)))  # population size, offspring number
+            # the relation between dimension and population size.
+        else:
+            self.lambda_ = population_size  # use custom specified population size
+        mu = self.lambda_ / 2  # number of parents/points for recombination
+        #  Select half the population size as parents
+        weights = log(mu + 1 / 2) - (log(np.arange(1, 1 + floor(mu))))  # muXone array for weighted recombination
+        self.mu = int(floor(mu))
+        self.weights = weights / sum(weights)  # normalize recombination weights array
+        mueff = self.weights.sum() ** 2 / sum(self.weights ** 2)  # variance-effectiveness of sum w_i x_i
+        self.weights.shape = (1, -1)  # Add the 1st dim 1 to the weights mat
+        self.mueff = mueff  # add to class variable
+        self.sigma = init_sigma  # Note by default, sigma is None here.
+        print("Space dimension: %d, Population size: %d, Select size:%d, Optimization Parameters:\nInitial sigma: %.3f"
+              % (self.space_dimen, self.lambda_, self.mu, self.sigma))
+        # Strategy parameter settiself.weightsng: Adaptation
+        self.cc = 4 / (N + 4)  # defaultly  0.0009756
+        self.cs = sqrt(mueff) / (sqrt(mueff) + sqrt(N))  # 0.0499
+        self.c1 = 2 / (N + sqrt(2)) ** 2  # 1.1912701410022985e-07
+        if "cc" in optim_params.keys():  # if there is outside value for these parameter, overwrite them
+            self.cc = optim_params["cc"]
+        if "cs" in optim_params.keys():
+            self.cs = optim_params["cs"]
+        if "c1" in optim_params.keys():
+            self.c1 = optim_params["c1"]
+        self.damps = 1 + self.cs + 2 * max(0, sqrt((mueff - 1) / (N + 1)) - 1)  # damping for sigma usually  close to 1
+
+        print("cc=%.3f, cs=%.3f, c1=%.3f damps=%.3f" % (self.cc, self.cs, self.c1, self.damps))
+        if init_code is not None:
+            self.init_x = np.asarray(init_code)
+            self.init_x.shape = (1, N)
+        else:
+            self.init_x = None  # FIXED Nov. 1st
+        self.xmean = zeros((1, N))
+        self.xold = zeros((1, N))
+        # Initialize dynamic (internal) strategy parameters and constants
+        self.pc = zeros((1, N))
+        self.ps = zeros((1, N))  # evolution paths for C and sigma
+        self.A = eye(N, N)  # covariant matrix is represent by the factors A * A '=C
+        self.Ainv = eye(N, N)
+
+        self.eigeneval = 0  # track update of B and D
+        self.counteval = 0
+        if Aupdate_freq is None:
+            self.update_crit = self.lambda_ / self.c1 / N / 10
+        else:
+            self.update_crit = Aupdate_freq * self.lambda_
+        self.chiN = sqrt(N) * (1 - 1 / (4 * N) + 1 / (21 * N ** 2))
+        # expectation of ||N(0,I)|| == norm(randn(N,1)) in 1/N expansion formula
+
+    def step_simple(self, scores, codes):
+        """ Taking scores and codes to return new codes, without generating images
+        Used in cases when the images are better handled in outer objects like Experiment object
+        """
+        # Note it's important to decide which variable is to be saved in the `Optimizer` object
+        # Note to confirm with other code, this part is transposed.
+        # set short name for everything to simplify equations
+        N = self.space_dimen
+        lambda_, mu, mueff, chiN = self.lambda_, self.mu, self.mueff, self.chiN
+        cc, cs, c1, damps = self.cc, self.cs, self.c1, self.damps
+        sigma, A, Ainv, ps, pc, = self.sigma, self.A, self.Ainv, self.ps, self.pc,
+        # Sort by fitness and compute weighted mean into xmean
+        if self.maximize is False:
+            code_sort_index = np.argsort( scores)  # add - operator it will do maximization.
+        else:
+            code_sort_index = np.argsort(-scores)
+        # scores = scores[code_sort_index]  # Ascending order. minimization
+        if self._istep == 0:
+            # Population Initialization: if without initialization, the first xmean is evaluated from weighted average all the natural images
+            if self.init_x is None:
+                self.xmean = self.weights @ codes[code_sort_index[0:mu], :]
+            else:
+                self.xmean = self.init_x
+        else:
+            self.xold = self.xmean
+            self.xmean = self.weights @ codes[code_sort_index[0:mu], :]  # Weighted recombination, new mean value
+            # Cumulation statistics through steps: Update evolution paths
+            randzw = self.weights @ self.randz[code_sort_index[0:mu], :]
+            ps = (1 - cs) * ps + sqrt(cs * (2 - cs) * mueff) * randzw
+            pc = (1 - cc) * pc + sqrt(cc * (2 - cc) * mueff) * randzw @ A
+            # Adapt step size sigma
+            sigma = sigma * exp((cs / damps) * (norm(ps) / chiN - 1))
+            # self.sigma = self.sigma * exp((self.cs / self.damps) * (norm(ps) / self.chiN - 1))
+            print("sigma: %.2f" % sigma)
+            # Update A and Ainv with search path
+            if self.counteval - self.eigeneval > self.update_crit:  # to achieve O(N ^ 2) do decomposition less frequently
+                self.eigeneval = self.counteval
+                t1 = time()
+                v = pc @ Ainv
+                normv = v @ v.T
+                # Directly update the A Ainv instead of C itself
+                A = sqrt(1 - c1) * A + sqrt(1 - c1) / normv * (
+                            sqrt(1 + normv * c1 / (1 - c1)) - 1) * v @ pc.T  # FIXME, dimension error
+                Ainv = 1 / sqrt(1 - c1) * Ainv - 1 / sqrt(1 - c1) / normv * (
+                            1 - 1 / sqrt(1 + normv * c1 / (1 - c1))) * Ainv @ v.T @ v
+                t2 = time()
+                print("A, Ainv update! Time cost: %.2f s" % (t2 - t1))
+        # Generate new sample by sampling from Gaussian distribution
+        new_samples = zeros((self.lambda_, N))
+        self.randz = randn(self.lambda_, N)  # save the random number for generating the code.
+        for k in range(self.lambda_):
+            new_samples[k:k + 1, :] = self.xmean + sigma * (self.randz[k, :] @ A)  # m + sig * Normal(0,C)
+            # Clever way to generate multivariate gaussian!!
+            # Stretch the guassian hyperspher with D and transform the
+            # ellipsoid by B mat linear transform between coordinates
+            # FIXME A little inconsistent with the naming at line 173/175/305/307 esp. for gen000 code
+            # assign id to newly generated images. These will be used as file names at 2nd round
+            self.counteval += 1
+        self.sigma, self.A, self.Ainv, self.ps, self.pc = sigma, A, Ainv, ps, pc,
+        self._istep += 1
+        return new_samples
 
 #%%
 class HessAware_ADAM:
@@ -150,6 +276,8 @@ class HessAware_Gauss:
         self._istep += 1
         return new_samples
 #%%
+
+#%%
 def rankweight(lambda_, mu=None):
     """ Rank weight inspired by CMA-ES code
     mu is the cut off number, how many samples will be kept while `lambda_ - mu` will be ignore
@@ -175,13 +303,6 @@ class HessAware_Gauss_Spherical:
         self.lr = lr  # learning rate (step size) of moving along gradient
         self.sphere_norm = sphere_norm
         self.tang_codes = zeros((self.B, self.dimen))
-        # Initialize dynamic (internal) strategy parameters and constants
-        self.pc = zeros((1, self.dimen))
-        self.ps = zeros((1, self.dimen))  # evolution paths for C and sigma
-        self.weights = np.log(mu + 1 / 2) - (np.log(np.arange(1, 1 + np.floor(mu))))  # muXone array for weighted recombination
-        self.fmu = int(np.floor(mu))
-        self.weights = self.weights / sum(self.weights)  # normalize recombination weights array
-        self.weights.shape = (1, -1)  # Add the 1st dim 1 to the weights mat
 
         self.grad = np.zeros((1, self.dimen))  # estimated gradient
         self.innerU = np.zeros((self.B, self.dimen))  # inner random vectors with covariance matrix Id
@@ -273,6 +394,129 @@ class HessAware_Gauss_Spherical:
         self.outerV = self.innerU / sqrt(self.Lambda) + ((self.innerU @ self.HessUC.T) * self.HUDiag) @ self.HessUC # H^{-1/2}U
         new_samples[0:1, :] = self.xnew
         self.tang_codes[: , :] = self.mu * self.outerV  # m + sig * Normal(0,C)
+        new_samples[1:, ] = ExpMap(self.xnew, self.tang_codes)
+        if (self._istep + 1) % self.Hupdate_freq == 0:
+            # add more samples to next batch for hessian computation
+            self.hess_comp = True
+            self.HinnerU = randn(self.HB, N)
+            H_pos_samples = self.xnew + self.mu * self.HinnerU
+            H_neg_samples = self.xnew - self.mu * self.HinnerU
+            new_samples = np.concatenate((new_samples, H_pos_samples, H_neg_samples), axis=0)
+        self._istep += 1
+        self._curr_samples = new_samples / norm(new_samples, axis=1)[:, np.newaxis] * self.sphere_norm
+        return self._curr_samples
+
+class HessAware_Gauss_Cylind:
+    """ Cylindrical Evolution """
+    def __init__(self, space_dimen, population_size=40, population_kept=None, lr_norm=0.5, mu_norm=5, lr_sph=2, mu_sph=0.005,
+                 Lambda=1, Hupdate_freq=201, max_norm=300, maximize=True, rankweight=False):
+        self.dimen = space_dimen  # dimension of input space
+        self.B = population_size  # population batch size
+        assert Lambda > 0
+        self.Lambda = Lambda  # diagonal regularizer for Hessian matrix
+        self.lr_norm = lr_norm  # learning rate (step size) of moving along gradient
+        self.mu_norm = mu_norm  # scale of the Gaussian distribution to estimate gradient
+        self.lr_sph = lr_sph
+        self.mu_sph = mu_sph
+
+        self.sphere_flag = True  # initialize the whole system as linear?
+        self.max_norm = max_norm
+        self.tang_codes = zeros((self.B, self.dimen))
+
+        self.grad = np.zeros((1, self.dimen))  # estimated gradient
+        self.innerU = np.zeros((self.B, self.dimen))  # inner random vectors with covariance matrix Id
+        self.outerV = np.zeros(
+            (self.B, self.dimen))  # outer random vectors with covariance matrix H^{-1}, equals self.innerU @ H^{-1/2}
+        self.xcur = np.zeros((1, self.dimen))  # current base point
+        self.xnew = np.zeros((1, self.dimen))  # new base point
+        self.fcur = 0  # f(xcur)
+        self.fnew = 0  # f(xnew)
+        self.Hupdate_freq = int(Hupdate_freq)  # Update Hessian (add additional samples every how many generations)
+        self.HB = population_size  # Batch size of samples to estimate Hessian, can be different from self.B
+        self.HinnerU = np.zeros((self.HB, self.dimen))  # sample deviation vectors for Hessian construction
+        # SVD of the weighted HinnerU for Hessian construction
+        self.HessUC = np.zeros((self.HB, self.dimen))  # Basis vector for the linear subspace defined by the samples
+        self.HessD = np.zeros(self.HB)  # diagonal values of the Lambda matrix
+        self.HessV = np.zeros((self.HB, self.HB))  # seems not used....
+        self.HUDiag = np.zeros(self.HB)
+        self.hess_comp = False
+        self._istep = 0  # step counter
+        self.maximize = maximize  # maximize / minimize the function
+        self.rankweight = rankweight  # Switch between using raw score as weight VS use rank weight as score
+        print("Spereical Space dimension: %d, Population size: %d, Optimization Parameters:\n"
+              "Norm Exploration Range %.3f Learning rate: %.3f\n Angular Exploration Range:%.3f Learning Rate: %.3f"
+              % (self.dimen, self.B, self.mu_norm, self.lr_norm, self.mu_sph, self.lr_sph))
+        if rankweight:
+            self.BKeep = population_kept if population_kept is not None else int(self.B//2)
+            print("Using rank based weights. Keep population size: %d" % (self.BKeep))
+
+    def step_hessian(self, scores):
+        ''' Currently not implemented in Spherical Version. '''
+        raise NotImplementedError
+        # fbasis = scores[0]
+        # fpos = scores[-2 * self.HB:-self.HB]
+        # fneg = scores[-self.HB:]
+        # weights = abs(
+        #     (fpos + fneg - 2 * fbasis) / 2 / self.mu ** 2 / self.HB)  # use abs to enforce positive definiteness
+        # C = sqrt(weights[:, np.newaxis]) * self.HinnerU  # or the sqrt may not work.
+        # # H = C^TC + Lambda * I
+        # self.HessV, self.HessD, self.HessUC = np.linalg.svd(C, full_matrices=False)
+        # self.HUDiag = 1 / sqrt(self.HessD ** 2 + self.Lambda) - 1 / sqrt(self.Lambda)
+        # print("Hessian Samples Spectrum", self.HessD)
+        # print("Hessian Samples Full Power:%f \nLambda:%f" % ((self.HessD ** 2).sum(), self.Lambda))
+
+    def step_simple(self, scores, codes):
+        ''' Assume the 1st row of codes is the  xnew  new starting point '''
+        # set short name for everything to simplify equations
+        N = self.dimen
+        if self.hess_comp:  # if this flag is True then more samples have been added to the trial
+            self.step_hessian(scores)
+            # you should only get images for gradient estimation, get rid of the Hessian samples, or make use of it to estimate gradient
+            codes = codes[:self.B + 1, :]
+            scores = scores[:self.B + 1]
+            self.hess_comp = False
+
+        if self._istep == 0:
+            # Population Initialization: if without initialization, the first xmean is evaluated from weighted average all the natural images
+            print('First generation\n')
+            self.xcur = codes[0:1, :]
+            self.xnew = codes[0:1, :]
+            # No reweighting as there should be a single code
+        else:
+            # self.xcur = self.xnew # should be same as following line
+            self.xcur = codes[0:1, :]
+            if self.rankweight is False:  # use the score difference as weight
+                # B normalizer should go here larger cohort of codes gives more estimates
+                self.weights = (scores[1:] - scores[0]) / self.B  # / self.mu
+            else:  # use a function of rank as weight, not really gradient.
+                if self.maximize is False:  # note for weighted recombination, the maximization flag is here.
+                    code_rank = np.argsort(np.argsort(scores[1:]))  # add - operator it will do maximization.
+                else:
+                    code_rank = np.argsort(np.argsort(-scores[1:]))
+                # Consider do we need to consider the basis code and score here? Or no?
+                # Note the weights here are internally normalized s.t. sum up to 1, no need to normalize more.
+                self.weights = rankweight(len(scores) - 1, mu=self.BKeep)[code_rank]
+                # map the rank to the corresponding weight of recombination
+            # estimate gradient from the codes and scores
+            # HAgrad = self.weights[1:] @ (codes[1:] - self.xcur) / self.B  # it doesn't matter if it includes the 0 row!
+            HAgrad = self.weights[np.newaxis, :] @ self.tang_codes
+            print("Estimated Gradient Norm %f" % np.linalg.norm(HAgrad))
+            if self.rankweight is False:
+                if self.maximize is True:
+                    self.xnew = ExpMap(self.xcur, self.lr * HAgrad)  # add - operator it will do maximization.
+                else:
+                    self.xnew = ExpMap(self.xcur, - self.lr * HAgrad)
+            else:
+                self.xnew = ExpMap(self.xcur, self.lr * HAgrad)
+
+        # Generate new sample by sampling from Gaussian distribution
+        self.tang_codes = zeros((self.B, N))  # Tangent vectors of exploration
+        new_samples = zeros((self.B + 1, N))
+        self.innerU = randn(self.B, N)  # Isotropic gaussian distributions
+        self.outerV = self.innerU / sqrt(self.Lambda) + (
+                    (self.innerU @ self.HessUC.T) * self.HUDiag) @ self.HessUC  # H^{-1/2}U
+        new_samples[0:1, :] = self.xnew
+        self.tang_codes[:, :] = self.mu * self.outerV  # m + sig * Normal(0,C)
         new_samples[1:, ] = ExpMap(self.xnew, self.tang_codes)
         if (self._istep + 1) % self.Hupdate_freq == 0:
             # add more samples to next batch for hessian computation
@@ -1221,7 +1465,6 @@ if __name__ is "__main__":
     # savedir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
     expdir = join(savedir, "%s_%s_%d_Gauss_DC_Cylind" % unit)
     os.makedirs(expdir, exist_ok=True)
-    # lr = 3; mu = 0.002;
     lr_norm = 5; mu_norm = 1
     lr_sph = 2; mu_sph = 0.005
     Lambda=1; trial_i=0
