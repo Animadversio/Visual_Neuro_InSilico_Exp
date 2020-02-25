@@ -17,10 +17,6 @@ from numpy import sqrt, zeros, abs, floor, log, log2, eye
 from numpy.random import randn
 #%%
 class CholeskyCMAES:
-    # functions to be added
-    #         load_init_population(initcodedir, size=population_size)
-    #         save_init_population()
-    #         step()
     """ Note this is a variant of CMAES Cholesky suitable for high dimensional optimization"""
     def __init__(self, space_dimen, population_size=None, init_sigma=3.0, init_code=None, Aupdate_freq=10,
                  maximize=True, random_seed=None, optim_params={}):

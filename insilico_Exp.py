@@ -172,7 +172,7 @@ class ExperimentEvolve:
     """
     Default behavior is to use the current CMAES optimizer to optimize for 200 steps for the given unit.
     """
-    def __init__(self, model_unit, max_step=200, optimizer=None):
+    def __init__(self, model_unit, max_step=200, optimizer=None, GAN="fc7"):
         self.recording = []
         self.scores_all = []
         self.codes_all = []
@@ -185,6 +185,14 @@ class ExperimentEvolve:
         else:
             # assert issubclass(type(optimizer), Optimizer)
             self.optimizer = optimizer
+        if GAN == "fc7":
+            self.render = render
+        elif GAN == "BigGAN":
+            from BigGAN_Evolution import BigGAN_embed_render
+            self.render = BigGAN_embed_render 
+            # 128d Class Embedding code or 256d full code could be used. 
+        else:
+            raise NotImplementedError
         self.max_steps = max_step
 
     def run(self, init_code=None):
@@ -203,7 +211,7 @@ class ExperimentEvolve:
                     codes = init_code
             print('\n>>> step %d' % self.istep)
             t0 = time()
-            self.current_images = render(codes)
+            self.current_images = self.render(codes)
             t1 = time()  # generate image from code
             synscores = self.CNNmodel.score(self.current_images)
             t2 = time()  # score images
@@ -221,7 +229,8 @@ class ExperimentEvolve:
         self.codes_all = np.concatenate(tuple(self.codes_all), axis=0)
         self.scores_all = np.array(self.scores_all)
         self.generations = np.array(self.generations)
-
+        print("Summary\nGenerations: %d, Image samples: %d, Best score: %.2f" % (self.istep, self.codes_all.shape[0], self.scores_all.max()))
+        
     def visualize_exp(self, show=False, title_str=""):
         """ Visualize the experiment by showing the maximal activating images and the scores in each generations
         """
@@ -232,7 +241,7 @@ class ExperimentEvolve:
         idx_list = np.array(idx_list)
         select_code = self.codes_all[idx_list, :]
         score_select = self.scores_all[idx_list]
-        img_select = render(select_code)
+        img_select = self.render(select_code, scale=1.0)
         fig = utils.visualize_img_list(img_select, score_select, show=show, nrow=None, title_str=title_str)
         if show:
             fig.show()
@@ -244,7 +253,7 @@ class ExperimentEvolve:
         idx = np.argmax(self.scores_all)
         select_code = self.codes_all[idx:idx + 1, :]
         score_select = self.scores_all[idx]
-        img_select = render(select_code)
+        img_select = self.render(select_code, scale=1.0)
         fig = plt.figure(figsize=[3, 3])
         plt.imshow(img_select[0])
         plt.axis('off')
