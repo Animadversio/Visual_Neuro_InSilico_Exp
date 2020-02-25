@@ -262,7 +262,7 @@ if __name__=="__main__":
     truncation = 0.7
     muembd = 0.06
     classname = 'goldfish'
-    one_hot_from_int
+    # one_hot_from_int
     class_vector = one_hot_from_names([classname],  batch_size=1)
     ebd_class = model.embeddings(torch.from_numpy(class_vector).cuda())
     ebd_vecs = muembd * torch.randn((10, ebd_class.shape[1])).cuda() + ebd_class  # add Gaussian perturbation around
@@ -322,10 +322,51 @@ if __name__=="__main__":
     plt.tight_layout()
     plt.show()
 #%%
-
+    savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Generator_Testing\BigGAN256"
     truncation = 0.7
     muembd = 0.1
+    classname = [1,2];
+    class_vector = one_hot_from_int([classname], batch_size=len(classname))
+
+    ebd_class = model.embeddings(torch.from_numpy(class_vector).cuda())
+    ebd_vecs = muembd * torch.randn((10, ebd_class.shape[1])).cuda() + ebd_class  # add Gaussian perturbation around
+    with torch.no_grad():
+        output = model.generator(torch.cat((torch.zeros_like(ebd_vecs), ebd_vecs), dim=1), truncation)
+    imgs = convert_to_images(output.cpu())
+    figh = plt.figure(figsize=[25, 3])
+    gs = figh.add_gridspec(1, len(imgs))  # 1d interpolation
+    for i, img in enumerate(imgs):
+        plt.subplot(gs[i])
+        plt.imshow(img)
+        plt.axis('off')
+        # plt.title("{0:.1f}".format(scale_vec[i]), fontsize=15,)
+    plt.savefig(join(savedir, "%s_embdspace_mu%s_trunc%.1f_%04d.png" % (
+    classname, muembd, truncation, np.random.randint(10000))))
+    plt.show()
+#%%
+    savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Generator_Testing\BigGAN256"
+    truncation = 0.7
+    muembd = 0.1
+
     classname = 'dog'
     class_vector = one_hot_from_int([], batch_size=1)
     model.embeddings
+    classname = [1,2];
+    class_vector = one_hot_from_int([classname], batch_size=len(classname))
+
     ebd_class = model.embeddings(torch.from_numpy(class_vector).cuda())
+    ebd_vecs = muembd * torch.randn((10, ebd_class.shape[1])).cuda() + ebd_class  # add Gaussian perturbation around
+    with torch.no_grad():
+        output = model.generator(torch.cat((torch.zeros_like(ebd_vecs), ebd_vecs), dim=1), truncation)
+    imgs = convert_to_images(output.cpu())
+    figh = plt.figure(figsize=[25, 3])
+    gs = figh.add_gridspec(1, len(imgs))  # 1d interpolation
+    for i, img in enumerate(imgs):
+        plt.subplot(gs[i])
+        plt.imshow(img)
+        plt.axis('off')
+        # plt.title("{0:.1f}".format(scale_vec[i]), fontsize=15,)
+    plt.savefig(join(savedir, "%s_embdspace_mu%s_trunc%.1f_%04d.png" % (
+    classname, muembd, truncation, np.random.randint(10000))))
+    plt.show()
+
