@@ -222,7 +222,7 @@ class ExperimentEvolve:
             self.generations = self.generations + [self.istep] * len(synscores)
             codes = codes_new
             # summarize scores & delays
-            print('synthetic img scores: mean {}, all {}'.format(np.nanmean(synscores), synscores))
+            print('synthetic img scores: mean {}, all {}'.format(np.nanmean(synscores), synscores.sort()))
             print(('step %d time: total %.2fs | ' +
                    'code visualize %.2fs  score %.2fs  optimizer step %.2fs')
                   % (self.istep, t3 - t0, t1 - t0, t2 - t1, t3 - t2))

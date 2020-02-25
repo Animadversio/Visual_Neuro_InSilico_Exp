@@ -15,7 +15,7 @@ orig_stdout = sys.stdout
 # CNN.select_unit(model_unit)
 from numpy import sqrt, zeros, abs, floor, log, log2, eye
 from numpy.random import randn
-#%%
+#%% Classic Optimizers as Reference 
 class CholeskyCMAES:
     """ Note this is a variant of CMAES Cholesky suitable for high dimensional optimization"""
     def __init__(self, space_dimen, population_size=None, init_sigma=3.0, init_code=None, Aupdate_freq=10,
@@ -138,7 +138,7 @@ class CholeskyCMAES:
         self._istep += 1
         return new_samples
 
-#%%
+#%% New Optimizers from the paper. 
 class HessAware_ADAM:
     def __init__(self, space_dimen, population_size=40, lr=0.1, mu=1, nu=0.9, maximize=True):
         self.dimen = space_dimen  # dimension of input space
@@ -403,7 +403,7 @@ class HessAware_Gauss_Spherical:
         return self._curr_samples
 
 class HessAware_Gauss_Cylind:
-    """ Cylindrical Evolution """
+    """ Cylindrical Evolution, Both angular and radial. """
     def __init__(self, space_dimen, population_size=40, population_kept=None, lr_norm=0.5, mu_norm=5, lr_sph=2, mu_sph=0.005,
                  Lambda=1, Hupdate_freq=201, max_norm=300, maximize=True, rankweight=False):
         self.dimen = space_dimen  # dimension of input space
@@ -466,6 +466,7 @@ class HessAware_Gauss_Cylind:
         # set short name for everything to simplify equations
         N = self.dimen
         if self.hess_comp:  # if this flag is True then more samples have been added to the trial
+            raise NotImplementedError
             self.step_hessian(scores)
             # you should only get images for gradient estimation, get rid of the Hessian samples, or make use of it to estimate gradient
             codes = codes[:self.B + 1, :]
@@ -483,37 +484,37 @@ class HessAware_Gauss_Cylind:
             self.xcur = codes[0:1, :]
             if self.rankweight is False:  # use the score difference as weight
                 # B normalizer should go here larger cohort of codes gives more estimates
-                self.weights = (scores[1:] - scores[0]) / self.B  # / self.mu
+                self.weights = (scores[:] - scores[0]) / self.B  # / self.mu
             else:  # use a function of rank as weight, not really gradient.
                 if self.maximize is False:  # note for weighted recombination, the maximization flag is here.
-                    code_rank = np.argsort(np.argsort(scores[1:]))  # add - operator it will do maximization.
+                    code_rank = np.argsort(np.argsort(scores[:]))  # add - operator it will do maximization.
                 else:
-                    code_rank = np.argsort(np.argsort(-scores[1:]))
+                    code_rank = np.argsort(np.argsort(-scores[:]))
                 # Consider do we need to consider the basis code and score here? Or no?
                 # Note the weights here are internally normalized s.t. sum up to 1, no need to normalize more.
-                self.weights = rankweight(len(scores) - 1, mu=self.BKeep)[code_rank]
+                self.weights = rankweight(len(scores), mu=self.BKeep)[code_rank]
                 # map the rank to the corresponding weight of recombination
             # estimate gradient from the codes and scores
             # HAgrad = self.weights[1:] @ (codes[1:] - self.xcur) / self.B  # it doesn't matter if it includes the 0 row!
-            HAgrad = self.weights[np.newaxis, :] @ self.tang_codes
+            tang_codes_aug = np.concatenate((np.zeros(1, self.tang_codes.shape[1]), self.tang_codes))
+            HAgrad = self.weights[np.newaxis, :] @ tang_codes_aug # self.tang_codes # Changed to take the current location into account. 
             print("Estimated Gradient Norm %f" % np.linalg.norm(HAgrad))
-            if self.rankweight is False:
-                if self.maximize is True:
-                    self.xnew = ExpMap(self.xcur, self.lr * HAgrad)  # add - operator it will do maximization.
-                else:
-                    self.xnew = ExpMap(self.xcur, - self.lr * HAgrad)
-            else:
-                self.xnew = ExpMap(self.xcur, self.lr * HAgrad)
-
+            mov_sign = -1 if (not self.maximize) and (not self.rankweight) else 1 
+            self.xnew = ExpMap(self.xcur, mov_sign * self.lr * HAgrad)  # add - operator it will do maximization.
+            
         # Generate new sample by sampling from Gaussian distribution
-        self.tang_codes = zeros((self.B, N))  # Tangent vectors of exploration
-        new_samples = zeros((self.B + 1, N))
         self.innerU = randn(self.B, N)  # Isotropic gaussian distributions
         self.outerV = self.innerU / sqrt(self.Lambda) + (
                     (self.innerU @ self.HessUC.T) * self.HUDiag) @ self.HessUC  # H^{-1/2}U
+        self.tang_codes = self.mu_sph * self.outerV  # m + sig * Normal(0,C)
+        self.tang_codes = orthogonalize(self.xnew, self.tang_codes) # Tangent vectors of exploration
+        new_norms = self.xnorm + self.mu_norm * randn(samp_num)
+        new_norms = np.minimum(self.max_norm, new_norms)
+            
+        new_samples = zeros((self.B + 1, N))
         new_samples[0:1, :] = self.xnew
-        self.tang_codes[:, :] = self.mu * self.outerV  # m + sig * Normal(0,C)
         new_samples[1:, ] = ExpMap(self.xnew, self.tang_codes)
+        new_samples = renormalize(new_samples, new_norms)
         if (self._istep + 1) % self.Hupdate_freq == 0:
             # add more samples to next batch for hessian computation
             self.hess_comp = True
@@ -522,8 +523,7 @@ class HessAware_Gauss_Cylind:
             H_neg_samples = self.xnew - self.mu * self.HinnerU
             new_samples = np.concatenate((new_samples, H_pos_samples, H_neg_samples), axis=0)
         self._istep += 1
-        self._curr_samples = new_samples / norm(new_samples, axis=1)[:, np.newaxis] * self.sphere_norm
-        return self._curr_samples
+        return new_samples
 
 def ExpMap(x, tang_vec, EPS = 1E-4):
     angle_dist = sqrt((tang_vec ** 2).sum(axis=1))  # vectorized
