@@ -496,11 +496,15 @@ class HessAware_Gauss_Cylind:
                 # map the rank to the corresponding weight of recombination
             # estimate gradient from the codes and scores
             # HAgrad = self.weights[1:] @ (codes[1:] - self.xcur) / self.B  # it doesn't matter if it includes the 0 row!
-            tang_codes_aug = np.concatenate((np.zeros(1, self.tang_codes.shape[1]), self.tang_codes))
+            tang_codes_aug = np.concatenate((np.zeros(1, self.tang_codes.shape[1]), self.tang_codes), axis=0)
             HAgrad = self.weights[np.newaxis, :] @ tang_codes_aug # self.tang_codes # Changed to take the current location into account. 
-            print("Estimated Gradient Norm %f" % np.linalg.norm(HAgrad))
+            normgrad = self.weights[np.newaxis, 1:] @ (self.code_norms - norm(self.xcur))  # Recombine norms to get,
+            print("Estimated Angular Gradient Norm %f" % norm(HAgrad))
+            print("Estimated Radial Gradient Norm %f" % normgrad)
             mov_sign = -1 if (not self.maximize) and (not self.rankweight) else 1 
-            self.xnew = ExpMap(self.xcur, mov_sign * self.lr * HAgrad)  # add - operator it will do maximization.
+            normnew = np.minimum(self.max_norm, norm(self.xcur) + mov_sign * self.lr_norm * normgrad) # use the new norm to normalize ynew
+            self.xnew = ExpMap(self.xcur, mov_sign * self.lr_sph * HAgrad)  # add - operator it will do maximization.
+            self.xnew = renormalize(self.xnew, normnew)
             
         # Generate new sample by sampling from Gaussian distribution
         self.innerU = randn(self.B, N)  # Isotropic gaussian distributions
@@ -508,13 +512,15 @@ class HessAware_Gauss_Cylind:
                     (self.innerU @ self.HessUC.T) * self.HUDiag) @ self.HessUC  # H^{-1/2}U
         self.tang_codes = self.mu_sph * self.outerV  # m + sig * Normal(0,C)
         self.tang_codes = orthogonalize(self.xnew, self.tang_codes) # Tangent vectors of exploration
-        new_norms = self.xnorm + self.mu_norm * randn(samp_num)
+        new_norms = self.xnorm + self.mu_norm * randn(self.B)
         new_norms = np.minimum(self.max_norm, new_norms)
-            
+        
         new_samples = zeros((self.B + 1, N))
         new_samples[0:1, :] = self.xnew
         new_samples[1:, ] = ExpMap(self.xnew, self.tang_codes)
-        new_samples = renormalize(new_samples, new_norms)
+        new_samples[1:, ] = renormalize(new_samples, new_norms)
+        print("norm of new samples", norm(new_samples, axis=1))
+        self.code_norms = new_norms # doesn't include the norm of the basis vector. 
         if (self._istep + 1) % self.Hupdate_freq == 0:
             # add more samples to next batch for hessian computation
             self.hess_comp = True
@@ -1161,7 +1167,7 @@ class HessAware_Gauss_Cylind_DC:
             # ynew = self.xnew + mov_sign * self.lr * hagrad # Linear space ExpMap reduced to just normal linear addition.
         else:  # Spherically move mean
             ynew = ExpMap(self.xnew, mov_sign * self.lr_sph * hagrad)
-            normnew = norm(self.xnew) + mov_sign * self.lr_norm + normgrad  # use the new norm to normalize ynew
+            normnew = norm(self.xnew) + mov_sign * self.lr_norm * normgrad  # use the new norm to normalize ynew
             normnew = np.minimum(self.max_norm, normnew)
             ynew = ynew / norm(ynew) * normnew  # exact normalization to the sphere.
         # ynew = radial_proj(ynew, max_norm=self.max_norm) # Projection
