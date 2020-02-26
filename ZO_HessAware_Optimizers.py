@@ -322,8 +322,14 @@ class HessAware_Gauss_Spherical:
         self._istep = 0  # step counter
         self.maximize = maximize  # maximize / minimize the function
         self.rankweight = rankweight # Switch between using raw score as weight VS use rank weight as score
-        print("Spereical Space dimension: %d, Population size: %d, Select size:%d, Optimization Parameters:\n Learning rate: %.3f"
+        print("Spereical Space dimension: %d, Population size: %d, Optimization Parameters:\n Exploration: %.3f\n Learning rate: %.3f"
               % (self.dimen, self.B, self.mu, self.lr))
+        if self.rankweight:
+            if select_cutoff is None:
+                self.select_cutoff = int(population_size / 2)
+            else: 
+                self.select_cutoff = select_cutoff
+            print("Using rank weight, selection size: %d\n", self.select_cutoff)
     
     def step_hessian(self, scores):
         '''Currently not implemented in Spherical Version.'''
@@ -369,7 +375,7 @@ class HessAware_Gauss_Spherical:
                     code_rank = np.argsort(np.argsort(-scores[1:]))
                 # Consider do we need to consider the basis code and score here? Or no? 
                 # Note the weights here are internally normalized s.t. sum up to 1, no need to normalize more. 
-                self.weights = rankweight(len(scores)-1)[code_rank] # map the rank to the corresponding weight of recombination
+                self.weights = rankweight(len(scores)-1, mu=self.select_cutoff)[code_rank] # map the rank to the corresponding weight of recombination
 
             # estimate gradient from the codes and scores
             # HAgrad = self.weights[1:] @ (codes[1:] - self.xcur) / self.B  # it doesn't matter if it includes the 0 row!
