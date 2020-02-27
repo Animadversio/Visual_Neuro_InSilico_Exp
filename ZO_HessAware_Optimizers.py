@@ -329,7 +329,7 @@ class HessAware_Gauss_Spherical:
                 self.select_cutoff = int(population_size / 2)
             else: 
                 self.select_cutoff = select_cutoff
-            print("Using rank weight, selection size: %d\n", self.select_cutoff)
+            print("Using rank weight, selection size: %d\n"% self.select_cutoff)
     
     def step_hessian(self, scores):
         '''Currently not implemented in Spherical Version.'''
