@@ -965,6 +965,7 @@ class HessAware_Gauss_Hybrid_DC:
 
     def compute_hess(self, scores, Lambda_Frac=100):
         ''' Not implemented in spherical setting '''
+        raise NotImplementedError
         # fbasis = self.xscore
         # fpos = scores[:self.HB]
         # fneg = scores[-self.HB:]
