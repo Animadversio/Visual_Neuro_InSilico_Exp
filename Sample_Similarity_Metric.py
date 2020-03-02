@@ -24,9 +24,34 @@ model_vgg = models.PerceptualLoss(model='net-lin', net='vgg', use_gpu=1, gpu_ids
 model_alex = models.PerceptualLoss(model='net-lin', net='alex', use_gpu=1, gpu_ids=[0])
 #%%
 result_dir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Artiphysiology\Sample_Diversity"
-from torch_net_utils import load_generator, load_caffenet, visualize
-Caffenet = load_caffenet()
-Generator = load_generator()
+from torch_net_utils import load_generator, load_caffenet, visualize, preprocess
+net_torch = load_caffenet()
+G_torch = load_generator()
+#%%
+sigma = 3.0
+codes = sigma * np.random.randn(40, 4096)
+img_list = [visualize(G_torch, code, "cuda") for code in codes]
+#%
+dist_mat = np.zeros((len(codes), len(codes)))
+for i in range(len(codes)):
+    for j in range(len(codes)):
+        dist = model_squ.forward(img_list[i].unsqueeze(0).permute(0,3,1,2), img_list[j].unsqueeze(0).permute(0,3,1,2), normalize=True)
+        dist_mat[i, j] = dist.squeeze().detach().cpu().numpy()
+dist_mat.mean()
+#%%
+basis = 5 * np.random.randn(1, 4096)
+sigma = 3.0
+codes = sigma * np.random.randn(40, 4096)
+img_list = [visualize(G_torch, code, "cuda") for code in codes]
+dist_mat2 = np.zeros((len(codes), len(codes)))
+for i in range(len(codes)):
+    for j in range(len(codes)):
+        dist = model_squ.forward(img_list[i].unsqueeze(0).permute(0,3,1,2), img_list[j].unsqueeze(0).permute(0,3,1,2), normalize=True)
+        dist_mat2[i, j] = dist.squeeze().detach().cpu().numpy()
+#%
+dist_mat2.mean()
+#%%
+
 #%%
 BGR_mean = torch.tensor([104.0, 117.0, 123.0])
 BGR_mean = torch.reshape(BGR_mean, (1, 3, 1, 1))
@@ -42,11 +67,9 @@ print(activ)
 # Seems the caffe model and torch model match the score and activation < 1E-3 error. So torch and caffe can be used interchangeably
 # seems the same image will generate different number of activation in the network!
 #%%
-from insilico_Exp import CNNmodel
-net = CNNmodel("caffe-net");net.select_unit(('caffe-net', 'fc8', 1))
-net.score(img[np.newaxis,])
-#%%
 import matplotlib.pylab as plt
 plt.figure()
 plt.imshow(img)
 plt.show()
+#%%
+img_torch = visualize(G_torch, code)

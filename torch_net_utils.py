@@ -77,16 +77,25 @@ def load_generator():
 BGR_mean = torch.tensor([104.0, 117.0, 123.0])
 BGR_mean = torch.reshape(BGR_mean, (1, 3, 1, 1))
 #%%
-def visualize(G, code):
+def visualize(G, code, mode="cuda"):
     """Do the De-caffe transform (Validated)
     works for a single code """
     code = code.reshape(-1, 4096).astype(np.float32)
-    blobs = G(torch.from_numpy(code))
+    if mode == "cpu":
+        blobs = G(torch.from_numpy(code))
+    else:
+        blobs = G(torch.from_numpy(code).cuda())
     out_img = blobs['deconv0']  # get raw output image from GAN
-    clamp_out_img = torch.clamp(out_img + BGR_mean, 0, 255)
+    if mode == "cpu":
+        clamp_out_img = torch.clamp(out_img + BGR_mean, 0, 255)
+    else:
+        clamp_out_img = torch.clamp(out_img + BGR_mean.cuda(), 0, 255)
     vis_img = clamp_out_img[:, [2, 1, 0], :, :].permute([2, 3, 1, 0]).squeeze() / 255
-    return vis_img
-
+    if mode == "cpu":
+        return vis_img
+    if mode == "cuda":
+        return vis_img.cpu()
+#%%
 import torch.nn.functional as F
 def preprocess(img, input_scale=255):
     """"""

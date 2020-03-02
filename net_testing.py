@@ -1,5 +1,5 @@
-"""Test the consistency between the Caffe version of Caffe Net and Pytorch Translation of it. """
-"""Also the Generator"""
+"""Test the consistency between the Caffe version of Caffe Net and Generator and Pytorch Translation of it. """
+
 import matplotlib.pylab as plt
 import numpy as np
 
@@ -24,8 +24,8 @@ G_torch = load_generator()  # Torch generative network
 G_caffe = generator  # Caffe GAN
 #%%
 code = 5*np.random.randn(1, 4096)
-img_caffe = G_caffe.visualize(code)
-img_torch = visualize(G_torch, code)
+img_caffe = G_caffe.visualize(code)  # uint8 255
+img_torch = visualize(G_torch, code)  # scale 0, 1 by default
 #%
 plt.figure()
 plt.subplot(121)
