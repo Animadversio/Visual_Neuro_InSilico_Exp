@@ -1,3 +1,4 @@
+"""Obsolete code to test BOBYQA optimizer is useful for the GAN-CNN pipeline optimization """
 from pybobyqa import solver
 #% Prepare PyTorch version of the Caffe networks
 import sys

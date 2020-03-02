@@ -1,3 +1,4 @@
+"""Benchmark all Optimizers at fc6 generators and BigGAN generators"""
 from insilico_Exp import *
 import time
 import sys

@@ -103,7 +103,7 @@ class CNNmodel_Torch:
     def __init__(self, model_name):
         if model_name == "caffe-net":
             self._classifier = load_caffenet()
-            self.preprocess = preprocess
+            self.preprocess = preprocess # finally implemented and tested! 
         # self._transformer = net_utils.get_transformer(self._classifier, scale=1)
         self.artiphys = False
 
@@ -136,7 +136,7 @@ class CNNmodel_Torch:
         scores = np.zeros(len(images))
         for i, img in enumerate(images):
             # Note: now only support single repetition
-            resz_out_img = self.preprocess(img)  # shape=(3, 227, 227) # assuming input scale is 0,1 output will be 0,255
+            resz_out_img = self.preprocess(img, input_scale=255)  # shape=(3, 227, 227) # assuming input scale is 0,1 output will be 0,255
             blobs_CNN = self._classifier(resz_out_img)
             if self._net_unit_x is not None:
                 score = blobs_CNN[self._net_layer][0, self._net_iunit, self._net_unit_x, self._net_unit_y]

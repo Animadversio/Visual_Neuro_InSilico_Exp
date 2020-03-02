@@ -87,12 +87,17 @@ def visualize(G, code):
     vis_img = clamp_out_img[:, [2, 1, 0], :, :].permute([2, 3, 1, 0]).squeeze() / 255
     return vis_img
 
-def preprocess(img, scale=1.0):
+import torch.nn.functional as F
+def preprocess(img, input_scale=255):
     """"""
-    raise NotImplementedError
-    clamp_out_img = torch.clamp(img + BGR_mean, 0, 255)
-    resz_out_img = F.interpolate(clamp_out_img - BGR_mean, (227, 227), mode='bilinear', align_corners=True)
-    return img
+    # TODO, could be modified to support batch processing
+    img_tsr = torch.from_numpy(img).float()  # assume img is aready at 255 uint8 scale.
+    if input_scale != 255:
+        img_tsr = img_tsr / input_scale * 255
+    img_tsr = img_tsr.unsqueeze(0).permute([0, 3, 1, 2])
+    resz_out_img = F.interpolate(img_tsr[:, [2, 1, 0], :, :] - BGR_mean, (227, 227), mode='bilinear',
+                                 align_corners=True)
+    return resz_out_img
 # import net_utils
 # detfmr = net_utils.get_detransformer(net_utils.load('generator'))
 # tfmr = net_utils.get_transformer(net_utils.load('caffe-net'))
