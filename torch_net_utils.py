@@ -38,7 +38,7 @@ from torch_receptive_field import receptive_field, receptive_field_for_unit
 def load_caffenet():
     # netsdir = r"D:\Generator_DB_Windows\nets"
     protofile = join(netsdir, r"caffenet\caffenet.prototxt") # 'resnet50/deploy.prototxt'
-    weightfile = join(netsdir, 'bvlc_reference_caffenet.caffemodel') # 'resnet50/resnet50.caffemodel'
+    weightfile = join(netsdir, r'caffenet\bvlc_reference_caffenet.caffemodel') # 'resnet50/resnet50.caffemodel'
     save_path = join(netsdir, r"caffenet\caffenet_state_dict.pt")
     net = CaffeNet(protofile)
     print(net)
