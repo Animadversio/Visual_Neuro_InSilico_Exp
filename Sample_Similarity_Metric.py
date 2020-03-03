@@ -41,7 +41,7 @@ dist_mat.mean()
 #%%
 basis = 5 * np.random.randn(1, 4096)
 sigma = 3.0
-codes = sigma * np.random.randn(40, 4096)
+codes = sigma * np.random.randn(40, 4096) + basis
 img_list = [visualize(G_torch, code, "cuda") for code in codes]
 dist_mat2 = np.zeros((len(codes), len(codes)))
 for i in range(len(codes)):
@@ -51,7 +51,17 @@ for i in range(len(codes)):
 #%
 dist_mat2.mean()
 #%%
-
+basis = 8 * np.random.randn(1, 4096)
+sigma = 3.0
+codes3 = sigma * np.random.randn(40, 4096) + basis
+img_list = [visualize(G_torch, code, "cuda") for code in codes3]
+dist_mat3 = np.zeros((len(codes), len(codes)))
+for i in range(len(codes3)):
+    for j in range(len(codes3)):
+        dist = model_squ.forward(img_list[i].unsqueeze(0).permute(0,3,1,2), img_list[j].unsqueeze(0).permute(0, 3, 1, 2), normalize=True)
+        dist_mat3[i, j] = dist.squeeze().detach().cpu().numpy()
+#%
+dist_mat3.mean()
 #%%
 BGR_mean = torch.tensor([104.0, 117.0, 123.0])
 BGR_mean = torch.reshape(BGR_mean, (1, 3, 1, 1))
