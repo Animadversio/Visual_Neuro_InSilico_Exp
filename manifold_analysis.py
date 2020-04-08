@@ -141,7 +141,7 @@ from os import listdir
 from os.path import join, exists
 result_dir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Artiphysiology\Manifold"
 netname = "caffe-net"
-layers = ["conv2", "conv4", "conv5", "fc6"]
+layers = ["conv1""conv2", "conv3", "conv4", "conv5", "fc6", "fc7", "fc8"]
 param_col = []
 sigma_col = []
 for i in range(len(layers)):
