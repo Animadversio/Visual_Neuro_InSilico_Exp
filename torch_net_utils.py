@@ -12,6 +12,8 @@ from sys import platform
 if platform == "linux":  # CHPC cluster
     homedir = os.path.expanduser('~')
     netsdir = os.path.join(homedir, 'Generate_DB/nets')
+    sys.path.append("/home/binxu/pytorch-caffe")
+    sys.path.append("/home/binxu/pytorch-receptive-field")    
 else:
     if os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':  # PonceLab-Desktop 3
         sys.path.append("D:\Github\pytorch-caffe")
