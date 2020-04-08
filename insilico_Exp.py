@@ -20,7 +20,7 @@ else:
         recorddir = r"D:\Generator_DB_Windows\data\with_CNN"
         initcodedir = r"D:\Generator_DB_Windows\stimuli\texture006"  # Code & image folder to initialize the Genetic Algorithm
     elif os.environ['COMPUTERNAME'] == 'DESKTOP-MENSD6S':  ## Home_WorkStation
-        recorddir = r"D:\Monkey_Data\Generator_DB_Windows\data\with_CNN"
+        recorddir = r"E:\Monkey_Data\Generator_DB_Windows\data\with_CNN"
 # Basic properties for Optimizer.
 code_length = 4096
 init_sigma = 3

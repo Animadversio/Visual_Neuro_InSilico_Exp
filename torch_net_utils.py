@@ -16,8 +16,8 @@ if platform == "linux":  # CHPC cluster
     sys.path.append("/home/binxu/pytorch-receptive-field")    
 else:
     if os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':  # PonceLab-Desktop 3
-        sys.path.append("D:\Github\pytorch-caffe")
-        sys.path.append("D:\Github\pytorch-receptive-field")
+        sys.path.append(r"D:\Github\pytorch-caffe")
+        sys.path.append(r"D:\Github\pytorch-receptive-field")
         homedir = "D:/Generator_DB_Windows"
         netsdir = os.path.join(homedir, 'nets')
     elif os.environ['COMPUTERNAME'] == 'PONCELAB-ML2C':  # PonceLab-Desktop Victoria
