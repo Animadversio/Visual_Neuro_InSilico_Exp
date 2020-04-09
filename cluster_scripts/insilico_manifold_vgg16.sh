@@ -21,14 +21,14 @@
 # source activate conda_env
 
 cd ~/Visual_Neuro_InSilico_Exp/
-
+export TORCH_HOME="/scratch/binxu/torch" # or it will download models to home folder. (and it will explode....)
 # cd Into the run directory; I'll create a new directory to run under
 # cd /scratch/binxu.wang
 
 param_list='unit = ("vgg16", "conv2", 5, 112, 112);
 unit = ("vgg16", "conv4", 5, 56, 56);
 unit = ("vgg16", "conv7", 5, 28, 28);
-unit = ("vgg16", "conv10", 5, 14, 14);
+unit = ("vgg16", "conv9", 5, 14, 14);
 unit = ("vgg16", "conv13", 5, 7, 7);
 unit = ("vgg16", "fc1", 1);
 unit = ("vgg16", "fc2", 1);
@@ -40,15 +40,18 @@ unit = ("vgg16", "fc3", 1);'
 export unit_name="$(echo "$param_list" | head -n $PBS_ARRAYID | tail -1)"
 #$PBS_ARRAYID
 export python_code='from insilico_Exp import *
+import torch
 from os.path import join
 savedir = join(recorddir, "%s_%s_manifold" % (unit[0], unit[1]))
 os.makedirs(savedir, exist_ok=True)
 for chan in range(50):
     if "conv" not in unit[1]:
         unit = (unit[0], unit[1], chan)
+        label = "chan%d" % (chan, )
     else:
         unit = (unit[0], unit[1], chan, unit[3], unit[4])
-    experiment = ExperimentManifold(unit, max_step=100, savedir=savedir, backend="torch", explabel="chan%d-(%d,%d)" % (chan, unit[3], unit[4]))
+        label = "chan%d-(%d,%d)" % (chan, unit[3], unit[4])
+    experiment = ExperimentManifold(unit, max_step=100, savedir=savedir, backend="torch", explabel=label)
     experiment.run()
     experiment.analyze_traj()
     score_sum, _ = experiment.run_manifold([(1, 2), (24, 25), (48, 49), "RND"])

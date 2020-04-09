@@ -181,6 +181,7 @@ def get_activation(name, unit=None):
             elif len(output.shape) == 2:
                 activation[name] = output.detach()[:, unit[0]]
     return hook
+
 class TorchScorer:
     """ Torch CNN Scorer using hooks to fetch score from any layer in the net. Allows all models in torchvision zoo
     Demo:
@@ -194,8 +195,8 @@ class TorchScorer:
     """
     def __init__(self, model_name):
         if model_name == "vgg16":
-            self.model = models.vgg16(pretrained=True).cuda()
-            self.model.eval()
+            self.model = models.vgg16(pretrained=True)
+            self.model.cuda().eval()
             self.layername = layername_dict[model_name]
         # self.preprocess = transforms.Compose([transforms.ToPILImage(),
         #                                       transforms.Resize(size=(224, 224)),
