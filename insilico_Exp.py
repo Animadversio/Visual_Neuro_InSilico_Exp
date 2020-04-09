@@ -182,7 +182,7 @@ def get_activation(name, unit=None):
                 activation[name] = output.detach()[:, unit[0]]
     return hook
 class TorchScorer:
-    """ Basic Torch CNN Scorer using hooks to fetch score from any layer in the net.
+    """ Torch CNN Scorer using hooks to fetch score from any layer in the net. Allows all models in torchvision zoo
     Demo:
         scorer = TorchScorer("vgg16")
         scorer.select_unit(("vgg16", "fc2", 10, 10, 10))
