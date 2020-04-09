@@ -112,4 +112,79 @@ def preprocess(img, input_scale=255):
 # import net_utils
 # detfmr = net_utils.get_detransformer(net_utils.load('generator'))
 # tfmr = net_utils.get_transformer(net_utils.load('caffe-net'))
-
+#%%
+import torch
+from torchvision import transforms
+from torchvision import models
+import torch.nn as nn
+def get_layer_names(model):
+    layername = []
+    conv_cnt = 0
+    fc_cnt = 0
+    pool_cnt = 0
+    do_cnt = 0
+    for layer in list(model.features)+list(model.classifier):
+        if isinstance(layer, nn.Conv2d):
+            conv_cnt += 1
+            layername.append("conv%d" % conv_cnt)
+        elif isinstance(layer, nn.ReLU):
+            name = layername[-1] + "_relu"
+            layername.append(name)
+        elif isinstance(layer, nn.MaxPool2d):
+            pool_cnt += 1
+            layername.append("pool%d"%pool_cnt)
+        elif isinstance(layer, nn.Linear):
+            fc_cnt += 1
+            layername.append("fc%d" % fc_cnt)
+        elif isinstance(layer, nn.Dropout):
+            do_cnt += 1
+            layername.append("dropout%d" % do_cnt)
+        else:
+            layername.append(layer.__repr__())
+    return layername
+#%% Utility code to fetch activation
+# def get_activation(name, unit=None):
+#     if unit is None:
+#         def hook(model, input, output):
+#             activation[name] = output.detach()
+#     else:
+#         def hook(model, input, output):
+#             if len(output.shape) == 4:
+#                 activation[name] = output.detach()[:, unit[0], unit[1], unit[2]]
+#             elif len(output.shape) == 2:
+#                 activation[name] = output.detach()[:, unit[0]]
+#     return hook
+#
+# def set_unit(model, name, layer, unit=None):
+#     idx = layername.index(layer)
+#     layers = list(model.features) + list(model.classifier)
+#     handle = layers[idx].register_forward_hook(get_activation(name, unit))
+#     return handle
+#
+# layers = list(classifier.features) + list(classifier.classifier)
+# layername = get_layer_names(classifier)
+# set_unit(classifier, "score", "conv2", unit=(0,10,10))
+# classifier = models.vgg16(pretrained=True)
+# classifier.eval()
+# score_hk = set_unit(classifier, "score", "fc1", unit=(None, 10, 10))
+# img = torch.rand((2, 3, 224, 224))
+# out = classifier(img)
+# print(activation["score"])
+# activation["score"].shape
+#%%
+layername_dict ={"vgg16":['conv1', 'conv1_relu',
+                         'conv2', 'conv2_relu', 'pool1',
+                         'conv3', 'conv3_relu',
+                         'conv4', 'conv4_relu', 'pool2',
+                         'conv5', 'conv5_relu',
+                         'conv6', 'conv6_relu',
+                         'conv7', 'conv7_relu', 'pool3',
+                         'conv8', 'conv8_relu',
+                         'conv9', 'conv9_relu',
+                         'conv10', 'conv10_relu', 'pool4',
+                         'conv11', 'conv11_relu',
+                         'conv12', 'conv12_relu',
+                         'conv13', 'conv13_relu', 'pool5',
+                         'fc1', 'fc1_relu', 'dropout1',
+                         'fc2', 'fc2_relu', 'dropout2',
+                         'fc3']}

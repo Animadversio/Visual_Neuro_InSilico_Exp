@@ -129,7 +129,15 @@ def fit_Kent(theta_arr, phi_arr, act_map):
                                     [pi, pi / 2, pi, np.inf, np.inf, np.inf]))
     sigmas = np.diag(pcov) ** 0.5
     return param, sigmas
-
+#%%
+def fit_stats(act_map, param):
+    phi_grid, theta_grid = meshgrid(phi_arr, theta_arr)
+    Xin = np.array([theta_grid.flatten(), phi_grid.flatten()]).T
+    fval = act_map.flatten()
+    fpred = KentFunc(Xin, *param)
+    res = fval - fpred
+    rsquare = 1 - (res**2).mean() / fval.var()
+    return res.reshape(act_map.shape), rsquare
 #%% Load up data from in silico exp
 ang_step = 9
 theta_arr = np.arange(-90, 90.1, ang_step) / 180 * pi
@@ -141,16 +149,19 @@ from os import listdir
 from os.path import join, exists
 result_dir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Artiphysiology\Manifold"
 netname = "caffe-net"
-layers = ["conv1""conv2", "conv3", "conv4", "conv5", "fc6", "fc7", "fc8"]
+layers = ["conv1", "conv2", "conv3", "conv4", "conv5", "fc6", "fc7", "fc8"]
 param_col = []
 sigma_col = []
+stat_col = []
 for i in range(len(layers)):
     lay_col = []
     lay_sgm = []
+    lay_stat = []
     savepath = join(result_dir, "%s_%s_manifold" % (netname, layers[i]))
     for ch_i in range(50):
         ch_col = []
         ch_sgm = []
+        ch_stat = []
         data = np.load(join(savepath, "score_map_chan%d.npz"%ch_i))
         score_sum = data['score_sum']
         subsp_axis = [(1, 2), (24, 25), (48, 49), "RND"]
@@ -158,19 +169,39 @@ for i in range(len(layers)):
             tunemap = score_sum[subsp_j, :, :]
             param, sigmas = fit_Kent(theta_arr, phi_arr, tunemap)
             param_name = ["theta", "phi", "psi", "kappa", "beta", "A"]
+            _, r2 = fit_stats(tunemap, param)
             # for par, sgm, name in zip(param, sigmas, param_name):
             #     print(name, ": {}+-{}".format(par, sgm))
             ch_col.append(param.copy())
             ch_sgm.append(sigmas.copy())
+            ch_stat.append(r2)
         lay_col.append(ch_col.copy())
         lay_sgm.append(ch_sgm.copy())
+        lay_stat.append(ch_stat.copy())
         print(time()-t0,"s passed. ")
     param_col.append(lay_col.copy())
     sigma_col.append(lay_sgm.copy())
-
+    stat_col.append(lay_stat.copy())
 
 #%%
-
 param_col_arr = np.array(param_col)
 sigma_col_arr = np.array(sigma_col)
-np.savez(join(result_dir,"KentFit.npz"), param_col=param_col_arr, sigma_col=sigma_col_arr, subsp_axis=subsp_axis, layers=layers)
+stat_col_arr=np.array(stat_col)
+np.savez(join(result_dir,"KentFit.npz"), param_col=param_col_arr, sigma_col=sigma_col_arr, stat_col=stat_col_arr, subsp_axis=subsp_axis, layers=layers)
+
+#%% Collect and Tabularize stats
+import pandas as pd
+r2_df = pd.DataFrame(data=stat_col_arr.mean(axis=1),
+            columns=subsp_axis,
+            index=layers)
+r2var_df = pd.DataFrame(data=stat_col_arr.std(axis=1),
+            columns=subsp_axis,
+            index=layers)
+kappa_df = pd.DataFrame(data=param_col_arr[:,:,:,3].mean(axis=1),
+            columns=subsp_axis,
+            index=layers)
+print("Rsquare data frame")
+print(r2_df)
+print("kappa data frame")
+print(kappa_df)
+#%%

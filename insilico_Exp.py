@@ -103,7 +103,7 @@ class CNNmodel_Torch:
     def __init__(self, model_name):
         if model_name == "caffe-net":
             self._classifier = load_caffenet()
-            self.preprocess = preprocess # finally implemented and tested! 
+            self.preprocess = preprocess # finally implemented and tested!
         # self._transformer = net_utils.get_transformer(self._classifier, scale=1)
         self.artiphys = False
 
@@ -160,6 +160,108 @@ def render(codes, scale=255):
     else:
         images = [generator.visualize(codes[i, :], scale) for i in range(codes.shape[0])]
     return images
+#%% More general torch models!
+import torch
+from torchvision import transforms
+from torchvision import models
+import torch.nn.functional as F
+from torch_net_utils import layername_dict
+import torch.nn as nn
+# mini-batches of 3-channel RGB images of shape (3 x H x W), where H and W are expected to be at least 224. The images have to be loaded in to a range of [0, 1] and then normalized using mean = [0.485, 0.456, 0.406] and std = [0.229, 0.224, 0.225].
+
+activation = {}
+def get_activation(name, unit=None):
+    if unit is None:
+        def hook(model, input, output):
+            activation[name] = output.detach()
+    else:
+        def hook(model, input, output):
+            if len(output.shape) == 4:
+                activation[name] = output.detach()[:, unit[0], unit[1], unit[2]]
+            elif len(output.shape) == 2:
+                activation[name] = output.detach()[:, unit[0]]
+    return hook
+class TorchScorer:
+    """ Basic Torch CNN Scorer using hooks to fetch score from any layer in the net.
+    Demo:
+        scorer = TorchScorer("vgg16")
+        scorer.select_unit(("vgg16", "fc2", 10, 10, 10))
+        scorer.score([np.random.rand(224, 224, 3), np.random.rand(227,227,3)])
+        # if you want to record all the activation in conv1 layer you can use
+        CNN.set_recording( 'conv2' ) # then CNN.artiphys = True
+        scores, activations = CNN.score(imgs)
+
+    """
+    def __init__(self, model_name):
+        if model_name == "vgg16":
+            self.model = models.vgg16(pretrained=True).cuda()
+            self.model.eval()
+            self.layername = layername_dict[model_name]
+        # self.preprocess = transforms.Compose([transforms.ToPILImage(),
+        #                                       transforms.Resize(size=(224, 224)),
+        #                                       transforms.ToTensor(),
+        self.normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                                std=[0.229, 0.224, 0.225]) # Imagenet normalization RGB
+        self.artiphys = False
+
+    def preprocess(self, img, input_scale=255):
+        """"""
+        # TODO, could be modified to support batch processing
+        # img_tsr = torch.from_numpy(img).float()  # assume img is aready at 255 uint8 scale.
+        # if input_scale != 1.0:
+        #     img_tsr = img_tsr / input_scale
+        # img_tsr = img_tsr.permute([2, 0, 1])
+        img_tsr = transforms.ToTensor()(img / input_scale).float()
+        img_tsr = self.normalize(img_tsr).unsqueeze(0)
+        resz_out_img = F.interpolate(img_tsr, (227, 227), mode='bilinear',
+                                     align_corners=True)
+        return resz_out_img
+
+    def set_unit(self, name, layer, unit=None):
+        idx = self.layername.index(layer)
+        layers = list(self.model.features) + list(self.model.classifier)
+        handle = layers[idx].register_forward_hook(get_activation(name, unit))
+        return handle
+
+    def select_unit(self, unit_tuple):
+        # self._classifier_name = str(unit_tuple[0])
+        self.layer = str(unit_tuple[1])
+        # `self._net_layer` is used to determine which layer to stop forwarding
+        self.chan = int(unit_tuple[2])
+        if len(unit_tuple) == 5:
+            self.unit_x = int(unit_tuple[3])
+            self.unit_y = int(unit_tuple[4])
+        else:
+            self.unit_x = None
+            self.unit_y = None
+        self.set_unit("score", self.layer, unit=(self.chan, self.unit_x, self.unit_y))
+
+    def set_recording(self, record_layers):
+        self.artiphys = True  # flag to record the neural activity in one layer
+        self.record_layers = record_layers
+        self.recordings = {}
+        for layer in record_layers:  # will be arranged in a dict of lists
+            self.set_unit(layer, layer, unit=None)
+            self.recordings[layer] = []
+
+    def score(self, images, with_grad=False):
+        scores = np.zeros(len(images))
+        # B = 10; csr = 0 # if really want efficiency, we should use minibatch processing.
+        for i, img in enumerate(images):
+            # Note: now only support single repetition
+            resz_out_img = self.preprocess(img, input_scale=255.0)
+            # , input_scale=255 # shape=(3, 227, 227) # assuming input scale is 0,1 output will be 0,255
+            self.model(resz_out_img.cuda())
+            scores[i] = activation["score"].squeeze().cpu().numpy().squeeze()
+            if self.artiphys:  # record the whole layer's activation
+                for layer in self.record_layers:
+                    score_full = activation[layer]
+                    # self._pattern_array.append(score_full)
+                    self.recordings[layer].append(score_full.cpu().numpy())
+        if self.artiphys:
+            return scores, self.recordings
+        else:
+            return scores
 
 # Compiled Experimental module!
 # Currently available
@@ -172,12 +274,20 @@ class ExperimentEvolve:
     """
     Default behavior is to use the current CMAES optimizer to optimize for 200 steps for the given unit.
     """
-    def __init__(self, model_unit, max_step=200, optimizer=None, GAN="fc7"):
+    def __init__(self, model_unit, max_step=200, backend="caffe", optimizer=None, GAN="fc7"):
         self.recording = []
         self.scores_all = []
         self.codes_all = []
         self.generations = []
-        self.CNNmodel = CNNmodel(model_unit[0])  # 'caffe-net'
+        if backend=="caffe":
+            self.CNNmodel = CNNmodel(model_unit[0])  # 'caffe-net'
+        elif backend=="torch":
+            if model_unit[0] is 'caffe-net':
+                self.CNNmodel = CNNmodel_Torch(model_unit[0])
+            else: # VGG, DENSE and anything else
+                self.CNNmodel = TorchScorer(model_unit[0])
+        else:
+            raise NotImplementedError
         self.CNNmodel.select_unit(model_unit)
         if optimizer is None:  # Default optimizer is this
             self.optimizer = CholeskyCMAES(recorddir=recorddir, space_dimen=code_length, init_sigma=init_sigma,
@@ -556,14 +666,32 @@ class ExperimentResizeEvolve:
 
 class ExperimentManifold:
     def __init__(self, model_unit, max_step=100, imgsize=(227, 227), corner=(0, 0),
-                 savedir="", explabel=""):
+                 savedir="", explabel="", backend="caffe", GAN="fc7"):
         self.recording = []
         self.scores_all = []
         self.codes_all = []
         self.generations = []
         self.pref_unit = model_unit
-        self.CNNmodel = CNNmodel(model_unit[0])  # 'caffe-net'
+        if backend == "caffe":
+            self.CNNmodel = CNNmodel(model_unit[0])  # 'caffe-net'
+        elif backend == "torch":
+            if model_unit[0] is 'caffe-net':
+                self.CNNmodel = CNNmodel_Torch(model_unit[0])
+            else:  # VGG, DENSE and anything else
+                self.CNNmodel = TorchScorer(model_unit[0])
+        else:
+            raise NotImplementedError
         self.CNNmodel.select_unit(model_unit)
+        # Allow them to choose from multiple optimizers, substitute generator.visualize and render
+        self.render = render
+        # if GAN == "fc7":
+        #     self.render = render
+        # elif GAN == "BigGAN":
+        #     from BigGAN_Evolution import BigGAN_embed_render
+        #     self.render = BigGAN_embed_render
+        # else:
+        #     raise NotImplementedError
+
         self.optimizer = CholeskyCMAES(recorddir=recorddir, space_dimen=code_length, init_sigma=init_sigma,
                                        init_code=np.zeros([1, code_length]),
                                        Aupdate_freq=Aupdate_freq)  # , optim_params=optim_params
@@ -587,7 +715,7 @@ class ExperimentManifold:
                     codes = init_code
             print('\n>>> step %d' % self.istep)
             t0 = time()
-            self.current_images = render(codes)
+            self.current_images = self.render(codes)
             t1 = time()  # generate image from code
             synscores = self.CNNmodel.score(self.current_images)
             t2 = time()  # score images
