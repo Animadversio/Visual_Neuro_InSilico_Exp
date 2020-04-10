@@ -196,8 +196,14 @@ class TorchScorer:
     def __init__(self, model_name):
         if model_name == "vgg16":
             self.model = models.vgg16(pretrained=True)
-            self.model.cuda().eval()
+            self.layers = list(self.model.features) + list(self.model.classifier)
             self.layername = layername_dict[model_name]
+            self.model.cuda().eval()
+        elif model_name == "densenet121":
+            self.model = models.densenet121(pretrained=True)
+            self.layers = list(self.model.features) + [self.model.classifier]
+            self.layername = layername_dict[model_name]
+            self.model.cuda().eval()
         # self.preprocess = transforms.Compose([transforms.ToPILImage(),
         #                                       transforms.Resize(size=(224, 224)),
         #                                       transforms.ToTensor(),
@@ -220,8 +226,7 @@ class TorchScorer:
 
     def set_unit(self, name, layer, unit=None):
         idx = self.layername.index(layer)
-        layers = list(self.model.features) + list(self.model.classifier)
-        handle = layers[idx].register_forward_hook(get_activation(name, unit))
+        handle = self.layers[idx].register_forward_hook(get_activation(name, unit))
         return handle
 
     def select_unit(self, unit_tuple):

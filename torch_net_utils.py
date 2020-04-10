@@ -188,4 +188,40 @@ layername_dict ={"vgg16":['conv1', 'conv1_relu',
                          'conv13', 'conv13_relu', 'pool5',
                          'fc1', 'fc1_relu', 'dropout1',
                          'fc2', 'fc2_relu', 'dropout2',
-                         'fc3']}
+                         'fc3'],
+                 "densenet121":['conv1',
+                                 'bn1',
+                                 'bn1_relu',
+                                 'pool1',
+                                 'denseblock1', 'transition1',
+                                 'denseblock2', 'transition2',
+                                 'denseblock3', 'transition3',
+                                 'denseblock4'
+                                 'bn2',
+                                 'fc1']}
+
+#%%
+# layers = list(densenet.features)+[densenet.classifier]
+# layername = []
+# conv_cnt = 0
+# fc_cnt = 0
+# pool_cnt = 0
+# do_cnt = 0
+# for layer in layers:
+#     if isinstance(layer, nn.Conv2d):
+#         conv_cnt += 1
+#         layername.append("conv%d" % conv_cnt)
+#     elif isinstance(layer, nn.ReLU):
+#         name = layername[-1] + "_relu"
+#         layername.append(name)
+#     elif isinstance(layer, nn.MaxPool2d):
+#         pool_cnt += 1
+#         layername.append("pool%d"%pool_cnt)
+#     elif isinstance(layer, nn.Linear):
+#         fc_cnt += 1
+#         layername.append("fc%d" % fc_cnt)
+#     elif isinstance(layer, nn.Dropout):
+#         do_cnt += 1
+#         layername.append("dropout%d" % do_cnt)
+#     else:
+#         layername.append(layer.__repr__())
