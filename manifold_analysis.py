@@ -188,7 +188,16 @@ param_col_arr = np.array(param_col)
 sigma_col_arr = np.array(sigma_col)
 stat_col_arr=np.array(stat_col)
 np.savez(join(result_dir,"KentFit.npz"), param_col=param_col_arr, sigma_col=sigma_col_arr, stat_col=stat_col_arr, subsp_axis=subsp_axis, layers=layers)
-
+#%%
+from os import listdir
+from os.path import join, exists
+result_dir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Artiphysiology\Manifold"
+with np.load(join(result_dir,"KentFit.npz")) as data:
+    sigma_col_arr = data["sigma_col"]
+    stat_col_arr = data["stat_col"]
+    param_col_arr = data["param_col"]
+    layers = data["layers"]
+    subsp_axis = data["subsp_axis"]
 #%% Collect and Tabularize stats
 import pandas as pd
 r2_df = pd.DataFrame(data=stat_col_arr.mean(axis=1),
@@ -205,3 +214,17 @@ print(r2_df)
 print("kappa data frame")
 print(kappa_df)
 #%%
+import plotly
+import plotly.express as px
+import plotly.io as pio
+pio.renderers.default = 'svg'
+import plotly.express as px
+import plotly.graph_objects as go
+fig = go.Figure()
+for i, layer in enumerate(layers):
+    fig.add_trace(go.Violin(x=np.ones(50),
+                            y=param_col_arr[i,:,0,3],
+                            name=layer,
+                            #box_visible=True,
+                            meanline_visible=True))
+fig.show()

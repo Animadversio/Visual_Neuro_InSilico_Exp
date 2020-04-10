@@ -252,7 +252,8 @@ class TorchScorer:
             # Note: now only support single repetition
             resz_out_img = self.preprocess(img, input_scale=255.0)
             # , input_scale=255 # shape=(3, 227, 227) # assuming input scale is 0,1 output will be 0,255
-            self.model(resz_out_img.cuda())
+            with torch.no_grad():
+                self.model(resz_out_img.cuda())
             scores[i] = activation["score"].squeeze().cpu().numpy().squeeze()
             if self.artiphys:  # record the whole layer's activation
                 for layer in self.record_layers:
