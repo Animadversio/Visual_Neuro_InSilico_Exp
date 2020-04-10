@@ -250,21 +250,29 @@ class TorchScorer:
             self.set_unit(layer, layer, unit=None)
             self.recordings[layer] = []
 
-    def score(self, images, with_grad=False):
+    def score(self, images, with_grad=False, B=10):
         scores = np.zeros(len(images))
-        # B = 10; csr = 0 # if really want efficiency, we should use minibatch processing.
+        csr = 0 # if really want efficiency, we should use minibatch processing.
+        img_batch = []
         for i, img in enumerate(images):
             # Note: now only support single repetition
             resz_out_img = self.preprocess(img, input_scale=255.0)
+            img_batch.append(resz_out_img)
+            if (i + 1) % B == 0 or (i + 1==len(images)):
+                with torch.no_grad():
+                    #self.model(resz_out_img.cuda())
+                    self.model(torch.cat(img_batch).cuda())
+                scores[csr:i+1] = activation["score"].squeeze().cpu().numpy().squeeze()
+                csr = i+1
+                img_batch = []
+                if self.artiphys:  # record the whole layer's activation
+                    for layer in self.record_layers:
+                        score_full = activation[layer]
+                        # self._pattern_array.append(score_full)
+                        self.recordings[layer].append(score_full.cpu().numpy())
+
             # , input_scale=255 # shape=(3, 227, 227) # assuming input scale is 0,1 output will be 0,255
-            with torch.no_grad():
-                self.model(resz_out_img.cuda())
-            scores[i] = activation["score"].squeeze().cpu().numpy().squeeze()
-            if self.artiphys:  # record the whole layer's activation
-                for layer in self.record_layers:
-                    score_full = activation[layer]
-                    # self._pattern_array.append(score_full)
-                    self.recordings[layer].append(score_full.cpu().numpy())
+
         if self.artiphys:
             return scores, self.recordings
         else:
