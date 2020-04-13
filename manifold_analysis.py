@@ -49,6 +49,36 @@ def SO3(theta, phi, psi):
     coord = orig @ Rot23
     return coord
 #%%
+def fit_Kent(theta_arr, phi_arr, act_map):
+    phi_grid, theta_grid = meshgrid(phi_arr, theta_arr)
+    Xin = np.array([theta_grid.flatten(), phi_grid.flatten()]).T
+    fval = act_map.flatten()
+    try:
+        param, pcov = curve_fit(KentFunc, Xin, fval,
+                                p0=[0, 0, pi / 2, 0.1, 0.1, 0.1],
+                                bounds=([-pi, -pi / 2, 0, -np.inf, 0, 0],
+                                        [pi, pi / 2, pi, np.inf, np.inf, np.inf]))
+        sigmas = np.diag(pcov) ** 0.5
+        return param, sigmas
+    except RuntimeError as err:
+        print(type(err))
+        print(err)
+        return np.ones(6)*np.nan, np.ones(6)*np.nan
+
+#%
+def fit_stats(act_map, param):
+    """Generate fitting statistics from scipy's curve fitting"""
+    phi_grid, theta_grid = meshgrid(phi_arr, theta_arr)
+    Xin = np.array([theta_grid.flatten(), phi_grid.flatten()]).T
+    fval = act_map.flatten()
+    fpred = KentFunc(Xin, *param)
+    res = fval - fpred
+    rsquare = 1 - (res**2).mean() / fval.var()
+    return res.reshape(act_map.shape), rsquare
+
+act_map = tunemap
+param, sigmas = fit_Kent(theta_arr, phi_arr, act_map)
+#%%
 ang_step = 18
 theta_arr = np.arange(-90,90.1,ang_step) / 180 * pi
 phi_arr = np.arange(-90,90.1,ang_step) / 180 * pi
@@ -118,26 +148,7 @@ for i, p, var in zip(range(n), param, np.diag(pcov)):
     print('c{0}: {1} [{2}  {3}]'.format(i, p,
                                   p - sigma*tval,
                                   p + sigma*tval))
-#%%
-def fit_Kent(theta_arr, phi_arr, act_map):
-    phi_grid, theta_grid = meshgrid(phi_arr, theta_arr)
-    Xin = np.array([theta_grid.flatten(), phi_grid.flatten()]).T
-    fval = act_map.flatten()
-    param, pcov = curve_fit(KentFunc, Xin, fval,
-                            p0=[0, 0, pi / 2, 0.1, 0.1, 0.1],
-                            bounds=([-pi, -pi / 2, 0, -np.inf, 0, 0],
-                                    [pi, pi / 2, pi, np.inf, np.inf, np.inf]))
-    sigmas = np.diag(pcov) ** 0.5
-    return param, sigmas
-#%%
-def fit_stats(act_map, param):
-    phi_grid, theta_grid = meshgrid(phi_arr, theta_arr)
-    Xin = np.array([theta_grid.flatten(), phi_grid.flatten()]).T
-    fval = act_map.flatten()
-    fpred = KentFunc(Xin, *param)
-    res = fval - fpred
-    rsquare = 1 - (res**2).mean() / fval.var()
-    return res.reshape(act_map.shape), rsquare
+
 #%% Load up data from in silico exp
 ang_step = 9
 theta_arr = np.arange(-90, 90.1, ang_step) / 180 * pi
@@ -148,12 +159,15 @@ t0 = time()
 from os import listdir
 from os.path import join, exists
 result_dir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Artiphysiology\Manifold"
-netname = "caffe-net"
-layers = ["conv1", "conv2", "conv3", "conv4", "conv5", "fc6", "fc7", "fc8"]
+# netname = "caffe-net"
+# layers = ["conv1", "conv2", "conv3", "conv4", "conv5", "fc6", "fc7", "fc8"]
+netname = "vgg16"
+layers = ["conv2", "conv4", "conv7", "conv9", "conv13", "fc1", "fc2", "fc3"]
 param_col = []
 sigma_col = []
 stat_col = []
 for i in range(len(layers)):
+    print(layers[i])
     lay_col = []
     lay_sgm = []
     lay_stat = []
@@ -187,7 +201,7 @@ for i in range(len(layers)):
 param_col_arr = np.array(param_col)
 sigma_col_arr = np.array(sigma_col)
 stat_col_arr=np.array(stat_col)
-np.savez(join(result_dir,"KentFit.npz"), param_col=param_col_arr, sigma_col=sigma_col_arr, stat_col=stat_col_arr, subsp_axis=subsp_axis, layers=layers)
+np.savez(join(result_dir,"%s_KentFit.npz"%netname), param_col=param_col_arr, sigma_col=sigma_col_arr, stat_col=stat_col_arr, subsp_axis=subsp_axis, layers=layers)
 #%%
 from os import listdir
 from os.path import join, exists
