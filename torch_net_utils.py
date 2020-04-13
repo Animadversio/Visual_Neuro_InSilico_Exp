@@ -196,7 +196,7 @@ layername_dict ={"vgg16":['conv1', 'conv1_relu',
                                  'denseblock1', 'transition1',
                                  'denseblock2', 'transition2',
                                  'denseblock3', 'transition3',
-                                 'denseblock4'
+                                 'denseblock4',
                                  'bn2',
                                  'fc1']}
 

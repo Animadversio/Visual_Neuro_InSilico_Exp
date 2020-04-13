@@ -161,8 +161,10 @@ from os.path import join, exists
 result_dir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Artiphysiology\Manifold"
 # netname = "caffe-net"
 # layers = ["conv1", "conv2", "conv3", "conv4", "conv5", "fc6", "fc7", "fc8"]
-netname = "vgg16"
-layers = ["conv2", "conv4", "conv7", "conv9", "conv13", "fc1", "fc2", "fc3"]
+# netname = "vgg16"
+# layers = ["conv2", "conv4", "conv7", "conv9", "conv13", "fc1", "fc2", "fc3"]
+netname = "densenet121"
+layers = ["bn1", "denseblock1", "transition1", "denseblock2", "transition2", "denseblock3", "transition3"]#, "fc1"
 param_col = []
 sigma_col = []
 stat_col = []
@@ -206,7 +208,7 @@ np.savez(join(result_dir,"%s_KentFit.npz"%netname), param_col=param_col_arr, sig
 from os import listdir
 from os.path import join, exists
 result_dir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Artiphysiology\Manifold"
-with np.load(join(result_dir,"KentFit.npz")) as data:
+with np.load(join(result_dir,"%s_KentFit.npz"%netname)) as data:
     sigma_col_arr = data["sigma_col"]
     stat_col_arr = data["stat_col"]
     param_col_arr = data["param_col"]
@@ -223,6 +225,25 @@ r2var_df = pd.DataFrame(data=stat_col_arr.std(axis=1),
 kappa_df = pd.DataFrame(data=param_col_arr[:,:,:,3].mean(axis=1),
             columns=subsp_axis,
             index=layers)
+print("Rsquare data frame")
+print(r2_df)
+print("kappa data frame")
+print(kappa_df)
+#%%
+import numpy.ma as ma
+makappa = ma.masked_array(data=param_col_arr[:,:,:,3], mask=(stat_col_arr<0.5) | np.isnan(stat_col_arr))
+mar2 = ma.masked_array(data=stat_col_arr, mask=np.isinf(stat_col_arr) | np.isnan(stat_col_arr))
+import pandas as pd
+r2_df = pd.DataFrame(data=mar2.mean(axis=1),
+            columns=subsp_axis,
+            index=layers)
+r2var_df = pd.DataFrame(data=mar2.std(axis=1),
+            columns=subsp_axis,
+            index=layers)
+kappa_df = pd.DataFrame(data=makappa.mean(axis=1),
+            columns=subsp_axis,
+            index=layers)
+
 print("Rsquare data frame")
 print(r2_df)
 print("kappa data frame")
