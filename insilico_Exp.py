@@ -564,15 +564,19 @@ from cv2 import resize
 import cv2
 from torch_net_utils import receptive_field, receptive_field_for_unit
 
-def resize_and_pad(img_list, size, coord, canvas_size=(227, 227)):
-    '''Render a list of codes to list of images
+def resize_and_pad(img_list, size, offset, canvas_size=(227, 227)):
+    '''Resize and Pad a list of images to list of images
     Note this function is assuming the image is in (0,1) scale so padding with 0.5 as gray background.
     '''
     resize_img = []
+    padded_shape = canvas_size + (3,)
     for img in img_list:
-        pad_img = np.ones(canvas_size + (3,)) * 127.5
-        pad_img[coord[0]:coord[0]+size[0], coord[1]:coord[1]+size[1], :] = resize(img, size, cv2.INTER_AREA)
-        resize_img.append(pad_img.copy())
+        if img.shape == padded_shape:  # save some computation...
+            resize_img.append(img.copy())
+        else:
+            pad_img = np.ones(padded_shape) * 127.5
+            pad_img[offset[0]:offset[0]+size[0], offset[1]:offset[1]+size[1], :] = resize(img, size, cv2.INTER_AREA)
+            resize_img.append(pad_img.copy())
     return resize_img
 
 class ExperimentResizeEvolve:
@@ -712,12 +716,13 @@ class ExperimentManifold:
                                        Aupdate_freq=Aupdate_freq)  # , optim_params=optim_params
         self.max_steps = max_step
         self.corner = corner  # up left corner of the image
-        self.imgsize = imgsize  # size of image
+        self.imgsize = imgsize  # size of image, allowing showing CNN resized image
         self.savedir = savedir
         self.explabel = explabel
         self.Perturb_vec = []
 
     def run(self, init_code=None):
+        """Same as Resized Evolution experiment"""
         self.recording = []
         self.scores_all = []
         self.codes_all = []
@@ -732,6 +737,7 @@ class ExperimentManifold:
             t0 = time()
             self.current_images = self.render(codes)
             t1 = time()  # generate image from code
+            self.current_images = resize_and_pad(self.current_images, self.imgsize, self.corner)  # Fixed Apr.13
             synscores = self.CNNmodel.score(self.current_images)
             t2 = time()  # score images
             codes_new = self.optimizer.step_simple(synscores, codes)
@@ -763,6 +769,7 @@ class ExperimentManifold:
         PC_Proj_codes = code_pca.fit_transform(self.codes_all)
         self.PC_vectors = code_pca.components_
         if PC_Proj_codes[-1, 0] < 0:  # decide which is the positive direction for PC1
+            # this is important or the images we show will land in the opposite side of the globe.
             inv_PC1 = True
             self.PC_vectors[0, :] = - self.PC_vectors[0, :]
             self.PC1_sign = -1
@@ -817,9 +824,13 @@ class ExperimentManifold:
                         img_list.append(img.copy())
                         # plt.imsave(os.path.join(newimg_dir, "norm_%d_PC2_%d_PC3_%d.jpg" % (
                         # self.sphere_norm, interval * j, interval * k)), img)
-            pad_img_list = resize_and_pad(img_list, self.imgsize, self.corner)
+            pad_img_list = resize_and_pad(img_list, self.imgsize, self.corner) # Show image as given size at given location
             scores = self.CNNmodel.score(pad_img_list)
-            fig = utils.visualize_img_list(img_list, scores=scores, ncol=2*interv_n+1, nrow=2*interv_n+1, )
+            # fig = utils.visualize_img_list(img_list, scores=scores, ncol=2*interv_n+1, nrow=2*interv_n+1, )
+            # subsample images for better visualization
+            msk, idx_lin = subsample_mask(factor=2, orig_size=(21, 21))
+            img_subsp_list = [img_list[i] for i in range(len(img_list)) if i in idx_lin]
+            fig = utils.visualize_img_list(img_subsp_list, scores=scores[idx_lin], ncol=interv_n + 1, nrow=interv_n + 1, )
             fig.savefig(join(self.savedir, "%s_%s.png" % (title, self.explabel)))
             scores = np.array(scores).reshape((2*interv_n+1, 2*interv_n+1))
             self.score_sum.append(scores)
@@ -833,6 +844,58 @@ class ExperimentManifold:
         figsum.savefig(join(self.savedir, "Manifold_summary_%s_norm%d.png" % (self.explabel, self.sphere_norm)))
         self.Perturb_vec = np.concatenate(tuple(self.Perturb_vec), axis=0)
         return self.score_sum, figsum
+
+    def visualize_best(self, show=False):
+        idx = np.argmax(self.scores_all)
+        select_code = self.codes_all[idx:idx+1, :]
+        score_select = self.scores_all[idx]
+        img_select = render(select_code)#, scale=1
+        fig = plt.figure(figsize=[3, 1.7])
+        plt.subplot(1, 2, 1)
+        plt.imshow(img_select[0]/255)
+        plt.axis('off')
+        plt.title("{0:.2f}".format(score_select), fontsize=16)
+        plt.subplot(1, 2, 2)
+        resize_select = resize_and_pad(img_select, self.imgsize, self.corner)
+        plt.imshow(resize_select[0]/255)
+        plt.axis('off')
+        plt.title("{0:.2f}".format(score_select), fontsize=16)
+        if show:
+            plt.show()
+        fig.savefig(join(self.savedir, "Best_Img_%s.png" % (self.explabel)))
+        return fig
+
+    def visualize_trajectory(self, show=True):
+        gen_slice = np.arange(min(self.generations), max(self.generations)+1)
+        AvgScore = np.zeros_like(gen_slice).astype("float64")
+        MaxScore = np.zeros_like(gen_slice).astype("float64")
+        for i, geni in enumerate(gen_slice):
+            AvgScore[i] = np.mean(self.scores_all[self.generations == geni])
+            MaxScore[i] = np.max(self.scores_all[self.generations == geni])
+        figh = plt.figure()
+        plt.scatter(self.generations, self.scores_all, s=16, alpha=0.6, label="all score")
+        plt.plot(gen_slice, AvgScore, color='black', label="Average score")
+        plt.plot(gen_slice, MaxScore, color='red', label="Max score")
+        plt.xlabel("generation #")
+        plt.ylabel("CNN unit score")
+        plt.title("Optimization Trajectory of Score\n")# + title_str)
+        plt.legend()
+        if show:
+            plt.show()
+        figh.savefig(join(self.savedir, "Evolv_Traj_%s.png" % (self.explabel)))
+        return figh
+#%%
+def subsample_mask(factor=2, orig_size=(21, 21)):
+    """Generate a mask for subsampling grid of `orig_size`"""
+    row, col = orig_size
+    row_sub = slice(0, row, factor)  # range or list will not work! Don't try!
+    col_sub = slice(0, col, factor)
+    msk = np.zeros(orig_size, dtype=np.bool)
+    msk[row_sub, :][:, col_sub] = True
+    msk_lin = msk.flatten()
+    idx_lin = msk_lin.nonzero()[0]
+    return msk, idx_lin
+
 #%%
 from scipy.stats import ortho_group, special_ortho_group
 import math

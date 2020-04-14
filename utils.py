@@ -620,13 +620,13 @@ def visualize_img_list(img_list, scores=None, ncol=11, nrow=11, title_cmap=plt.c
     """Visualize images from a list and maybe label the score on it!"""
     if scores is not None and not title_cmap == None:
         cmap_flag = True
-        ub = scores.max()
-        lb = scores.min()
+        lb = np.min(scores)
+        ub = max(np.max(scores), lb + 0.001)  # to avoid ub - lb == 0
     else:
         cmap_flag = False
     if nrow is None or not len(img_list) <= ncol * nrow:
         nrow = int(np.ceil(len(img_list) / ncol))
-    figW = 30
+    figW = 20
     figH = figW / ncol * nrow + 1
     fig = plt.figure(figsize=[figW, figH])
     for i, img in enumerate(img_list):
@@ -641,6 +641,7 @@ def visualize_img_list(img_list, scores=None, ncol=11, nrow=11, title_cmap=plt.c
         else:
             pass
     plt.suptitle(title_str)
+    fig.subplots_adjust(left=0.005,bottom=0.005,right=0.995,top=0.97, wspace=0.025, hspace=0.16)  # Added Apr. 13th for good looking
     if not show:
         plt.show()
     return fig
