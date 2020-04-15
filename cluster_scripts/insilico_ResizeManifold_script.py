@@ -84,5 +84,5 @@ for channel in range(1, 51):
     t2 = time()
     print("Pair Processing time %.f" % (t2-t0) )
     print("Existing figures %d" % (len(plt.get_fignums())))
-    break
+    
 #%%
