@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # give the job a name to help keep track of running jobs (optional)
-#PBS -N insilico_manifold
+#PBS -N insilico_manifold_fc7space
 
 # Specify the resources needed.  FreeSurfer just needs 1 core and
 # 24 hours is usually enough.  This assumes the job requires less 
@@ -26,13 +26,14 @@ cd ~/Visual_Neuro_InSilico_Exp/
 # cd /scratch/binxu.wang
 
 param_list='unit = ("caffe-net", "conv1", 5, 10, 10);
+unit = ("caffe-net", "conv2", 5, 10, 10);
 unit = ("caffe-net", "conv3", 5, 10, 10);
+unit = ("caffe-net", "conv4", 5, 10, 10);
+unit = ("caffe-net", "conv5", 5, 10, 10);
+unit = ("caffe-net", "fc6", 1);
 unit = ("caffe-net", "fc7", 1);
 unit = ("caffe-net", "fc8", 1);'
-# unit = ("caffe-net", "conv2", 5, 10, 10);
-# unit = ("caffe-net", "conv4", 5, 10, 10);
-# unit = ("caffe-net", "conv5", 5, 10, 10);
-# unit = ("caffe-net", "fc6", 1);
+
 export unit_name="$(echo "$param_list" | head -n $PBS_ARRAYID | tail -1)"
 #$PBS_ARRAYID
 export python_code='from insilico_Exp import *
@@ -43,7 +44,7 @@ for chan in range(50):
         unit = (unit[0], unit[1], chan)
     else:
         unit = (unit[0], unit[1], chan, 10, 10)
-    experiment = ExperimentManifold(unit, max_step=100, savedir=savedir, explabel="chan%d" % chan)
+    experiment = ExperimentManifold(unit, max_step=150, savedir=savedir, explabel="chan%d" % chan)
     experiment.run()
     experiment.analyze_traj()
     score_sum, _ = experiment.run_manifold([(1, 2), (24, 25), (48, 49), "RND"])

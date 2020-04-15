@@ -36,8 +36,10 @@ os.makedirs(savedir, exist_ok=True)
 for channel in range(1, 51):
     if len(units) == 5:
         unit = (netname, layer, channel, units[3], units[4])
+        unit_lab = "%s_%d_%d_%d" % (unit[1], unit[2], unit[3], unit[4])
     elif len(units) == 3:
-        unit = (netname, layer, channel, )
+        unit = (netname, layer, channel,)
+        unit_lab = "%s_%d" % (unit[1], unit[2])
     if "conv" in layer:
         rf_pos = receptive_field_for_unit(rf_dict, (3, 227, 227), layer_name_map[layer], (unit[3], unit[4]))
         imgsize = (int(rf_pos[0][1] - rf_pos[0][0]), int(rf_pos[1][1] - rf_pos[1][0]))
@@ -49,17 +51,15 @@ for channel in range(1, 51):
     # Original experiment
     t0 = time()
     exp = ExperimentManifold(unit, max_step=100, imgsize=(227, 227), corner=(0, 0), backend="torch", savedir=savedir,
-                             explabel="%s_%d_%d_%d_original" % (unit[1], unit[2], unit[3], unit[4]))
+                             explabel="%s_original" % (unit_lab))
     # exp.load_traj("Evolv_%s_%d_%d_%d_orig.npz" % (unit[1], unit[2], unit[3], unit[4]))  # load saved traj
     exp.run()
     exp.analyze_traj()
     exp.visualize_trajectory()
     exp.visualize_best()
     score_sum, _ = exp.run_manifold([(1, 2), (24, 25), (48, 49), "RND"], interval=9)
-    np.save(join(savedir, "Manifold_score_%s_%d_%d_%d_orig" %
-                 (unit[1], unit[2], unit[3], unit[4])), score_sum)
-    np.savez(join(savedir, "Manifold_set_%s_%d_%d_%d_orig.npz" %
-                  (unit[1], unit[2], unit[3], unit[4])),
+    np.save(join(savedir, "Manifold_score_%s_orig" % (unit_lab)), score_sum)
+    np.savez(join(savedir, "Manifold_set_%s_orig.npz" % (unit_lab)),
              Perturb_vec=exp.Perturb_vec, imgsize=exp.imgsize, corner=exp.corner,
              evol_score=exp.scores_all, evol_gen=exp.generations)
     plt.clf()
@@ -67,17 +67,15 @@ for channel in range(1, 51):
     print("Original Exp Processing time %.f" % (t1 - t0))
     # Resized Manifold experiment
     exp = ExperimentManifold(unit, max_step=100, imgsize=imgsize, corner=corner, backend="torch", savedir=savedir,
-                             explabel="%s_%d_%d_%d_rf_fit" % (unit[1], unit[2], unit[3], unit[4]))
+                             explabel="%s_rf_fit" % (unit_lab))
     # exp.load_traj("Evolv_%s_%d_%d_%d_rf_fit.npz" % (unit[1], unit[2], unit[3], unit[4]))  # load saved traj
     exp.run()
     exp.analyze_traj()
     exp.visualize_trajectory()
     exp.visualize_best()
     score_sum, _ = exp.run_manifold([(1, 2), (24, 25), (48, 49), "RND"], interval=9)
-    np.save(join(savedir, "Manifold_score_%s_%d_%d_%d_rf_fit" %
-                 (unit[1], unit[2], unit[3], unit[4])), score_sum)
-    np.savez(join(savedir, "Manifold_set_%s_%d_%d_%d_rf_fit.npz" %
-                  (unit[1], unit[2], unit[3], unit[4])),
+    np.save(join(savedir, "Manifold_score_%s_rf_fit" % (unit_lab)), score_sum)
+    np.savez(join(savedir, "Manifold_set_%s_rf_fit.npz" % (unit_lab)),
              Perturb_vec=exp.Perturb_vec, imgsize=exp.imgsize, corner=exp.corner,
              evol_score=exp.scores_all, evol_gen=exp.generations)
     plt.clf()
