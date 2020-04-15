@@ -52,6 +52,12 @@ def get(net_name):
     elif net_name == 'generator':
         net_weights = os.path.join(netsdir, 'upconv', 'fc6', 'generator.caffemodel')
         net_definition = os.path.join(netsdir, 'upconv', 'fc6', 'generator.prototxt')
+    elif net_name == 'generator-fc7':
+        net_weights = os.path.join(netsdir, 'upconv', 'fc7', 'generator.caffemodel')
+        net_definition = os.path.join(netsdir, 'upconv', 'fc7', 'generator.prototxt')
+    elif net_name == 'generator-fc8':
+        net_weights = os.path.join(netsdir, 'upconv', 'fc8', 'generator.caffemodel')
+        net_definition = os.path.join(netsdir, 'upconv', 'fc8', 'generator.prototxt')
     else:
         raise ValueError(net_name + 'not defined')
 
@@ -70,7 +76,7 @@ def load(net_name):
         if os.name == 'nt':
             net = caffe.Net(net_def, caffe.TEST)
             net.copy_from(net_weights)
-        else: # UBUNTU systems' name is 'posix'
+        else:  # UBUNTU systems' name is 'posix'
             net = caffe.Net(net_def, caffe.TEST, weights=net_weights)
         loaded_nets[net_name] = net
         return net

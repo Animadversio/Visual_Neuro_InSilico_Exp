@@ -4,25 +4,6 @@
 import numpy as np
 from scipy.optimize import curve_fit
 from scipy.stats.distributions import t
-
-# x = np.array([ 0.1,  0.2,  0.3,  0.4,  0.5,  0.6,  0.7,  0.8,  0.9,  1. ])
-# y = np.array([ 4.70192769,  4.46826356,  4.57021389,  4.29240134,  3.88155125,
-#                3.78382253,  3.65454727,  3.86379487,  4.16428541,  4.06079909])
-# def func(x,c0, c1):
-#     return c0 * np.exp(-x) + c1*x
-# pars, pcov = curve_fit(func, x, y, p0=[4.96, 2.11])
-#
-# alpha = 0.05 # 95% confidence interval
-# n = len(y)    # number of data points
-# p = len(pars) # number of parameters
-# dof = max(0, n-p) # number of degrees of freedom
-# tval = t.ppf(1.0 - alpha / 2.0, dof) # student-t value for the dof and confidence level
-# for i, p,var in zip(range(n), pars, np.diag(pcov)):
-#     sigma = var**0.5
-#     print('c{0}: {1} [{2}  {3}]'.format(i, p,
-#                                   p - sigma*tval,
-#                                   p + sigma*tval))
-
 #%%
 from numpy import cos, sin, exp, pi, meshgrid
 
@@ -53,7 +34,7 @@ def fit_Kent(theta_arr, phi_arr, act_map):
     phi_grid, theta_grid = meshgrid(phi_arr, theta_arr)
     Xin = np.array([theta_grid.flatten(), phi_grid.flatten()]).T
     fval = act_map.flatten()
-    try:
+    try:  # avoid fitting failure to crash the whole thing.
         param, pcov = curve_fit(KentFunc, Xin, fval,
                                 p0=[0, 0, pi / 2, 0.1, 0.1, 0.1],
                                 bounds=([-pi, -pi / 2, 0, -np.inf, 0, 0],
@@ -76,19 +57,17 @@ def fit_stats(act_map, param):
     rsquare = 1 - (res**2).mean() / fval.var()
     return res.reshape(act_map.shape), rsquare
 
-act_map = tunemap
-param, sigmas = fit_Kent(theta_arr, phi_arr, act_map)
-#%%
+#%% Testing the fitting functionalilty
 ang_step = 18
-theta_arr = np.arange(-90,90.1,ang_step) / 180 * pi
-phi_arr = np.arange(-90,90.1,ang_step) / 180 * pi
+theta_arr = np.arange(-90, 90.1, ang_step) / 180 * pi
+phi_arr = np.arange(-90, 90.1, ang_step) / 180 * pi
 phi_grid, theta_grid = meshgrid(phi_arr, theta_arr)
 Xin = np.array([theta_grid.flatten(), phi_grid.flatten()]).T
 fval = KentFunc(Xin, *[0, 0, pi/2, 0.1, 0.1, 1])
 param, pcov = curve_fit(KentFunc, Xin, fval, p0=[-1, 1, pi/2, 0.1, 0.1, 0.2])
 # Note python fitting will treat each data point as separate. He cannot estimate CI like matlab.
 
-#%%
+#%% Testing the fitting functionalilty under noise
 ang_step = 18
 theta_arr = np.arange(-90,90.1,ang_step) / 180 * pi
 phi_arr = np.arange(-90,90.1,ang_step) / 180 * pi
@@ -103,10 +82,9 @@ param, pcov = curve_fit(KentFunc, Xin, fval,
 print(param)
 print(pcov)
 
-#%%
+#%% Using lmfit package
 import numpy as np
 import lmfit
-
 x = np.linspace(0.3, 10, 100)
 np.random.seed(0)
 y = 1/(0.1*x) + 2 + 0.1*np.random.randn(x.size)
@@ -202,8 +180,8 @@ for i in range(len(layers)):
 #%%
 param_col_arr = np.array(param_col)
 sigma_col_arr = np.array(sigma_col)
-stat_col_arr=np.array(stat_col)
-np.savez(join(result_dir,"%s_KentFit.npz"%netname), param_col=param_col_arr, sigma_col=sigma_col_arr, stat_col=stat_col_arr, subsp_axis=subsp_axis, layers=layers)
+stat_col_arr = np.array(stat_col)
+np.savez(join(result_dir, "%s_KentFit.npz" % netname), param_col=param_col_arr, sigma_col=sigma_col_arr, stat_col=stat_col_arr, subsp_axis=subsp_axis, layers=layers)
 #%%
 from os import listdir
 from os.path import join, exists
@@ -229,7 +207,7 @@ print("Rsquare data frame")
 print(r2_df)
 print("kappa data frame")
 print(kappa_df)
-#%%
+#%% Using masked array to avoid the unsuccessful fittings.
 import numpy.ma as ma
 makappa = ma.masked_array(data=param_col_arr[:,:,:,3], mask=(stat_col_arr<0.5) | np.isnan(stat_col_arr))
 mar2 = ma.masked_array(data=stat_col_arr, mask=np.isinf(stat_col_arr) | np.isnan(stat_col_arr))
@@ -263,3 +241,23 @@ for i, layer in enumerate(layers):
                             #box_visible=True,
                             meanline_visible=True))
 fig.show()
+
+
+#%% Trial
+# x = np.array([ 0.1,  0.2,  0.3,  0.4,  0.5,  0.6,  0.7,  0.8,  0.9,  1. ])
+# y = np.array([ 4.70192769,  4.46826356,  4.57021389,  4.29240134,  3.88155125,
+#                3.78382253,  3.65454727,  3.86379487,  4.16428541,  4.06079909])
+# def func(x,c0, c1):
+#     return c0 * np.exp(-x) + c1*x
+# pars, pcov = curve_fit(func, x, y, p0=[4.96, 2.11])
+#
+# alpha = 0.05 # 95% confidence interval
+# n = len(y)    # number of data points
+# p = len(pars) # number of parameters
+# dof = max(0, n-p) # number of degrees of freedom
+# tval = t.ppf(1.0 - alpha / 2.0, dof) # student-t value for the dof and confidence level
+# for i, p,var in zip(range(n), pars, np.diag(pcov)):
+#     sigma = var**0.5
+#     print('c{0}: {1} [{2}  {3}]'.format(i, p,
+#                                   p - sigma*tval,
+#                                   p + sigma*tval))

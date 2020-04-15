@@ -3,10 +3,16 @@ import re
 from time import time, sleep
 
 import h5py
-from  scipy.io import loadmat
+from scipy.io import loadmat
 import numpy as np
 from PIL import Image
 from cv2 import imread, resize, INTER_CUBIC, INTER_AREA
+from Generator import Generator
+GAN_space = "fc6"
+generator = None
+def load_GAN(name=GAN_space):
+    generator = Generator(name=GAN_space)
+    return generator
 
 #%%
 def read_image(image_fpath):
@@ -646,8 +652,6 @@ def visualize_img_list(img_list, scores=None, ncol=11, nrow=11, title_cmap=plt.c
         plt.show()
     return fig
 
-from Generator import Generator
-generator = Generator()
 def gen_visualize_image_score_each_block(CurDataDir, block_num, save=False, exp_title_str='', title_cmap=plt.cm.viridis, col_n=6, savedir=''):
     '''
     # CurDataDir:  "/home/poncelab/Documents/data/with_CNN/caffe-net_fc6_0001/backup/"

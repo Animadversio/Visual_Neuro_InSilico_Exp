@@ -2,13 +2,13 @@
 # Manifold_experiment
 import utils
 import net_utils
-from utils import generator
+import utils
+from utils import load_GAN
 from time import time, sleep
 import numpy as np
 from Optimizer import CholeskyCMAES, Genetic, Optimizer  # Optimizer is the base class for these things
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
-import sys
 import os
 from os.path import join
 from sys import platform
@@ -22,9 +22,21 @@ else:
     elif os.environ['COMPUTERNAME'] == 'DESKTOP-MENSD6S':  ## Home_WorkStation
         recorddir = r"E:\Monkey_Data\Generator_DB_Windows\data\with_CNN"
 # Basic properties for Optimizer.
-code_length = 4096
+
 init_sigma = 3
 Aupdate_freq = 10
+code_length = 4096
+from config import GANname, code_length
+generator = load_GAN(GANname)
+utils.generator = generator
+render = generator.render
+# def render(codes, scale=255):
+#     '''Render a list of codes to list of images'''
+#     if type(codes) is list:
+#         images = [generator.visualize(codes[i], scale) for i in range(len(codes))]
+#     else:
+#         images = [generator.visualize(codes[i, :], scale) for i in range(codes.shape[0])]
+#     return images
 #%% Simplified in silico experiment modules
 class CNNmodel:
     """ Basic CNN scorer
@@ -87,8 +99,8 @@ class CNNmodel:
             return scores, self.recordings
         else:
             return scores
-#%%
-from torch_net_utils import load_caffenet, load_generator, visualize, preprocess
+#%% A simple torch models! supporting caffe-net
+from torch_net_utils import load_caffenet, visualize, preprocess
 class CNNmodel_Torch:
     """ Basic CNN scorer
     Demo:
@@ -153,23 +165,16 @@ class CNNmodel_Torch:
         else:
             return scores
 
-def render(codes, scale=255):
-    '''Render a list of codes to list of images'''
-    if type(codes) is list:
-        images = [generator.visualize(codes[i], scale) for i in range(len(codes))]
-    else:
-        images = [generator.visualize(codes[i, :], scale) for i in range(codes.shape[0])]
-    return images
 #%% More general torch models!
 import torch
 from torchvision import transforms
 from torchvision import models
 import torch.nn.functional as F
 from torch_net_utils import layername_dict
-import torch.nn as nn
+
 # mini-batches of 3-channel RGB images of shape (3 x H x W), where H and W are expected to be at least 224. The images have to be loaded in to a range of [0, 1] and then normalized using mean = [0.485, 0.456, 0.406] and std = [0.229, 0.224, 0.225].
 
-activation = {}
+activation = {} # global variable is important for hook to work! it's an important channel for communication
 def get_activation(name, unit=None):
     if unit is None:
         def hook(model, input, output):
@@ -289,14 +294,14 @@ class ExperimentEvolve:
     """
     Default behavior is to use the current CMAES optimizer to optimize for 200 steps for the given unit.
     """
-    def __init__(self, model_unit, max_step=200, backend="caffe", optimizer=None, GAN="fc7"):
+    def __init__(self, model_unit, max_step=200, backend="caffe", optimizer=None, GAN="fc6"):
         self.recording = []
         self.scores_all = []
         self.codes_all = []
         self.generations = []
-        if backend=="caffe":
+        if backend == "caffe":
             self.CNNmodel = CNNmodel(model_unit[0])  # 'caffe-net'
-        elif backend=="torch":
+        elif backend == "torch":
             if model_unit[0] is 'caffe-net':
                 self.CNNmodel = CNNmodel_Torch(model_unit[0])
             else: # VGG, DENSE and anything else
@@ -310,7 +315,7 @@ class ExperimentEvolve:
         else:
             # assert issubclass(type(optimizer), Optimizer)
             self.optimizer = optimizer
-        if GAN == "fc7":
+        if GAN == "fc6":
             self.render = render
         elif GAN == "BigGAN":
             from BigGAN_Evolution import BigGAN_embed_render
@@ -422,7 +427,7 @@ class ExperimentEvolve_DC:
     Default behavior is to use the current CMAES optimizer to optimize for 200 steps for the given unit.
     This Experimental Class is defined to test out the new Descent checking
     """
-    def __init__(self, model_unit, max_step=200, optimizer=None, backend="caffe", GAN="fc7"):
+    def __init__(self, model_unit, max_step=200, optimizer=None, backend="caffe", GAN="fc6"):
         self.recording = []
         self.scores_all = []
         self.codes_all = []
@@ -434,7 +439,7 @@ class ExperimentEvolve_DC:
         else:
             raise NotImplementedError
         self.CNNmodel.select_unit(model_unit)
-        if GAN == "fc7":
+        if GAN == "fc6":
             self.render = render
         elif GAN == "BigGAN":
             from BigGAN_Evolution import BigGAN_embed_render
@@ -562,7 +567,7 @@ class ExperimentEvolve_DC:
 #%%
 from cv2 import resize
 import cv2
-from torch_net_utils import receptive_field, receptive_field_for_unit
+
 
 def resize_and_pad(img_list, size, offset, canvas_size=(227, 227)):
     '''Resize and Pad a list of images to list of images
@@ -685,7 +690,7 @@ class ExperimentResizeEvolve:
 
 class ExperimentManifold:
     def __init__(self, model_unit, max_step=100, imgsize=(227, 227), corner=(0, 0),
-                 savedir="", explabel="", backend="caffe", GAN="fc7"):
+                 savedir="", explabel="", backend="caffe", GAN="fc6"):
         self.recording = []
         self.scores_all = []
         self.codes_all = []
@@ -694,7 +699,7 @@ class ExperimentManifold:
         if backend == "caffe":
             self.CNNmodel = CNNmodel(model_unit[0])  # 'caffe-net'
         elif backend == "torch":
-            if model_unit[0] is 'caffe-net':
+            if model_unit[0] == 'caffe-net': # `is` won't work here!
                 self.CNNmodel = CNNmodel_Torch(model_unit[0])
             else:  # VGG, DENSE and anything else
                 self.CNNmodel = TorchScorer(model_unit[0])
@@ -703,7 +708,7 @@ class ExperimentManifold:
         self.CNNmodel.select_unit(model_unit)
         # Allow them to choose from multiple optimizers, substitute generator.visualize and render
         self.render = render
-        # if GAN == "fc7":
+        # if GAN == "fc6":
         #     self.render = render
         # elif GAN == "BigGAN":
         #     from BigGAN_Evolution import BigGAN_embed_render
@@ -897,7 +902,6 @@ def subsample_mask(factor=2, orig_size=(21, 21)):
     return msk, idx_lin
 
 #%%
-from scipy.stats import ortho_group, special_ortho_group
 import math
 def make_orthonormal_matrix(n):
     """

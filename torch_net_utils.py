@@ -39,9 +39,8 @@ from caffenet import *  # Pytorch-caffe converter
 from torch_receptive_field import receptive_field, receptive_field_for_unit
 #%% Prepare PyTorch version of the Caffe networks
 def load_caffenet():
-    # netsdir = r"D:\Generator_DB_Windows\nets"
-    protofile = join(netsdir, r"caffenet\caffenet.prototxt") # 'resnet50/deploy.prototxt'
-    weightfile = join(netsdir, r'caffenet\bvlc_reference_caffenet.caffemodel') # 'resnet50/resnet50.caffemodel'
+    protofile = join(netsdir, r"caffenet\caffenet.prototxt")  # 'resnet50/deploy.prototxt'
+    weightfile = join(netsdir, r'caffenet\bvlc_reference_caffenet.caffemodel')  # 'resnet50/resnet50.caffemodel'
     save_path = join(netsdir, r"caffenet\caffenet_state_dict.pt")
     net = CaffeNet(protofile)
     print(net)
@@ -57,18 +56,33 @@ def load_caffenet():
         param.requires_grad = False
     return net
 
-def load_generator():
+def GAN_path(name):
+    if name == "fc6":
+        save_path = os.path.join(netsdir, r"upconv/fc6/generator_state_dict.pt")
+        protofile = os.path.join(netsdir, r"upconv/fc6/generator.prototxt")  # 'resnet50/deploy.prototxt'
+        weightfile = os.path.join(netsdir, r'upconv/fc6/generator.caffemodel')  # 'resnet50/resnet50.caffemodel'
+    elif name == "fc7":
+        save_path = os.path.join(netsdir, r"upconv/fc7/generator_state_dict.pt")
+        protofile = os.path.join(netsdir, r"upconv/fc7/generator.prototxt")  # 'resnet50/deploy.prototxt'
+        weightfile = os.path.join(netsdir, r'upconv/fc7/generator.caffemodel')  # 'resnet50/resnet50.caffemodel'
+    elif name == "fc8":
+        save_path = os.path.join(netsdir, r"upconv/fc8/generator_state_dict.pt")
+        protofile = os.path.join(netsdir, r"upconv/fc8/generator.prototxt")  # 'resnet50/deploy.prototxt'
+        weightfile = os.path.join(netsdir, r'upconv/fc8/generator.caffemodel')  # 'resnet50/resnet50.caffemodel'
+    else:
+        raise ValueError(name + 'not defined')
+    return save_path, protofile, weightfile
+
+def load_generator(GAN="fc6"):
     # netsdir = r"D:/Generator_DB_Windows/nets"
-    save_path = os.path.join(netsdir, r"upconv/fc6/generator_state_dict.pt")
-    protofile = os.path.join(netsdir, r"upconv/fc6/generator.prototxt")  # 'resnet50/deploy.prototxt'
-    weightfile = os.path.join(netsdir, r'upconv/fc6/generator.caffemodel')  # 'resnet50/resnet50.caffemodel'
+    save_path, protofile, weightfile = GAN_path(GAN)
     Generator = CaffeNet(protofile)
     print(Generator)
     if os.path.exists(save_path):
         Generator.load_state_dict(torch.load(save_path))
     else:
         Generator.load_weights(weightfile)
-        Generator.save(Generator.state_dict(), save_path)
+        torch.save(Generator.state_dict(), save_path) # Generator.
     Generator.eval()
     Generator.verbose = False
     Generator.requires_grad_(requires_grad=False)
@@ -200,7 +214,7 @@ layername_dict ={"vgg16":['conv1', 'conv1_relu',
                                  'bn2',
                                  'fc1']}
 
-#%%
+#%%  Processing script to get the layer name array from a torch model
 # layers = list(densenet.features)+[densenet.classifier]
 # layername = []
 # conv_cnt = 0
