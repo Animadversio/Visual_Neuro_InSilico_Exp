@@ -623,7 +623,7 @@ def visualize_image_score_each_block(CurDataDir, block_num, save=False, exp_titl
     return fig
 
 def visualize_img_list(img_list, scores=None, ncol=11, nrow=11, title_cmap=plt.cm.viridis, show=True, title_str=""):
-    """Visualize images from a list and maybe label the score on it!"""
+    """Visualize images from a list and maybe label the score on it! Note this doesn't rely on a generator! """
     if scores is not None and not title_cmap == None:
         cmap_flag = True
         lb = np.min(scores)

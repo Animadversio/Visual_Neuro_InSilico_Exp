@@ -4,6 +4,7 @@ import utils
 import net_utils
 import utils
 from utils import load_GAN
+from Generator import Generator
 from time import time, sleep
 import numpy as np
 from Optimizer import CholeskyCMAES, Genetic, Optimizer  # Optimizer is the base class for these things
@@ -26,10 +27,11 @@ else:
 init_sigma = 3
 Aupdate_freq = 10
 code_length = 4096
-from config import GANname, code_length
-generator = load_GAN(GANname)
-utils.generator = generator
-render = generator.render
+# from config import GANname, code_length
+# print(GANname, " codelength %d"%code_length)
+# generator = load_GAN(GANname)
+# utils.generator = generator
+# render = generator.render
 # def render(codes, scale=255):
 #     '''Render a list of codes to list of images'''
 #     if type(codes) is list:
@@ -309,20 +311,24 @@ class ExperimentEvolve:
         else:
             raise NotImplementedError
         self.CNNmodel.select_unit(model_unit)
+        if GAN == "fc6" or GAN == "fc7" or GAN == "fc8":
+            self.G = Generator(name=GAN)
+            self.render = self.G.render
+            if GAN == "fc8":
+                code_length = 1000
+        elif GAN == "BigGAN":
+            from BigGAN_Evolution import BigGAN_embed_render
+            self.render = BigGAN_embed_render
+            code_length = 256  # 128
+            # 128d Class Embedding code or 256d full code could be used. 
+        else:
+            raise NotImplementedError
         if optimizer is None:  # Default optimizer is this
             self.optimizer = CholeskyCMAES(recorddir=recorddir, space_dimen=code_length, init_sigma=init_sigma,
                                            init_code=np.zeros([1, code_length]), Aupdate_freq=Aupdate_freq) # , optim_params=optim_params
         else:
             # assert issubclass(type(optimizer), Optimizer)
             self.optimizer = optimizer
-        if GAN == "fc6":
-            self.render = render
-        elif GAN == "BigGAN":
-            from BigGAN_Evolution import BigGAN_embed_render
-            self.render = BigGAN_embed_render 
-            # 128d Class Embedding code or 256d full code could be used. 
-        else:
-            raise NotImplementedError
         self.max_steps = max_step
 
     def run(self, init_code=None):
@@ -422,6 +428,7 @@ class ExperimentEvolve:
         return figh
 
 #%%
+# from ZO_HessAware_Optimizers import HessAware_Gauss_DC
 class ExperimentEvolve_DC:
     """
     Default behavior is to use the current CMAES optimizer to optimize for 200 steps for the given unit.
@@ -439,15 +446,22 @@ class ExperimentEvolve_DC:
         else:
             raise NotImplementedError
         self.CNNmodel.select_unit(model_unit)
-        if GAN == "fc6":
-            self.render = render
+        if GAN == "fc6" or GAN == "fc7" or GAN == "fc8":
+            self.G = Generator(name=GAN)
+            self.render = self.G.render
+            if GAN == "fc8":
+                self.code_length = 1000
+            else:
+                self.code_length = 4096
         elif GAN == "BigGAN":
             from BigGAN_Evolution import BigGAN_embed_render
             self.render = BigGAN_embed_render
+            self.code_length = 256  # 128
+            # 128d Class Embedding code or 256d full code could be used.
         else:
             raise NotImplementedError
         if optimizer is None:  # Default optimizer is this
-            self.optimizer = HessAware_Gauss_DC(space_dimen=4096, )    # , optim_params=optim_params
+            self.optimizer = HessAware_Gauss_DC(space_dimen=self.code_length, )    # , optim_params=optim_params
             # CholeskyCMAES(recorddir=recorddir, space_dimen=code_length, init_sigma=init_sigma,
             #                                            init_code=np.zeros([1, code_length]), Aupdate_freq=Aupdate_freq)
         else:
@@ -496,7 +510,7 @@ class ExperimentEvolve_DC:
                     break
                 if not self.istep % self.optimizer.Hupdate_freq:
                     Hess_codes = self.optimizer.generate_sample(samp_num, hess_comp=True)
-                    Hess_imgs = render(Hess_codes)
+                    Hess_imgs = self.render(Hess_codes)
                     Hess_scores = self.CNNmodel.score(Hess_imgs)
                     self.optimizer.compute_hess(Hess_scores)
                     self.codes_all = np.concatenate((self.codes_all, Hess_codes), axis=0)
@@ -568,7 +582,6 @@ class ExperimentEvolve_DC:
 from cv2 import resize
 import cv2
 
-
 def resize_and_pad(img_list, size, offset, canvas_size=(227, 227)):
     '''Resize and Pad a list of images to list of images
     Note this function is assuming the image is in (0,1) scale so padding with 0.5 as gray background.
@@ -587,15 +600,29 @@ def resize_and_pad(img_list, size, offset, canvas_size=(227, 227)):
 class ExperimentResizeEvolve:
     """Resize the evolved image before feeding into CNN and see how the evolution goes. """
     def __init__(self, model_unit, imgsize=(227, 227), corner=(0, 0),
-                 max_step=200, savedir="", explabel=""):
+                 max_step=200, savedir="", explabel="", GAN="fc6"):
         self.recording = []
         self.scores_all = []
         self.codes_all = []
         self.generations = []
         self.CNNmodel = CNNmodel(model_unit[0])  # 'caffe-net'
         self.CNNmodel.select_unit(model_unit)
-        self.optimizer = CholeskyCMAES(recorddir=recorddir, space_dimen=code_length, init_sigma=init_sigma,
-                                       init_code=np.zeros([1, code_length]), Aupdate_freq=Aupdate_freq) # , optim_params=optim_params
+        if GAN == "fc6" or GAN == "fc7" or GAN == "fc8":
+            self.G = Generator(name=GAN)
+            self.render = self.G.render
+            if GAN == "fc8":
+                self.code_length = 1000
+            else:
+                self.code_length = 4096
+        elif GAN == "BigGAN":
+            from BigGAN_Evolution import BigGAN_embed_render
+            self.render = BigGAN_embed_render
+            self.code_length = 256  # 128 # 128d Class Embedding code or 256d full code could be used.
+        else:
+            raise NotImplementedError
+        self.optimizer = CholeskyCMAES(recorddir=recorddir, space_dimen=self.code_length, init_sigma=init_sigma,
+                                       init_code=np.zeros([1, self.code_length]),
+                                       Aupdate_freq=Aupdate_freq)  # , optim_params=optim_params
         self.max_steps = max_step
         self.corner = corner  # up left corner of the image
         self.imgsize = imgsize  # size of image
@@ -610,12 +637,12 @@ class ExperimentResizeEvolve:
         for self.istep in range(self.max_steps):
             if self.istep == 0:
                 if init_code is None:
-                    codes = np.zeros([1, code_length])
+                    codes = np.zeros([1, self.code_length])
                 else:
                     codes = init_code
             print('\n>>> step %d' % self.istep)
             t0 = time()
-            self.current_images = render(codes)  # note visualize to 0,1 scale
+            self.current_images = self.render(codes)  # note visualize to 0,1 scale
             self.current_images = resize_and_pad(self.current_images, self.imgsize, self.corner)
             t1 = time()  # generate image from code
             synscores = self.CNNmodel.score(self.current_images)
@@ -643,7 +670,7 @@ class ExperimentResizeEvolve:
         idx_list = np.array(idx_list)
         select_code = self.codes_all[idx_list, :]
         score_select = self.scores_all[idx_list]
-        img_select = render(select_code, scale=1)
+        img_select = self.render(select_code, scale=1)
         fig = utils.visualize_img_list(img_select, score_select, show=show)
         fig.savefig(join(self.savedir, "Evolv_Img_Traj_%s.png" % (self.explabel)))
         return fig
@@ -652,7 +679,7 @@ class ExperimentResizeEvolve:
         idx = np.argmax(self.scores_all)
         select_code = self.codes_all[idx:idx+1, :]
         score_select = self.scores_all[idx]
-        img_select = render(select_code)#, scale=1
+        img_select = self.render(select_code)#, scale=1
         fig = plt.figure(figsize=[3, 3])
         plt.subplot(1,2,1)
         plt.imshow(img_select[0]/255)
@@ -707,17 +734,22 @@ class ExperimentManifold:
             raise NotImplementedError
         self.CNNmodel.select_unit(model_unit)
         # Allow them to choose from multiple optimizers, substitute generator.visualize and render
-        self.render = render
-        # if GAN == "fc6":
-        #     self.render = render
-        # elif GAN == "BigGAN":
-        #     from BigGAN_Evolution import BigGAN_embed_render
-        #     self.render = BigGAN_embed_render
-        # else:
-        #     raise NotImplementedError
+        if GAN == "fc6" or GAN == "fc7" or GAN == "fc8":
+            self.G = Generator(name=GAN)
+            self.render = self.G.render
+            if GAN == "fc8":
+                self.code_length = 1000
+            else:
+                self.code_length = 4096
+        elif GAN == "BigGAN":
+            from BigGAN_Evolution import BigGAN_embed_render
+            self.render = BigGAN_embed_render
+            self.code_length = 256  # 128 # 128d Class Embedding code or 256d full code could be used.
+        else:
+            raise NotImplementedError
 
-        self.optimizer = CholeskyCMAES(recorddir=recorddir, space_dimen=code_length, init_sigma=init_sigma,
-                                       init_code=np.zeros([1, code_length]),
+        self.optimizer = CholeskyCMAES(recorddir=recorddir, space_dimen=self.code_length, init_sigma=init_sigma,
+                                       init_code=np.zeros([1, self.code_length]),
                                        Aupdate_freq=Aupdate_freq)  # , optim_params=optim_params
         self.max_steps = max_step
         self.corner = corner  # up left corner of the image
@@ -735,7 +767,7 @@ class ExperimentManifold:
         for self.istep in range(self.max_steps):
             if self.istep == 0:
                 if init_code is None:
-                    codes = np.zeros([1, code_length])
+                    codes = np.zeros([1, self.code_length])
                 else:
                     codes = init_code
             print('\n>>> step %d' % self.istep)
@@ -791,7 +823,7 @@ class ExperimentManifold:
             if subspace == "RND":
                 title = "Norm%dRND%dRND%d" % (self.sphere_norm, 0 + 1, 1 + 1)
                 print("Generating images on PC1, Random vector1, Random vector2 sphere (rad = %d)" % self.sphere_norm)
-                rand_vec2 = np.random.randn(2, 4096)
+                rand_vec2 = np.random.randn(2, self.code_length)
                 rand_vec2 = rand_vec2 - (rand_vec2 @ self.PC_vectors.T) @ self.PC_vectors
                 rand_vec2 = rand_vec2 / np.sqrt((rand_vec2 ** 2).sum(axis=1))[:, np.newaxis]
                 rand_vec2[1, :] = rand_vec2[1, :] - (rand_vec2[1, :] @ rand_vec2[0, :].T) * rand_vec2[0, :]
@@ -808,7 +840,7 @@ class ExperimentManifold:
                                               np.sin(theta) * np.cos(phi),
                                               np.sin(phi)]]) @ vectors
                         code_vec = code_vec / np.sqrt((code_vec ** 2).sum()) * self.sphere_norm
-                        img = generator.visualize(code_vec)
+                        img = self.G.visualize(code_vec)
                         img_list.append(img.copy())
             else:
                 PCi, PCj = subspace
@@ -825,7 +857,7 @@ class ExperimentManifold:
                                               np.sin(theta) * np.cos(phi),
                                               np.sin(phi)]]) @ self.PC_vectors[[0, PCi, PCj], :]
                         code_vec = code_vec / np.sqrt((code_vec ** 2).sum()) * self.sphere_norm
-                        img = generator.visualize(code_vec)
+                        img = self.G.visualize(code_vec)
                         img_list.append(img.copy())
                         # plt.imsave(os.path.join(newimg_dir, "norm_%d_PC2_%d_PC3_%d.jpg" % (
                         # self.sphere_norm, interval * j, interval * k)), img)
@@ -854,7 +886,7 @@ class ExperimentManifold:
         idx = np.argmax(self.scores_all)
         select_code = self.codes_all[idx:idx+1, :]
         score_select = self.scores_all[idx]
-        img_select = render(select_code)#, scale=1
+        img_select = self.render(select_code)#, scale=1
         fig = plt.figure(figsize=[3, 1.7])
         plt.subplot(1, 2, 1)
         plt.imshow(img_select[0]/255)
@@ -931,7 +963,7 @@ def make_orthonormal_matrix(n):
 
 class ExperimentGANAxis:
     """ Tuning w.r.t. all the major axis in the GAN or the randomly generated O(n) frame set. """
-    def __init__(self, model_unit, savedir="", explabel=""):
+    def __init__(self, model_unit, savedir="", explabel="", GAN="fc6"):
         self.recording = []
         self.scores_all = []
         self.scores_all_rnd = []
@@ -941,6 +973,19 @@ class ExperimentGANAxis:
         self.CNNmodel.select_unit(model_unit)
         self.savedir = savedir
         self.explabel = explabel
+        if GAN == "fc6" or GAN == "fc7" or GAN == "fc8":
+            self.G = Generator(name=GAN)
+            self.render = self.G.render
+            if GAN == "fc8":
+                self.code_length = 1000
+            else:
+                self.code_length = 4096
+        elif GAN == "BigGAN":
+            from BigGAN_Evolution import BigGAN_embed_render
+            self.render = BigGAN_embed_render
+            self.code_length = 256  # 128
+        else:
+            raise NotImplementedError
 
     def run_axis(self, Norm, orthomat=None):
         '''Generate examples on manifold and run'''
@@ -948,34 +993,34 @@ class ExperimentGANAxis:
         figsum = plt.figure(figsize=[16.7, 8])
 
         BATCH_SIZE = 128
-        BATCH_N = int(4096 / BATCH_SIZE)
+        BATCH_N = int(self.code_length / BATCH_SIZE)
         print("Test the tuning on all the axis in GAN space (Norm %d)"%Norm)
-        code_mat = np.eye(4096, 4096)
+        code_mat = np.eye(self.code_length, self.code_length)
         scores_all = []
         scores_all_neg = []
         for bi in range(BATCH_N):
             img_list = []
             for j in range(BATCH_SIZE):
-                img = generator.visualize(Norm * code_mat[bi * BATCH_N + j, :])
+                img = self.G.visualize(Norm * code_mat[bi * BATCH_N + j, :])
                 img_list.append(img.copy())
             scores = self.CNNmodel.score(img_list)
             scores_all.extend(list(scores))
             img_list = []
             for j in range(BATCH_SIZE):
-                img = generator.visualize(- Norm * code_mat[bi * BATCH_N + j, :])
+                img = self.G.visualize(- Norm * code_mat[bi * BATCH_N + j, :])
                 img_list.append(img.copy())
             scores = self.CNNmodel.score(img_list)
             scores_all_neg.extend(list(scores))
             print("Finished batch %02d/%02d"%( bi+1, BATCH_N))
         self.scores_all = np.array(scores_all + scores_all_neg)
         ax = figsum.add_subplot(2, 1, 1)
-        ax.scatter(np.arange(4096), scores_all, alpha=0.5)
-        ax.scatter(np.arange(4096), scores_all_neg, alpha=0.4)
+        ax.scatter(np.arange(self.code_length), scores_all, alpha=0.5)
+        ax.scatter(np.arange(self.code_length), scores_all_neg, alpha=0.4)
         ax.plot(sorted(scores_all), color='orange')
         ax.plot(sorted(scores_all_neg), color='green')
-        ax.set_xlim(-50, 4150)
+        ax.set_xlim(-50, self.code_length)
         if orthomat is None:
-            code_mat = make_orthonormal_matrix(4096)# ortho_group.rvs(4096)
+            code_mat = make_orthonormal_matrix(self.code_length)# ortho_group.rvs(4096)
         else:
             code_mat = orthomat
         scores_all = []
@@ -984,24 +1029,24 @@ class ExperimentGANAxis:
         for bi in range(BATCH_N):
             img_list = []
             for j in range(BATCH_SIZE):
-                img = generator.visualize(Norm * code_mat[bi * BATCH_N + j, :])
+                img = self.G.visualize(Norm * code_mat[bi * BATCH_N + j, :])
                 img_list.append(img.copy())
             scores = self.CNNmodel.score(img_list)
             scores_all.extend(list(scores))
             img_list = []
             for j in range(BATCH_SIZE):
-                img = generator.visualize(- Norm * code_mat[bi * BATCH_N + j, :])
+                img = self.G.visualize(- Norm * code_mat[bi * BATCH_N + j, :])
                 img_list.append(img.copy())
             scores = self.CNNmodel.score(img_list)
             scores_all_neg.extend(list(scores))
             print("Finished batch %02d/%02d"% (bi + 1, BATCH_N))
         self.scores_all_rnd = np.array(scores_all + scores_all_neg)
         ax = figsum.add_subplot(2, 1, 2)
-        ax.scatter(np.arange(4096), scores_all, alpha=0.5)
+        ax.scatter(np.arange(self.code_length), scores_all, alpha=0.5)
         ax.plot(sorted(scores_all), color='orange')
-        ax.scatter(np.arange(4096), scores_all_neg, alpha=0.4)
+        ax.scatter(np.arange(self.code_length), scores_all_neg, alpha=0.4)
         ax.plot(sorted(scores_all_neg), color='green')
-        ax.set_xlim(-50, 4150)
+        ax.set_xlim(-50, self.code_length)
         # ax = figsum.add_subplot(1, len(subspace_list), spi + 1)
         # im = ax.imshow(scores)
         # plt.colorbar(im, ax=ax)
@@ -1014,7 +1059,7 @@ class ExperimentGANAxis:
 #%%
 class ExperimentRestrictEvolve:
     """Evolution in a restricted linear subspace with subspace_d """
-    def __init__(self, subspace_d, model_unit, max_step=200):
+    def __init__(self, subspace_d, model_unit, max_step=200, GAN="fc6"):
         self.sub_d = subspace_d
         self.recording = []
         self.scores_all = []
@@ -1026,11 +1071,25 @@ class ExperimentRestrictEvolve:
                                        init_code=np.zeros([1, subspace_d]),
                                        Aupdate_freq=Aupdate_freq)  # , optim_params=optim_params
         self.max_steps = max_step
+        if GAN == "fc6" or GAN == "fc7" or GAN == "fc8":
+            self.G = Generator(name=GAN)
+            self.render = self.G.render
+            if GAN == "fc8":
+                self.code_length = 1000
+            else:
+                self.code_length = 4096
+        elif GAN == "BigGAN":
+            from BigGAN_Evolution import BigGAN_embed_render
+            self.render = BigGAN_embed_render
+            self.code_length = 256  # 128
+            # 128d Class Embedding code or 256d full code could be used.
+        else:
+            raise NotImplementedError
 
     def get_basis(self):
-        self.basis = np.zeros([self.sub_d, code_length])
+        self.basis = np.zeros([self.sub_d, self.code_length])
         for i in range(self.sub_d):
-            tmp_code = np.random.randn(1, code_length)
+            tmp_code = np.random.randn(1, self.code_length)
             tmp_code = tmp_code - (tmp_code @ self.basis.T) @ self.basis
             self.basis[i, :] = tmp_code / np.linalg.norm(tmp_code)
         return self.basis
@@ -1050,7 +1109,7 @@ class ExperimentRestrictEvolve:
             codes = coords @ self.basis
             print('\n>>> step %d' % self.istep)
             t0 = time()
-            self.current_images = render(codes)
+            self.current_images = self.render(codes)
             t1 = time()  # generate image from code
             synscores = self.CNNmodel.score(self.current_images)
             t2 = time()  # score images
@@ -1079,7 +1138,7 @@ class ExperimentRestrictEvolve:
         idx_list = np.array(idx_list)
         select_code = self.codes_all[idx_list, :]
         score_select = self.scores_all[idx_list]
-        img_select = render(select_code)
+        img_select = self.render(select_code)
         fig = utils.visualize_img_list(img_select, score_select, show=show)
         return fig
 
@@ -1087,7 +1146,7 @@ class ExperimentRestrictEvolve:
         idx = np.argmax(self.scores_all)
         select_code = self.codes_all[idx:idx+1, :]
         score_select = self.scores_all[idx]
-        img_select = render(select_code)
+        img_select = self.render(select_code)
         fig = plt.figure(figsize=[3, 3])
         plt.imshow(img_select[0])
         plt.axis('off')

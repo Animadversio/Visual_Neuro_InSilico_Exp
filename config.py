@@ -1,2 +1,2 @@
-code_length = 4096
-GANname = "fc7"
+# code_length = 4096
+# GANname = "fc7"

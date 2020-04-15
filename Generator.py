@@ -1,7 +1,6 @@
 import numpy as np
 import net_utils
 
-
 class Generator:
     '''Load CaffeNet generator
 
@@ -10,16 +9,21 @@ class Generator:
     def __init__(self, name="fc6"):
         if name == "fc6":
             generator = net_utils.load('generator')
+            self.code_length = 4096
         elif name == "fc7":
             generator = net_utils.load('generator-fc7')
+            self.code_length = 4096
         elif name == "fc8":
             generator = net_utils.load('generator-fc8')
+            self.code_length = 1000
+        else:
+            raise NotImplementedError
         detransformer = net_utils.get_detransformer(generator)
         self._GNN = generator
         self._detransformer = detransformer
 
     def visualize(self, code, scale=255):
-        x = self._GNN.forward(feat=code.reshape(1, 4096))['deconv0']
+        x = self._GNN.forward(feat=code.reshape(1, self.code_length))['deconv0']
         x = self._detransformer.deprocess('data', x)
         x = np.clip(x, 0, 1)  # use clip to bound all the image output in interval [0,1]
         if scale == 255:
@@ -37,12 +41,12 @@ class Generator:
 
     def visualize_norm(self, code):
         """Add to visualize the un-cropped but min-max normalized image distribution"""
-        x = self._GNN.forward(feat=code.reshape(1, 4096))['deconv0']
+        x = self._GNN.forward(feat=code.reshape(1, self.code_length))['deconv0']
         x = self._detransformer.deprocess('data', x)
         # x = np.clip(x, 0, 1)  # use clip to bound all the image output in interval [0,1]
         x = (x - x.min()) / (x.max() - x.min())
         return (x * 255).astype('uint8')  # rescale to uint in [0,255]
 
     def raw_output(self, code):
-        x = self._GNN.forward(feat=code.reshape(-1, 4096))['deconv0']
+        x = self._GNN.forward(feat=code.reshape(-1, self.code_length))['deconv0']
         return x

@@ -28,9 +28,10 @@ matplotlib.use('Agg')
 #             ('caffe-net', 'conv4', 5, 7, 7),
 #             ]
 #for units in unit_arr:
+GANspace = ""
 netname = units[0]
 layer = units[1]
-savedir = join(recorddir, "resize_data", "%s_%s_manifold" % (netname, layer))
+savedir = join(recorddir, "resize_data", "%s_%s_manifold-%s" % (netname, layer, GANspace))
 os.makedirs(savedir, exist_ok=True)
 for channel in range(1, 51):
     if len(units) == 5:

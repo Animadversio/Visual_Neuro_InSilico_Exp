@@ -1,9 +1,16 @@
 #%% Preparation for RF computation.
 import torchvision
-from torch_net_utils import receptive_field, receptive_field_for_unit
-alexnet = torchvision.models.AlexNet()  # using the pytorch alexnet as proxy for caffenet.
-rf_dict = receptive_field(alexnet.features, (3, 227, 227), device="cpu")
-layer_name_map = {"conv1": "1", "conv2": "4", "conv3": "7", "conv4": "9", "conv5": "11"}  # how names in unit tuple maps to the
+from torch_net_utils import receptive_field, receptive_field_for_unit, layername_dict
+# alexnet = torchvision.models.AlexNet()  # using the pytorch alexnet as proxy for caffenet.
+# rf_dict = receptive_field(alexnet.features, (3, 227, 227), device="cpu")
+# layer_name_map = {"conv1": "1", "conv2": "4", "conv3": "7", "conv4": "9", "conv5": "11"}  # how names in unit tuple maps to the
+vgg16 = torchvision.models.vgg16()  # using the pytorch alexnet as proxy for caffenet.
+rf_dict = receptive_field(vgg16.features, (3, 227, 227), device="cpu")
+layername = layername_dict["vgg16"]
+layer_name_map = {}
+for i in range(31):
+    layer = layername[i]
+    layer_name_map[layer] = str(i+1)
 #%%
 from insilico_Exp import *
 from time import time
@@ -19,11 +26,12 @@ unit_arr = [('caffe-net', 'conv5', 10, 7, 7),
             ('caffe-net', 'conv3', 5, 7, 7),
             ('caffe-net', 'conv4', 5, 7, 7),
             ]
-unit_arr = [('caffe-net', 'fc7', 10), ]
+unit_arr = [('vgg16', 'fc1', 10), ]
+GANspace = "fc7"
 for units in unit_arr:
     netname = units[0]
     layer = units[1]
-    savedir = join(recorddir, "resize_data", "%s_%s_manifold" % (netname, layer))
+    savedir = join(recorddir, "resize_data", "%s_%s_manifold-%s" % (netname, layer, GANspace))
     os.makedirs(savedir, exist_ok=True)
     for channel in range(1, 51):
         if len(units) == 5:
@@ -42,8 +50,8 @@ for units in unit_arr:
             corner = (0, 0)
         # Original experiment
         t0 = time()
-        exp = ExperimentManifold(unit, max_step=100, imgsize=(227, 227), corner=(0, 0), backend="torch", savedir=savedir,
-                                 explabel="%s_original" % (unit_lab))
+        exp = ExperimentManifold(unit, max_step=150, imgsize=(227, 227), corner=(0, 0), backend="torch", savedir=savedir,
+                                 explabel="%s_original" % (unit_lab), GAN=GANspace)
         # exp.load_traj("Evolv_%s_%d_%d_%d_orig.npz" % (unit[1], unit[2], unit[3], unit[4]))  # load saved traj
         exp.run()
         exp.analyze_traj()
@@ -60,8 +68,8 @@ for units in unit_arr:
         t1 = time()
         print("Original Exp Processing time %.f" % (t1 - t0))
         # Resized Manifold experiment
-        exp = ExperimentManifold(unit, max_step=100, imgsize=imgsize, corner=corner, backend="torch", savedir=savedir,
-                                 explabel="%s_rf_fit" % (unit_lab))
+        exp = ExperimentManifold(unit, max_step=150, imgsize=imgsize, corner=corner, backend="torch", savedir=savedir,
+                                 explabel="%s_rf_fit" % (unit_lab), GAN=GANspace)
         # exp.load_traj("Evolv_%s_%d_%d_%d_rf_fit.npz" % (unit[1], unit[2], unit[3], unit[4]))  # load saved traj
         exp.run()
         exp.analyze_traj()
