@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # give the job a name to help keep track of running jobs (optional)
-#PBS -N insilico_manifold_resize_caffenet
+#PBS -N insilico_manifold_resize_vgg16
 
 # Specify the resources needed.  FreeSurfer just needs 1 core and
 # 24 hours is usually enough.  This assumes the job requires less
@@ -19,7 +19,7 @@
 # export PATH=/act/Anaconda3-2.3.0/bin:${PATH}
 
 cd ~/Visual_Neuro_InSilico_Exp/
-# export TORCH_HOME="/scratch/binxu/torch" # or it will download
+export TORCH_HOME="/scratch/binxu/torch" # or it will download
 param_list='units = ("vgg16", "conv2", 5, 112, 112);
 units = ("vgg16", "conv3", 5, 56, 56);
 units = ("vgg16", "conv4", 5, 56, 56);
