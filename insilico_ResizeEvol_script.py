@@ -39,7 +39,7 @@ for units in unit_arr:
             corner = (0, 0)
         # Original experiment
         t0 = time()
-        exp = ExperimentManifold(unit, max_step=100, imgsize=(227, 227), corner=(0, 0), savedir=savedir,
+        exp = ExperimentManifold(unit, max_step=100, imgsize=(227, 227), corner=(0, 0), backend="torch", savedir=savedir,
                                  explabel="%s_%d_%d_%d_original" % (unit[1], unit[2], unit[3], unit[4]))
         # exp.load_traj("Evolv_%s_%d_%d_%d_orig.npz" % (unit[1], unit[2], unit[3], unit[4]))  # load saved traj
         exp.run()
@@ -57,7 +57,7 @@ for units in unit_arr:
         t1 = time()
         print("Original Exp Processing time %.f" % (t1 - t0))
         # Resized Manifold experiment
-        exp = ExperimentManifold(unit, max_step=100, imgsize=imgsize, corner=corner, savedir=savedir,
+        exp = ExperimentManifold(unit, max_step=100, imgsize=imgsize, corner=corner, backend="torch", savedir=savedir,
                                  explabel="%s_%d_%d_%d_rf_fit" % (unit[1], unit[2], unit[3], unit[4]))
         # exp.load_traj("Evolv_%s_%d_%d_%d_rf_fit.npz" % (unit[1], unit[2], unit[3], unit[4]))  # load saved traj
         exp.run()

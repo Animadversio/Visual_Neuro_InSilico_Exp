@@ -1,9 +1,16 @@
 #%% Preparation for RF computation.
 import torchvision
-from torch_net_utils import receptive_field, receptive_field_for_unit
-alexnet = torchvision.models.AlexNet()  # using the pytorch alexnet as proxy for caffenet.
-rf_dict = receptive_field(alexnet.features, (3, 227, 227), device="cpu")
-layer_name_map = {"conv1": "1", "conv2": "4", "conv3": "7", "conv4": "9", "conv5": "11"}
+from torch_net_utils import receptive_field, receptive_field_for_unit, layername_dict
+# alexnet = torchvision.models.AlexNet()  # using the pytorch alexnet as proxy for caffenet.
+# rf_dict = receptive_field(alexnet.features, (3, 227, 227), device="cpu")
+# layer_name_map = {"conv1": "1", "conv2": "4", "conv3": "7", "conv4": "9", "conv5": "11"}
+vgg16 = torchvision.models.vgg16()  # using the pytorch alexnet as proxy for caffenet.
+rf_dict = receptive_field(vgg16.features, (3, 227, 227), device="cpu")
+layername = layername_dict["vgg16"]
+layer_name_map = {}
+for i in range(31):
+    layer = layername[i]
+    layer_name_map[layer] = str(i+1)
 # how names in unit tuple maps to the numering in rf_dict. Can use this to fetch rf in exp
 #%%
 from insilico_Exp import *
@@ -12,6 +19,7 @@ plt.ioff()
 import matplotlib
 matplotlib.use('Agg')
 #%%
+# units = ("vgg16", "conv10", 5, 14, 14);
 # layer_list = ["conv5", "conv4", "conv3", "conv1", "conv2"]  #
 # unit_arr = [('caffe-net', 'conv5', 10, 7, 7),
 #             ('caffe-net', 'conv1', 5, 28, 28),
@@ -39,7 +47,7 @@ for channel in range(1, 51):
         corner = (0, 0)
     # Original experiment
     t0 = time()
-    exp = ExperimentManifold(unit, max_step=100, imgsize=(227, 227), corner=(0, 0), savedir=savedir,
+    exp = ExperimentManifold(unit, max_step=100, imgsize=(227, 227), corner=(0, 0), backend="torch", savedir=savedir,
                              explabel="%s_%d_%d_%d_original" % (unit[1], unit[2], unit[3], unit[4]))
     # exp.load_traj("Evolv_%s_%d_%d_%d_orig.npz" % (unit[1], unit[2], unit[3], unit[4]))  # load saved traj
     exp.run()
@@ -57,7 +65,7 @@ for channel in range(1, 51):
     t1 = time()
     print("Original Exp Processing time %.f" % (t1 - t0))
     # Resized Manifold experiment
-    exp = ExperimentManifold(unit, max_step=100, imgsize=imgsize, corner=corner, savedir=savedir,
+    exp = ExperimentManifold(unit, max_step=100, imgsize=imgsize, corner=corner, backend="torch", savedir=savedir,
                              explabel="%s_%d_%d_%d_rf_fit" % (unit[1], unit[2], unit[3], unit[4]))
     # exp.load_traj("Evolv_%s_%d_%d_%d_rf_fit.npz" % (unit[1], unit[2], unit[3], unit[4]))  # load saved traj
     exp.run()
@@ -76,5 +84,5 @@ for channel in range(1, 51):
     t2 = time()
     print("Pair Processing time %.f" % (t2-t0) )
     print("Existing figures %d" % (len(plt.get_fignums())))
-
+    break
 #%%
