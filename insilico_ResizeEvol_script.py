@@ -20,11 +20,11 @@ matplotlib.use('Agg')
 #%%
 # savedir = join(recorddir, "resize_data")
 layer_list = ["conv5", "conv4", "conv3", "conv1", "conv2"]  #
-unit_arr = [('caffe-net', 'conv5', 10, 7, 7),
-            ('caffe-net', 'conv1', 5, 28, 28),
+unit_arr = [('caffe-net', 'conv1', 5, 28, 28),
             ('caffe-net', 'conv2', 5, 13, 13),
             ('caffe-net', 'conv3', 5, 7, 7),
             ('caffe-net', 'conv4', 5, 7, 7),
+            ('caffe-net', 'conv5', 10, 7, 7),
             ]
 unit_arr = [('vgg16', 'fc1', 10), ]
 GANspace = "fc7"

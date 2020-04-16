@@ -176,7 +176,6 @@ for i in range(len(layers)):
     param_col.append(lay_col.copy())
     sigma_col.append(lay_sgm.copy())
     stat_col.append(lay_stat.copy())
-
 #%%
 param_col_arr = np.array(param_col)
 sigma_col_arr = np.array(sigma_col)
@@ -242,7 +241,156 @@ for i, layer in enumerate(layers):
                             meanline_visible=True))
 fig.show()
 
+#%% Analyze the resized and original evolution
+#%% Load up data from in silico exp
+ang_step = 9
+theta_arr = np.arange(-90, 90.1, ang_step) / 180 * pi
+phi_arr = np.arange(-90, 90.1, ang_step) / 180 * pi
 
+from time import time
+t0 = time()
+from os import listdir
+from os.path import join, exists
+result_dir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Artiphysiology\Manifold"
+data_dir = r"E:\Monkey_Data\Generator_DB_Windows\data\with_CNN\resize_data"
+netname = "caffe-net"
+layers = ["conv1", "conv2", "conv3", "conv4", "conv5"]
+unit_arr = [('caffe-net', 'conv1', 5, 28, 28),
+            ('caffe-net', 'conv2', 5, 13, 13),
+            ('caffe-net', 'conv3', 5, 7, 7),
+            ('caffe-net', 'conv4', 5, 7, 7),
+            ('caffe-net', 'conv5', 10, 7, 7), ]
+# netname = "vgg16"
+# layers = ["conv2", "conv4", "conv7", "conv9", "conv13", "fc1", "fc2", "fc3"]
+# netname = "densenet121"
+# layers = ["bn1", "denseblock1", "transition1", "denseblock2", "transition2", "denseblock3", "transition3"]#, "fc1"
+#%%
+param_col = []
+sigma_col = []
+stat_col = []
+for i in range(len(layers)):
+    print(layers[i])
+    layer = layers[i]
+    unit_tmp = unit_arr[i]
+    lay_col = []
+    lay_sgm = []
+    lay_stat = []
+    savepath = join(data_dir, "%s_%s_manifold" % (netname, layers[i]))
+    for ch_i in range(1, 51):
+        ch_col = []
+        ch_sgm = []
+        ch_stat = []
+        data = np.load(join(savepath, "Manifold_score_%s_%d_%d_%d_orig.npy" % (layer, ch_i, unit_tmp[3], unit_tmp[4])))
+        score_sum = data # ['score_sum']
+        subsp_axis = [(1, 2), (24, 25), (48, 49), "RND"]
+        for subsp_j in range(len(subsp_axis)):
+            tunemap = score_sum[subsp_j, :, :]
+            param, sigmas = fit_Kent(theta_arr, phi_arr, tunemap)
+            param_name = ["theta", "phi", "psi", "kappa", "beta", "A"]
+            _, r2 = fit_stats(tunemap, param)
+            # for par, sgm, name in zip(param, sigmas, param_name):
+            #     print(name, ": {}+-{}".format(par, sgm))
+            ch_col.append(param.copy())
+            ch_sgm.append(sigmas.copy())
+            ch_stat.append(r2)
+        lay_col.append(ch_col.copy())
+        lay_sgm.append(ch_sgm.copy())
+        lay_stat.append(ch_stat.copy())
+        print(time()-t0, "s passed. ")
+    param_col.append(lay_col.copy())
+    sigma_col.append(lay_sgm.copy())
+    stat_col.append(lay_stat.copy())
+#
+param_col_arr = np.array(param_col)
+sigma_col_arr = np.array(sigma_col)
+stat_col_arr = np.array(stat_col)
+np.savez(join(result_dir, "%s_KentFit_orig.npz" % netname), param_col=param_col_arr, sigma_col=sigma_col_arr, stat_col=stat_col_arr, subsp_axis=subsp_axis, layers=layers)
+
+#%
+param_col = []
+sigma_col = []
+stat_col = []
+for i in range(len(layers)):
+    print(layers[i])
+    layer = layers[i]
+    unit_tmp = unit_arr[i]
+    lay_col = []
+    lay_sgm = []
+    lay_stat = []
+    savepath = join(data_dir, "%s_%s_manifold" % (netname, layers[i]))
+    for ch_i in range(1, 51):
+        ch_col = []
+        ch_sgm = []
+        ch_stat = []
+        data = np.load(join(savepath, "Manifold_score_%s_%d_%d_%d_rf_fit.npy" % (layer, ch_i, unit_tmp[3], unit_tmp[4])))
+        score_sum = data # ['score_sum']
+        subsp_axis = [(1, 2), (24, 25), (48, 49), "RND"]
+        for subsp_j in range(len(subsp_axis)):
+            tunemap = score_sum[subsp_j, :, :]
+            param, sigmas = fit_Kent(theta_arr, phi_arr, tunemap)
+            param_name = ["theta", "phi", "psi", "kappa", "beta", "A"]
+            _, r2 = fit_stats(tunemap, param)
+            # for par, sgm, name in zip(param, sigmas, param_name):
+            #     print(name, ": {}+-{}".format(par, sgm))
+            ch_col.append(param.copy())
+            ch_sgm.append(sigmas.copy())
+            ch_stat.append(r2)
+        lay_col.append(ch_col.copy())
+        lay_sgm.append(ch_sgm.copy())
+        lay_stat.append(ch_stat.copy())
+        print(time()-t0, "s passed. ")
+    param_col.append(lay_col.copy())
+    sigma_col.append(lay_sgm.copy())
+    stat_col.append(lay_stat.copy())
+#%%
+param_col_arr = np.array(param_col)
+sigma_col_arr = np.array(sigma_col)
+stat_col_arr = np.array(stat_col)
+np.savez(join(result_dir, "%s_KentFit_rf_fit.npz" % netname), param_col=param_col_arr, sigma_col=sigma_col_arr, stat_col=stat_col_arr, subsp_axis=subsp_axis, layers=layers)
+#%%
+from os import listdir
+from os.path import join, exists
+result_dir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Artiphysiology\Manifold"
+with np.load(join(result_dir,"%s_KentFit.npz"%netname)) as data:
+    sigma_col_arr = data["sigma_col"]
+    stat_col_arr = data["stat_col"]
+    param_col_arr = data["param_col"]
+    layers = data["layers"]
+    subsp_axis = data["subsp_axis"]
+#%% Collect and Tabularize stats
+import pandas as pd
+r2_df = pd.DataFrame(data=stat_col_arr.mean(axis=1),
+            columns=subsp_axis,
+            index=layers)
+r2var_df = pd.DataFrame(data=stat_col_arr.std(axis=1),
+            columns=subsp_axis,
+            index=layers)
+kappa_df = pd.DataFrame(data=param_col_arr[:,:,:,3].mean(axis=1),
+            columns=subsp_axis,
+            index=layers)
+print("Rsquare data frame")
+print(r2_df)
+print("kappa data frame")
+print(kappa_df)
+#%% Using masked array to avoid the unsuccessful fittings.
+import numpy.ma as ma
+makappa = ma.masked_array(data=param_col_arr[:,:,:,3], mask=(stat_col_arr<0.5) | np.isnan(stat_col_arr))
+mar2 = ma.masked_array(data=stat_col_arr, mask=np.isinf(stat_col_arr) | np.isnan(stat_col_arr))
+import pandas as pd
+r2_df = pd.DataFrame(data=mar2.mean(axis=1),
+            columns=subsp_axis,
+            index=layers)
+r2var_df = pd.DataFrame(data=mar2.std(axis=1),
+            columns=subsp_axis,
+            index=layers)
+kappa_df = pd.DataFrame(data=makappa.mean(axis=1),
+            columns=subsp_axis,
+            index=layers)
+
+print("Rsquare data frame")
+print(r2_df)
+print("kappa data frame")
+print(kappa_df)
 #%% Trial
 # x = np.array([ 0.1,  0.2,  0.3,  0.4,  0.5,  0.6,  0.7,  0.8,  0.9,  1. ])
 # y = np.array([ 4.70192769,  4.46826356,  4.57021389,  4.29240134,  3.88155125,
