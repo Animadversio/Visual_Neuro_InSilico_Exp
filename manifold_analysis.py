@@ -253,15 +253,25 @@ from os import listdir
 from os.path import join, exists
 result_dir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Artiphysiology\Manifold"
 data_dir = r"E:\Monkey_Data\Generator_DB_Windows\data\with_CNN\resize_data"
-netname = "caffe-net"
-layers = ["conv1", "conv2", "conv3", "conv4", "conv5"]
-unit_arr = [('caffe-net', 'conv1', 5, 28, 28),
-            ('caffe-net', 'conv2', 5, 13, 13),
-            ('caffe-net', 'conv3', 5, 7, 7),
-            ('caffe-net', 'conv4', 5, 7, 7),
-            ('caffe-net', 'conv5', 10, 7, 7), ]
-# netname = "vgg16"
-# layers = ["conv2", "conv4", "conv7", "conv9", "conv13", "fc1", "fc2", "fc3"]
+# netname = "caffe-net"
+# layers = ["conv1", "conv2", "conv3", "conv4", "conv5"]
+# unit_arr = [('caffe-net', 'conv1', 5, 28, 28),
+#             ('caffe-net', 'conv2', 5, 13, 13),
+#             ('caffe-net', 'conv3', 5, 7, 7),
+#             ('caffe-net', 'conv4', 5, 7, 7),
+#             ('caffe-net', 'conv5', 10, 7, 7), ]
+netname = "vgg16"
+layers = ["conv2","conv3","conv4","conv5","conv6","conv7","conv10","conv12","conv13"]#,"conv9"
+unit_arr = [("vgg16", "conv2", 5, 112, 112),
+            ("vgg16", "conv3", 5, 56, 56),
+            ("vgg16", "conv4", 5, 56, 56),
+            ("vgg16", "conv5", 5, 28, 28),
+            ("vgg16", "conv6", 5, 28, 28),
+            ("vgg16", "conv7", 5, 28, 28),
+            #("vgg16", "conv9", 5, 14, 14),
+            ("vgg16", "conv10", 5, 14, 14),
+            ("vgg16", "conv12", 5, 7, 7),
+            ("vgg16", "conv13", 5, 7, 7), ]
 # netname = "densenet121"
 # layers = ["bn1", "denseblock1", "transition1", "denseblock2", "transition2", "denseblock3", "transition3"]#, "fc1"
 #%%

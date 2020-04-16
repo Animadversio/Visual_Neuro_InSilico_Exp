@@ -50,7 +50,7 @@ for units in unit_arr:
             corner = (0, 0)
         # Original experiment
         t0 = time()
-        exp = ExperimentManifold(unit, max_step=150, imgsize=(227, 227), corner=(0, 0), backend="torch", savedir=savedir,
+        exp = ExperimentManifold(unit, max_step=100, imgsize=(227, 227), corner=(0, 0), backend="torch", savedir=savedir,
                                  explabel="%s_original" % (unit_lab), GAN=GANspace)
         # exp.load_traj("Evolv_%s_%d_%d_%d_orig.npz" % (unit[1], unit[2], unit[3], unit[4]))  # load saved traj
         exp.run()
@@ -67,20 +67,20 @@ for units in unit_arr:
         plt.clf()
         t1 = time()
         print("Original Exp Processing time %.f" % (t1 - t0))
-        # Resized Manifold experiment
-        exp = ExperimentManifold(unit, max_step=150, imgsize=imgsize, corner=corner, backend="torch", savedir=savedir,
-                                 explabel="%s_rf_fit" % (unit_lab), GAN=GANspace)
-        # exp.load_traj("Evolv_%s_%d_%d_%d_rf_fit.npz" % (unit[1], unit[2], unit[3], unit[4]))  # load saved traj
-        exp.run()
-        exp.analyze_traj()
-        exp.visualize_trajectory()
-        exp.visualize_best()
-        score_sum, _ = exp.run_manifold([(1, 2), (24, 25), (48, 49), "RND"], interval=9)
-        np.save(join(savedir, "Manifold_score_%s_rf_fit" % (unit_lab)), score_sum)
-        np.savez(join(savedir, "Manifold_set_%s_rf_fit.npz" % (unit_lab)),
-                 Perturb_vec=exp.Perturb_vec, imgsize=exp.imgsize, corner=exp.corner,
-                 evol_score=exp.scores_all, evol_gen=exp.generations)
-        plt.clf()
+        # # Resized Manifold experiment
+        # exp = ExperimentManifold(unit, max_step=150, imgsize=imgsize, corner=corner, backend="torch", savedir=savedir,
+        #                          explabel="%s_rf_fit" % (unit_lab), GAN=GANspace)
+        # # exp.load_traj("Evolv_%s_%d_%d_%d_rf_fit.npz" % (unit[1], unit[2], unit[3], unit[4]))  # load saved traj
+        # exp.run()
+        # exp.analyze_traj()
+        # exp.visualize_trajectory()
+        # exp.visualize_best()
+        # score_sum, _ = exp.run_manifold([(1, 2), (24, 25), (48, 49), "RND"], interval=9)
+        # np.save(join(savedir, "Manifold_score_%s_rf_fit" % (unit_lab)), score_sum)
+        # np.savez(join(savedir, "Manifold_set_%s_rf_fit.npz" % (unit_lab)),
+        #          Perturb_vec=exp.Perturb_vec, imgsize=exp.imgsize, corner=exp.corner,
+        #          evol_score=exp.scores_all, evol_gen=exp.generations)
+        # plt.clf()
         plt.close("all")
         t2 = time()
         print("Pair Processing time %.f" % (t2-t0) )

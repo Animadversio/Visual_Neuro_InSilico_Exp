@@ -37,19 +37,25 @@ unit = ("caffe-net", "fc8", 1);'
 export unit_name="$(echo "$param_list" | head -n $PBS_ARRAYID | tail -1)"
 #$PBS_ARRAYID
 export python_code='from insilico_Exp import *
-savedir = os.path.join(recorddir, "%s_%s_manifold" % (unit[0], unit[1]))
+GANspace = "fc8"
+savedir = os.path.join(recorddir, "%s_%s_manifold_%s" % (unit[0], unit[1], GANspace))
 os.makedirs(savedir, exist_ok=True)
 for chan in range(50):
     if "conv" not in unit[1]:
         unit = (unit[0], unit[1], chan)
+        label = "chan%d" % (chan, )
     else:
-        unit = (unit[0], unit[1], chan, 10, 10)
-    experiment = ExperimentManifold(unit, max_step=150, savedir=savedir, explabel="chan%d" % chan)
+        unit = (unit[0], unit[1], chan, unit[3], unit[4])
+        label = "chan%d-(%d,%d)" % (chan, unit[3], unit[4])
+    experiment = ExperimentManifold(unit, max_step=150, savedir=savedir, explabel=label, GAN=GANspace)
     experiment.run()
+    exp.visualize_trajectory()
+    exp.visualize_best()
     experiment.analyze_traj()
     score_sum, _ = experiment.run_manifold([(1, 2), (24, 25), (48, 49), "RND"])
     np.savez(os.path.join(savedir, "score_map_chan%d.npz" % chan), score_sum=score_sum,
-             Perturb_vectors=experiment.Perturb_vec, sphere_norm=experiment.sphere_norm)
+             Perturb_vectors=experiment.Perturb_vec, sphere_norm=experiment.sphere_norm,
+             evol_score=exp.scores_all, evol_gen=exp.generations)
     plt.close("all")
 '
 python_code_full=$unit_name$'\n'$python_code
