@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # give the job a name to help keep track of running jobs (optional)
-#PBS -N insilico_manifold_fc7space
+#PBS -N insilico_manifold_fc8space
 
 # Specify the resources needed.  FreeSurfer just needs 1 core and
 # 24 hours is usually enough.  This assumes the job requires less 
