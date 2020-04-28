@@ -47,14 +47,14 @@ for chan in range(50):
     else:
         unit = (unit[0], unit[1], chan, unit[3], unit[4])
         label = "chan%d-(%d,%d)" % (chan, unit[3], unit[4])
-    experiment = ExperimentManifold(unit, max_step=150, savedir=savedir, explabel=label, GAN=GANspace)
-    experiment.run()
+    exp = ExperimentManifold(unit, max_step=150, savedir=savedir, explabel=label, GAN=GANspace)
+    exp.run()
     exp.visualize_trajectory()
     exp.visualize_best()
-    experiment.analyze_traj()
-    score_sum, _ = experiment.run_manifold([(1, 2), (24, 25), (48, 49), "RND"])
+    exp.analyze_traj()
+    score_sum, _ = exp.run_manifold([(1, 2), (24, 25), (48, 49), "RND"])
     np.savez(os.path.join(savedir, "score_map_chan%d.npz" % chan), score_sum=score_sum,
-             Perturb_vectors=experiment.Perturb_vec, sphere_norm=experiment.sphere_norm,
+             Perturb_vectors=exp.Perturb_vec, sphere_norm=exp.sphere_norm,
              evol_score=exp.scores_all, evol_gen=exp.generations)
     plt.close("all")
 '
