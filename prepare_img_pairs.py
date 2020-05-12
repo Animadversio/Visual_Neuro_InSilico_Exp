@@ -145,6 +145,8 @@ def img_backproj_L2PL(target_img, lossfun, nsteps1=150, nsteps2=150, return_stat
         return feat.detach(), img.detach()
 
 def resize_center_crop(curimg, final_L=256):
+    if len(curimg.shape) == 2:
+        curimg = np.repeat(curimg[:, :, np.newaxis], 3, 2)
     H, W, _ = curimg.shape
     if H <= W:
         newW = round(float(W) / H * final_L)
@@ -178,16 +180,18 @@ csr_min, csr_max = 1, 1001
 if len(sys.argv) > 1:
     csr_min = int(sys.argv[1])
     csr_max = int(sys.argv[2])
+#%
 print("Embedding ImageNet images from %d - %d" % (csr_min, csr_max))
 # import argparse
 # argparse.ArgumentParser
 Asuffix = "_L2PL"
 nsteps = 300
 nsteps1 = 300
-nsteps2 = 200
+nsteps2 = 250
 Bsize = 100
 os.makedirs(join(savedir, "A"+Asuffix), exist_ok=True)
 csr = csr_min  #1
+# csr = 34
 while csr < csr_max:
     loss_arr = []
     norm_arr = []
