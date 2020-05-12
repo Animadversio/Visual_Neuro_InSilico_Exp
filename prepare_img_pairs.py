@@ -175,6 +175,10 @@ percept_net = models.PerceptualLoss(model='net-lin', net='vgg', use_gpu=1, gpu_i
 # zcode, fitimg, loss_col, norm_col = img_backproj_PL(target_img, percept_net.forward, nsteps=nsteps, return_stat=True)
 #%%
 csr_min, csr_max = 1, 1001
+if len(sys.argv) > 1:
+    csr_min = int(sys.argv[1])
+    csr_max = int(sys.argv[2])
+print("Embedding ImageNet images from %d - %d" % (csr_min, csr_max))
 # import argparse
 # argparse.ArgumentParser
 Asuffix = "_L2PL"
