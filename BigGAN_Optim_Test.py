@@ -1,11 +1,14 @@
+import sys
 from insilico_Exp import *
 from ZO_HessAware_Optimizers import HessAware_Gauss_Cylind_DC, HessAware_Gauss_DC
 from BigGAN_Evolution import one_hot_from_names, model, BigGAN_render, BigGAN_embed_render
 import torch
-
+import numpy as np
+import os
+from os.path import join
 #%%
 unit = ('caffe-net', 'fc8', 1)
-savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Generator_Testing\BigGAN_Evol"
+savedir = r"C:\Users\zhanq\OneDrive - Washington University in St. Louis\Generator_Testing\BigGAN_Evol"
 # savedir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
 expdir = join(savedir, "%s_%s_%d_Gauss_DC_Cylind" % unit)
 os.makedirs(expdir, exist_ok=True)

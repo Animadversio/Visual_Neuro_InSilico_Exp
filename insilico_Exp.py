@@ -1,7 +1,6 @@
 """Supporting classes and experimental code for in-silico experiment"""
 # Manifold_experiment
-import utils
-import net_utils
+import torch_net_utils #net_utils
 import utils
 from utils import load_GAN
 from Generator import Generator
@@ -22,6 +21,8 @@ else:
         initcodedir = r"D:\Generator_DB_Windows\stimuli\texture006"  # Code & image folder to initialize the Genetic Algorithm
     elif os.environ['COMPUTERNAME'] == 'DESKTOP-MENSD6S':  ## Home_WorkStation
         recorddir = r"E:\Monkey_Data\Generator_DB_Windows\data\with_CNN"
+    elif os.environ['COMPUTERNAME'] == 'DESKTOP-9LH02U9':  ## Home_WorkStation Victoria
+        recorddir = r"C:\Users\zhanq\OneDrive - Washington University in St. Louis\Generator_DB_Windows\data\with_CNN"
 # Basic properties for Optimizer.
 
 init_sigma = 3

@@ -13,10 +13,13 @@ else:
         homedir = "D:/Generator_DB_Windows"
         netsdir = os.path.join(homedir, 'nets')
     elif os.environ['COMPUTERNAME'] == 'PONCELAB-ML2C':  # PonceLab-Desktop Victoria
-        homedir = r"C:\Users\ponce\Documents\Generator_DB_Windows"
+        homedir = r"C:/Users/ponce/Documents/Generator_DB_Windows"
         netsdir = os.path.join(homedir, 'nets')
     elif os.environ['COMPUTERNAME'] == 'DESKTOP-MENSD6S':  # Home_WorkStation
         homedir = "E:/Monkey_Data/Generator_DB_Windows"
+        netsdir = os.path.join(homedir, 'nets')
+    elif os.environ['COMPUTERNAME'] == 'DESKTOP-9LH02U9':  # Victoria Home_WorkStation
+        homedir = "C:/Users/zhanq/OneDrive - Washington University in St. Louis/Generator_DB_Windows"
         netsdir = os.path.join(homedir, 'nets')
     else:
         homedir = os.path.expanduser('~')

@@ -1,6 +1,6 @@
 import sys
 from os.path import join
-# sys.path.append("D:\Github\pytorch-pretrained-BigGAN")
+sys.path.append("C:/Users/zhanq/OneDrive - Washington University in St. Louis/GitHub/pytorch-pretrained-BigGAN")
 # sys.path.append("E:\Github_Projects\pytorch-pretrained-BigGAN")
 from pytorch_pretrained_biggan import (BigGAN, one_hot_from_names, one_hot_from_int, truncated_noise_sample, convert_to_images)
 import torch
@@ -105,7 +105,7 @@ if __name__=="__main__":
     class_vector = one_hot_from_names(['soap bubble', 'coffee', 'mushroom'], batch_size=batch_size)
     noise_vector = truncated_noise_sample(truncation=truncation, batch_size=batch_size)
 
-    noise_vector = truncated_noise_sample(truncation=truncation, batch_size=1)
+    #noise_vector = truncated_noise_sample(truncation=truncation, batch_size=1)
     # All in tensors
     #noise_vector = torch.from_numpy(np.ones([3, 128]).astype(np.float32)) #
     noise_vector = torch.from_numpy(noise_vector)
@@ -136,7 +136,7 @@ if __name__=="__main__":
         plt.title("{0:.2f}".format(scale_vec[i]), fontsize=15,)
     plt.show()
     #%%
-    savedir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Generator_Testing\BigGAN256"
+    savedir = r"C:\Users\zhanq\OneDrive - Washington University in St. Louis\Generator_Testing\BigGAN256"
     truncation = 0.7
     # batch_size = 11
     classname = 'goldfish'
@@ -160,7 +160,7 @@ if __name__=="__main__":
     plt.show()
 
     #%% 2d linear interpolation through center
-    savedir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Generator_Testing\BigGAN256"
+    savedir = r"C:\Users\zhanq\OneDrive - Washington University in St. Louis\Generator_Testing\BigGAN256"
     truncation = 0.7
     # batch_size = 11
     classname = 'goldfish'
@@ -193,7 +193,7 @@ if __name__=="__main__":
     plt.show()
 
     #%% 2d interpolation in sphere
-    savedir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Generator_Testing\BigGAN256"
+    savedir = r"C:\Users\zhanq\OneDrive - Washington University in St. Louis\Generator_Testing\BigGAN256"
     truncation = 0.4
     # batch_size = 11
     classname = 'goldfish'
@@ -233,7 +233,7 @@ if __name__=="__main__":
     #%% Multi class sampling
     from scipy.special import softmax
     #%%
-    savedir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\Generator_Testing\BigGAN256"
+    savedir = r"C:\Users\zhanq\OneDrive - Washington University in St. Louis\Generator_Testing\BigGAN256"
     truncation = 0.7
     # batch_size = 11
     noise_vector = truncated_noise_sample(truncation=truncation, batch_size=1)
@@ -258,7 +258,7 @@ if __name__=="__main__":
     plt.savefig(join(savedir, "%s_multiclass_softmax_mu%s_trunc%.1f_%04d.png" % (classname, mu, truncation, np.random.randint(10000))))
     plt.show()
     #%% Directly manipulate the 128D embedding space
-    savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Generator_Testing\BigGAN256"
+    savedir = r"C:\Users\zhanq\OneDrive - Washington University in St. Louis\Generator_Testing\BigGAN256"
     truncation = 0.7
     muembd = 0.06
     classname = 'goldfish'
@@ -322,7 +322,7 @@ if __name__=="__main__":
     plt.tight_layout()
     plt.show()
 #%%
-    savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Generator_Testing\BigGAN256"
+    savedir = r"C:\Users\zhanq\OneDrive - Washington University in St. Louis\Generator_Testing\BigGAN256"
     truncation = 0.7
     muembd = 0.1
     classname = [1,2];
@@ -344,7 +344,7 @@ if __name__=="__main__":
     classname, muembd, truncation, np.random.randint(10000))))
     plt.show()
 #%%
-    savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Generator_Testing\BigGAN256"
+    savedir = r"C:\Users\zhanq\OneDrive - Washington University in St. Louis\Generator_Testing\BigGAN256"
     truncation = 0.7
     muembd = 0.1
 

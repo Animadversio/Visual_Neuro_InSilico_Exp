@@ -31,6 +31,11 @@ else:
         sys.path.append(r"E:\Github_Projects\pytorch-receptive-field")
         homedir = "E:/Monkey_Data/Generator_DB_Windows"
         netsdir = os.path.join(homedir, 'nets')
+    elif os.environ['COMPUTERNAME'] == 'DESKTOP-9LH02U9':  # Home_WorkStation Victoria
+        sys.path.append(r"C:\Users\zhanq\OneDrive - Washington University in St. Louis\GitHub\pytorch-caffe")
+        sys.path.append(r"C:\Users\zhanq\OneDrive - Washington University in St. Louis\GitHub\pytorch-receptive-field")
+        homedir = "C:/Users/zhanq/OneDrive - Washington University in St. Louis/Generator_DB_Windows"
+        netsdir = os.path.join(homedir, 'nets')
     else:
         sys.path.append("D:\Github\pytorch-caffe")
         homedir = os.path.expanduser('~')
