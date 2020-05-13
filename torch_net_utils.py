@@ -14,11 +14,13 @@ if platform == "linux":  # CHPC cluster
     netsdir = os.path.join(homedir, 'Generate_DB/nets')
     sys.path.append("/home/binxu/pytorch-caffe")
     sys.path.append("/home/binxu/pytorch-receptive-field")
+    sys.path.append("/home/binxu/PerceptualSimilarity") # should be added there!
     # ckpt_path = {"vgg16": "/scratch/binxu/torch/vgg16-397923af.pth"}
 else:
     if os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':  # PonceLab-Desktop 3
         sys.path.append(r"D:\Github\pytorch-caffe")
         sys.path.append(r"D:\Github\pytorch-receptive-field")
+        sys.path.append(r"D:\Github\PerceptualSimilarity")
         homedir = "D:/Generator_DB_Windows"
         netsdir = os.path.join(homedir, 'nets')
     elif os.environ['COMPUTERNAME'] == 'PONCELAB-ML2C':  # PonceLab-Desktop Victoria
@@ -29,6 +31,7 @@ else:
     elif os.environ['COMPUTERNAME'] == 'DESKTOP-MENSD6S':  # Home_WorkStation
         sys.path.append(r"E:\Github_Projects\pytorch-caffe")
         sys.path.append(r"E:\Github_Projects\pytorch-receptive-field")
+        sys.path.append(r"E:\Github_Projects\PerceptualSimilarity")
         homedir = "E:/Monkey_Data/Generator_DB_Windows"
         netsdir = os.path.join(homedir, 'nets')
     elif os.environ['COMPUTERNAME'] == 'DESKTOP-9LH02U9':  # Home_WorkStation Victoria

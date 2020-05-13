@@ -24,7 +24,7 @@ else:
 #%%
 import torch
 from torch_net_utils import load_generator
-G = load_generator("fc6")
+G = load_generator("fc7")
 G.requires_grad_(False)
 G.cuda()
 #%%
