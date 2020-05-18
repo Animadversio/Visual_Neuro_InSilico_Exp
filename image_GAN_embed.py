@@ -22,7 +22,9 @@ import models  # from PerceptualSimilarity folder
 # model = models.PerceptualLoss(model='net-lin', net='squeeze', use_gpu=1, gpu_ids=[0])
 # percept_vgg = models.PerceptualLoss(model='net-lin', net='vgg', use_gpu=1, gpu_ids=[0])
 target_img = imread(r"E:\Monkey_Data\Generator_DB_Windows\nets\upconv\Cat.jpg")
-
+#%%
+from os.path import join
+savedir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\PhotoRealism"
 #%%
 def visualize(G, code, mode="cuda", percept_loss=True):
     """Do the De-caffe transform (Validated)
@@ -76,41 +78,14 @@ def img_backproj(target_img, lossfun=L1loss, nsteps=150, return_stat=True):
     else:
         return feat.detach(), img.detach()
 
-def img_backproj(target_img, lossfun=L1loss, nsteps=150, return_stat=True):
-    tsr_target = target_img.astype(float)/255
-    rsz_target = resize(tsr_target, (256, 256), anti_aliasing=True)
-    tsr_target = torch.from_numpy(rsz_target).float().cuda()
-    # assert size of this image is 256 256
-    code = np.random.randn(4096)
-    code = code.reshape(-1, 4096)
-    feat = torch.from_numpy(code).float().requires_grad_(True)
-    feat.cuda()
-    optimizer = torch.optim.Adam([feat], lr=0.05, betas=(0.9, 0.999), eps=1e-08, weight_decay=0)
-    loss_col = []
-    norm_col = []
-    for i in range(nsteps):
-        optimizer.zero_grad()
-        img = visualize(G, feat)
-        #loss = (img - tsr_target).abs().sum(axis=2).mean() # This loss could be better?
-        loss = lossfun(img, tsr_target)
-        loss.backward()
-        optimizer.step()
-        norm_col.append(feat.norm().detach().item())
-        loss_col.append(loss.detach().item())
-        # print("step%d" % i, loss)
-    print("step%d" % i, loss.item())
-    if return_stat:
-        return feat.detach(), img.detach(), loss_col, norm_col
-    else:
-        return feat.detach(), img.detach()
-
-def img_backproj_PL(target_img, lossfun=percept_loss, nsteps=150, return_stat=True):
-    tsr_target = target_img.astype(float)/255
-    rsz_target = resize(tsr_target, (256, 256), anti_aliasing=True)
-    tsr_target = torch.from_numpy(rsz_target * 2.0 - 1).float().cuda()  # centered to be [-1, 1]
+def img_backproj_PL(target_img, lossfun, nsteps=150, return_stat=True):
+    #tsr_target = target_img.astype(float)#/255.0
+    # assume the target img has been resized prior to this
+    # rsz_target = resize(tsr_target, (256, 256), anti_aliasing=True)
+    tsr_target = torch.from_numpy(target_img * 2.0 - 1).float().cuda()  # centered to be [-1, 1]
     tsr_target = tsr_target.unsqueeze(0).permute([0, 3, 1, 2])
     # assert size of this image is 256 256
-    code = np.random.randn(4096)
+    code = 4*np.random.randn(4096)
     code = code.reshape(-1, 4096)
     feat = torch.from_numpy(code).float().requires_grad_(True)
     feat.cuda()
@@ -134,6 +109,44 @@ def img_backproj_PL(target_img, lossfun=percept_loss, nsteps=150, return_stat=Tr
     else:
         return feat.detach(), img.detach()
 #%%
+def img_backproj_L2PL(target_img, lossfun, lossfun1=L2loss, nsteps1=150, nsteps2=150, return_stat=True, init_norm=256):
+    #tsr_target = target_img.astype(float)#/255.0
+    # assume the target img has been resized prior to this
+    rsz_target = resize(target_img, (256, 256), anti_aliasing=True)
+    tsr_target = torch.from_numpy(rsz_target * 2.0 - 1).float().cuda()  # centered to be [-1, 1]
+    tsr_target = tsr_target.unsqueeze(0).permute([0, 3, 1, 2])
+    # assert size of this image is 256 256
+    code = init_norm / 64 *np.random.randn(4096)
+    code = code.reshape(-1, 4096)
+    feat = torch.from_numpy(code).float().requires_grad_(True)
+    feat.cuda()
+    optimizer = torch.optim.Adam([feat], lr=0.05, betas=(0.9, 0.999), eps=1e-08, weight_decay=0)
+    for i in range(nsteps1):
+        optimizer.zero_grad()
+        img = visualize(G, feat, percept_loss=True)
+        #loss = (img - tsr_target).abs().sum(axis=2).mean() # This loss could be better?
+        loss = lossfun1(img, tsr_target)
+        loss.backward()
+        optimizer.step()
+    print("L2 step%d" % i, loss.item())
+    loss_col = []
+    norm_col = []
+    for i in range(nsteps2):
+        optimizer.zero_grad()
+        img = visualize(G, feat, percept_loss=True)
+        #loss = (img - tsr_target).abs().sum(axis=2).mean() # This loss could be better?
+        loss = lossfun(img, tsr_target)
+        loss.backward()
+        optimizer.step()
+        norm_col.append(feat.norm().detach().item())
+        loss_col.append(loss.detach().item())
+    print("PerceptLoss step%d" % i, loss.item())
+    img = visualize(G, feat, percept_loss=False)
+    if return_stat:
+        return feat.detach(), img.detach(), loss_col, norm_col
+    else:
+        return feat.detach(), img.detach()
+#%%
 # model = models.PerceptualLoss(model='net-lin', net='squeeze', use_gpu=1, gpu_ids=[0])
 percept_net = models.PerceptualLoss(model='net-lin', net='alex', use_gpu=1, gpu_ids=[0])
 def percept_loss(img, target, net=percept_net):
@@ -142,9 +155,7 @@ def percept_loss(img, target, net=percept_net):
 # d_sim = percept_loss.forward(resz_ref_img, resz_out_img)
 zcode, fitimg = img_backproj(target_img, percept_loss)
 # zcode, fitimg = img_backproj(target_img, L1loss)
-#%%
-from os.path import join
-savedir = r"C:\Users\binxu\OneDrive - Washington University in St. Louis\PhotoRealism"
+
 #%%
 for nsteps in [1000]: #%150, 250, 500,
     zcode, fitimg = img_backproj(target_img, percept_loss, nsteps=nsteps)
@@ -301,6 +312,99 @@ nsteps = 500
 percept_net = models.PerceptualLoss(model='net-lin', net='vgg', use_gpu=1, gpu_ids=[0])
 zcode, fitimg, loss_col, norm_col = img_backproj_PL(target_img, percept_net.forward, nsteps=nsteps, return_stat=True)
 label = "vggPLtr_step%d" % (nsteps)
+plt.figure(figsize=[4, 4.5])
+plt.imshow(fitimg.cpu().numpy())
+plt.title(label)
+plt.axis("off")
+plt.savefig(join(savedir, "Embed_%s.jpg"%label))
+plt.show()
+plt.figure(figsize=[8, 8.5])
+plt.subplot(2, 2, 1)
+plt.imshow(fitimg.cpu().numpy())
+plt.axis("off")
+plt.subplot(2, 2, 2)
+plt.imshow(target_img)
+plt.axis("off")
+plt.subplot(2, 2, 3)
+plt.plot(loss_col)
+plt.ylabel("Loss")
+plt.xlabel("steps")
+plt.subplot(2, 2, 4)
+plt.plot(norm_col)
+plt.ylabel("code norm")
+plt.xlabel("steps")
+plt.suptitle(label)
+plt.savefig(join(savedir, "Embed_traj_%s.jpg"%label))
+plt.show()
+#%%
+nsteps1 = 300
+nsteps2 = 1000
+init_norm = 64
+percept_net = models.PerceptualLoss(model='net-lin', net='vgg', use_gpu=1, gpu_ids=[0])
+zcode, fitimg, loss_col, norm_col = img_backproj_L2PL(target_img, percept_net.forward, init_norm=init_norm, nsteps1=nsteps1, nsteps2=nsteps2, return_stat=True)
+label = "vggL2P2_lownorm_step%d-%d" % (nsteps1, nsteps2)
+plt.figure(figsize=[4, 4.5])
+plt.imshow(fitimg.cpu().numpy())
+plt.title(label)
+plt.axis("off")
+plt.savefig(join(savedir, "Embed_%s.jpg"%label))
+plt.show()
+plt.figure(figsize=[8, 8.5])
+plt.subplot(2, 2, 1)
+plt.imshow(fitimg.cpu().numpy())
+plt.axis("off")
+plt.subplot(2, 2, 2)
+plt.imshow(target_img)
+plt.axis("off")
+plt.subplot(2, 2, 3)
+plt.plot(loss_col)
+plt.ylabel("Loss")
+plt.xlabel("steps")
+plt.subplot(2, 2, 4)
+plt.plot(norm_col)
+plt.ylabel("code norm")
+plt.xlabel("steps")
+plt.suptitle(label)
+plt.savefig(join(savedir, "Embed_traj_%s.jpg"%label))
+plt.show()
+#%%
+nsteps1 = 300
+nsteps2 = 1000
+init_norm = 256
+percept_net = models.PerceptualLoss(model='net-lin', net='vgg', use_gpu=1, gpu_ids=[0])
+zcode, fitimg, loss_col, norm_col = img_backproj_L2PL(target_img, percept_net.forward, init_norm=init_norm, nsteps1=nsteps1, nsteps2=nsteps2, return_stat=True)
+label = "vggL2P2_highnorm_step%d-%d" % (nsteps1, nsteps2)
+plt.figure(figsize=[4, 4.5])
+plt.imshow(fitimg.cpu().numpy())
+plt.title(label)
+plt.axis("off")
+plt.savefig(join(savedir, "Embed_%s.jpg"%label))
+plt.show()
+plt.figure(figsize=[8, 8.5])
+plt.subplot(2, 2, 1)
+plt.imshow(fitimg.cpu().numpy())
+plt.axis("off")
+plt.subplot(2, 2, 2)
+plt.imshow(target_img)
+plt.axis("off")
+plt.subplot(2, 2, 3)
+plt.plot(loss_col)
+plt.ylabel("Loss")
+plt.xlabel("steps")
+plt.subplot(2, 2, 4)
+plt.plot(norm_col)
+plt.ylabel("code norm")
+plt.xlabel("steps")
+plt.suptitle(label)
+plt.savefig(join(savedir, "Embed_traj_%s.jpg"%label))
+plt.show()
+#%% L1 PL
+nsteps1 = 300
+nsteps2 = 1000
+init_norm = 64
+percept_net = models.PerceptualLoss(model='net-lin', net='vgg', use_gpu=1, gpu_ids=[0])
+zcode, fitimg, loss_col, norm_col = img_backproj_L2PL(target_img, percept_net.forward, lossfun1=L1loss, init_norm=init_norm, nsteps1=nsteps1, nsteps2=nsteps2, return_stat=True)
+label = "vggL1P2_lownorm_step%d-%d" % (nsteps1, nsteps2)
 plt.figure(figsize=[4, 4.5])
 plt.imshow(fitimg.cpu().numpy())
 plt.title(label)
