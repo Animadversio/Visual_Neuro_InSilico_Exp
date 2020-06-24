@@ -318,7 +318,6 @@ def codes_summary(codedir, savefile=False):
 
 def load_codes_mat(backup_dir, savefile=False, thread_num=1):
     """ load all the code mat file in the experiment folder and summarize it into nparrays"""
-    # make sure enough codes for requested size
     if "codes_all.npz" in os.listdir(backup_dir):
         # if the summary table exist, just read from it!
         with np.load(os.path.join(backup_dir, "codes_all.npz")) as data:
@@ -343,7 +342,6 @@ def load_codes_mat(backup_dir, savefile=False, thread_num=1):
 
 def load_multithread_codes_mat(backup_dir, savefile=False, thread_num=1):
     """ load all the code mat file in the experiment folder and summarize it into nparrays"""
-    # make sure enough codes for requested size
     if "codes_all.npz" in os.listdir(backup_dir):
         # if the summary table exist, just read from it!
         with np.load(os.path.join(backup_dir, "codes_all.npz")) as data:

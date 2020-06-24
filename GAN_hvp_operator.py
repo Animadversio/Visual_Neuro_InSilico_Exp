@@ -14,15 +14,30 @@ class GANHVPOperator(Operator):
     ):
         if use_gpu:
             device = "cuda"
-        self.code = code.clone().requires_grad_(False).float().to(device) # torch.float32
-        self.perturb_vec = torch.zeros((1, 4096), dtype=torch.float32).requires_grad_(True).to(device)
+            self.device = device
         self.model = model.requires_grad_(False)
         self.criterion = criterion.requires_grad_(False)
+        self.code = code.clone().requires_grad_(False).float().to(device) # torch.float32
+        # self.perturb_vec = torch.zeros((1, 4096), dtype=torch.float32).requires_grad_(True).to(device)
+        self.perturb_vec = 0.0001 * torch.randn((1, 4096), dtype=torch.float32).requires_grad_(True).to(device)
+        if activation:
+            self.img_ref = self.model.visualize(self.code + self.perturb_vec)
+            activ = self.criterion(self.img_ref)
+            gradient = torch.autograd.grad(activ, self.perturb_vec, create_graph=True, retain_graph=True)[0]
+        else:
+            self.img_ref = self.model.visualize(self.code, )  # forward the feature vector through the GAN
+            img_pertb = self.model.visualize(self.code + self.perturb_vec)
+            d_sim = self.criterion(self.img_ref, img_pertb)  # similarity metric between 2 images.
+            gradient = torch.autograd.grad(d_sim, self.perturb_vec, create_graph=True, retain_graph=True)[0]
+        self.gradient = gradient.view(-1)
+        self.size = self.perturb_vec.numel()
+
+    def select_code(code):
+        self.code = code.clone().requires_grad_(False).float().to(self.device) # torch.float32
+        self.perturb_vec = torch.zeros((1, 4096), dtype=torch.float32).requires_grad_(True).to(self.device)
         self.img_ref = self.model.visualize(self.code, )  # forward the feature vector through the GAN
         img_pertb = self.model.visualize(self.code + self.perturb_vec)
-        t0 = time()
         d_sim = self.criterion(self.img_ref, img_pertb)
-        t1 = time()
         gradient = torch.autograd.grad(d_sim, self.perturb_vec, create_graph=True, retain_graph=True)[0]
         self.gradient = gradient.view(-1)
         self.size = self.perturb_vec.numel()
@@ -32,13 +47,6 @@ class GANHVPOperator(Operator):
         Returns H*vec where H is the hessian of the loss w.r.t.
         the vectorized model parameters
         """
-        # self.zero_grad()
-        # # perturb_vec = 0.00001*torch.randn((1, 4096),dtype=torch.float32).requires_grad_(True).cuda()
-        # t0 = time()
-        # img_pertb = self.model(self.code + self.perturb_vec)
-        # d_sim = self.criterion(self.img_ref, img_pertb)
-        # t1 = time()
-        # gradient = torch.autograd.grad(d_sim, perturb_vec, create_graph=True, retain_graph=True)[0]
         self.zero_grad()
         # take the second gradient
         grad_grad = torch.autograd.grad(
@@ -55,10 +63,7 @@ class GANHVPOperator(Operator):
             if p.grad is not None:
                 p.grad.data.zero_()
 
-feat = torch.randn((4096), dtype=torch.float32).requires_grad_(False).cuda()
-GHVP = GANHVPOperator(G, feat, model_vgg)
-GHVP.apply(torch.randn((4096)).requires_grad_(False).cuda())
-#%%
+
 def compute_hessian_eigenthings(
     model,
     code,
@@ -116,7 +121,8 @@ def compute_hessian_eigenthings(
     else:
         raise ValueError("Unsupported mode %s (must be power_iter or lanczos)" % mode)
     return eigenvals, eigenvecs
-#%%
+
+#%% Test the module 
 sys.path.append(r"E:\Github_Projects\PerceptualSimilarity")
 import models  # from PerceptualSimilarity folder
 model_vgg = models.PerceptualLoss(model='net-lin', net='vgg', use_gpu=1, gpu_ids=[0])
@@ -124,6 +130,11 @@ from GAN_utils import upconvGAN
 G = upconvGAN("fc6")
 G.requires_grad_(False).cuda()
 model_vgg.requires_grad_(False).cuda()
+#%%
+feat = torch.randn((4096), dtype=torch.float32).requires_grad_(False).cuda()
+GHVP = GANHVPOperator(G, feat, model_vgg)
+GHVP.apply(torch.randn((4096)).requires_grad_(False).cuda())
+
 #%% 300 vectors
 t0 = time()
 feat = torch.randn((1, 4096), dtype=torch.float32).requires_grad_(False).cuda()
@@ -136,7 +147,6 @@ eigenvals3, eigenvecs3 = compute_hessian_eigenthings(G, feat, model_vgg,
     num_eigenthings=300, mode="lanczos", use_gpu=True, max_steps=50,)
 print(time() - t0, "\n")  # 82.15 s
 t0 = time()
-feat = torch.randn((1, 4096), dtype=torch.float32).requires_grad_(False).cuda()
 eigenvals2, eigenvecs2 = compute_hessian_eigenthings(G, feat, model_vgg,
     num_eigenthings=300, mode="power_iter", use_gpu=True,)
 print(time() - t0)   # 936.246 / 1002.95
@@ -147,7 +157,6 @@ eigenvals, eigenvecs = compute_hessian_eigenthings(G, feat, model_vgg,
     num_eigenthings=100, mode="lanczos", use_gpu=True,)
 print(time() - t0) # 79.466
 t0 = time()
-feat = torch.randn((1, 4096), dtype=torch.float32).requires_grad_(False).cuda()
 eigenvals2, eigenvecs2 = compute_hessian_eigenthings(G, feat, model_vgg,
     num_eigenthings=100, mode="power_iter", use_gpu=True,)
 print(time() - t0) # 227.1 s
@@ -158,19 +167,19 @@ eigenvals, eigenvecs = compute_hessian_eigenthings(G, feat, model_vgg,
     num_eigenthings=40, mode="lanczos", use_gpu=True,)
 print(time() - t0) # 13.09 sec
 t0 = time()
-# feat = torch.randn((1, 4096), dtype=torch.float32).requires_grad_(False).cuda()
 eigenvals2, eigenvecs2 = compute_hessian_eigenthings(G, feat, model_vgg,
     num_eigenthings=40, mode="power_iter", use_gpu=True,)
 print(time() - t0) # 70.09 sec
 #%%
 import numpy as np
+import matplotlib.pylab as plt
 # innerprod = (eigenvecs - eigenvecs.mean(1)[:,np.newaxis]) @ (eigenvecs2 - eigenvecs2.mean(1)[:,np.newaxis])[::-1,:].T
 innerprod = eigenvecs @ eigenvecs2[::-1,:].T
 np.diag(innerprod)
 #%%
 innerprod = eigenvecs @ eigenvecs3[::-1,:].T
 np.diag(innerprod)
-import matplotlib.pylab as plt
+
 plt.figure()
 plt.subplot(2,1,1)
 plt.plot(eigenvals[::-1], alpha=0.5, lw=2, label="lanczos")
@@ -182,6 +191,7 @@ plt.subplot(2,1,2)
 plt.plot(np.abs(np.diag(eigenvecs[::-1] @ eigenvecs3[::-1].T)))
 plt.plot(np.abs(np.diag(eigenvecs[::-1] @ eigenvecs2.T)))
 plt.ylabel("Inner prod of eigenvector")
+plt.title("Compare Lanczos and Power iter method in computing eigen vectors")
 plt.show()
 #%%
 from sklearn.cross_decomposition import CCA
