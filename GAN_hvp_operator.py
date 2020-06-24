@@ -124,17 +124,22 @@ from GAN_utils import upconvGAN
 G = upconvGAN("fc6")
 G.requires_grad_(False).cuda()
 model_vgg.requires_grad_(False).cuda()
-#%% 100 vectors
+#%% 300 vectors
 t0 = time()
 feat = torch.randn((1, 4096), dtype=torch.float32).requires_grad_(False).cuda()
 eigenvals, eigenvecs = compute_hessian_eigenthings(G, feat, model_vgg,
     num_eigenthings=300, mode="lanczos", use_gpu=True,)
-print(time() - t0,"\n")  # 26.28 s
+print(time() - t0,"\n")  # 81.02 s
+t0 = time()
+feat = torch.randn((1, 4096), dtype=torch.float32).requires_grad_(False).cuda()
+eigenvals3, eigenvecs3 = compute_hessian_eigenthings(G, feat, model_vgg,
+    num_eigenthings=300, mode="lanczos", use_gpu=True, max_steps=50,)
+print(time() - t0, "\n")  # 82.15 s
 t0 = time()
 feat = torch.randn((1, 4096), dtype=torch.float32).requires_grad_(False).cuda()
 eigenvals2, eigenvecs2 = compute_hessian_eigenthings(G, feat, model_vgg,
     num_eigenthings=300, mode="power_iter", use_gpu=True,)
-print(time() - t0)   # 936.246
+print(time() - t0)   # 936.246 / 1002.95
 #%% 100 vectors
 t0 = time()
 feat = torch.randn((1, 4096), dtype=torch.float32).requires_grad_(False).cuda()
@@ -163,17 +168,21 @@ import numpy as np
 innerprod = eigenvecs @ eigenvecs2[::-1,:].T
 np.diag(innerprod)
 #%%
-innerprod = eigenvecs @ eigenvecs2[::-1,:].T
+innerprod = eigenvecs @ eigenvecs3[::-1,:].T
 np.diag(innerprod)
 import matplotlib.pylab as plt
 plt.figure()
 plt.subplot(2,1,1)
 plt.plot(eigenvals[::-1], alpha=0.5, lw=2, label="lanczos")
 plt.plot(eigenvals2, alpha=0.5, lw=2, label="power_iter")
+plt.plot(eigenvals3[::-1], alpha=0.5, lw=2, label="lanczos")
 plt.ylabel("eigenvalue")
 plt.legend()
 plt.subplot(2,1,2)
-plt.plot(np.abs(np.diag(innerprod)))
+plt.plot(np.abs(np.diag(eigenvecs[::-1] @ eigenvecs3[::-1].T)))
+plt.plot(np.abs(np.diag(eigenvecs[::-1] @ eigenvecs2.T)))
 plt.ylabel("Inner prod of eigenvector")
 plt.show()
+#%%
+from sklearn.cross_decomposition import CCA
 
