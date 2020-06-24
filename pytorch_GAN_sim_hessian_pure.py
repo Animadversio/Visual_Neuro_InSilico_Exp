@@ -1,3 +1,7 @@
+"""
+Use the fc6 fc7 GANs implemented in pure python from GAN_utils, and hessian package in pytorch.
+to compute the Hessian and eigen decomposition. 
+"""
 import numpy as np
 import torch
 import torch.optim as optim

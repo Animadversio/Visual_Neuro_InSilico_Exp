@@ -1,4 +1,7 @@
-#%% cluster deploy version!
+"""
+cluster deploy version! To generate pairs of real image and degenerated image. 
+See 
+"""
 import torch
 from torch_net_utils import load_generator
 from skimage.transform import resize, rescale

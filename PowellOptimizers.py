@@ -1,4 +1,7 @@
-"""Obsolete code to test BOBYQA optimizer is useful for the GAN-CNN pipeline optimization """
+"""
+Obsolete code to test if BOBYQA optimizer is useful for the GAN-CNN pipeline optimization 
+It takes super long and doesn't converge......Need too much info to compute a Hessian. 
+"""
 from pybobyqa import solver
 #% Prepare PyTorch version of the Caffe networks
 import sys
