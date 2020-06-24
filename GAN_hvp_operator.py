@@ -11,6 +11,7 @@ class GANHVPOperator(Operator):
             code,
             criterion,
             use_gpu=True,
+            activation=False,
     ):
         if use_gpu:
             device = "cuda"
@@ -20,6 +21,7 @@ class GANHVPOperator(Operator):
         self.code = code.clone().requires_grad_(False).float().to(device) # torch.float32
         # self.perturb_vec = torch.zeros((1, 4096), dtype=torch.float32).requires_grad_(True).to(device)
         self.perturb_vec = 0.0001 * torch.randn((1, 4096), dtype=torch.float32).requires_grad_(True).to(device)
+        self.activation = activation
         if activation:
             self.img_ref = self.model.visualize(self.code + self.perturb_vec)
             activ = self.criterion(self.img_ref)
@@ -32,7 +34,7 @@ class GANHVPOperator(Operator):
         self.gradient = gradient.view(-1)
         self.size = self.perturb_vec.numel()
 
-    def select_code(code):
+    def select_code(self, code):
         self.code = code.clone().requires_grad_(False).float().to(self.device) # torch.float32
         self.perturb_vec = torch.zeros((1, 4096), dtype=torch.float32).requires_grad_(True).to(self.device)
         self.img_ref = self.model.visualize(self.code, )  # forward the feature vector through the GAN
@@ -122,77 +124,129 @@ def compute_hessian_eigenthings(
         raise ValueError("Unsupported mode %s (must be power_iter or lanczos)" % mode)
     return eigenvals, eigenvecs
 
-#%% Test the module 
-sys.path.append(r"E:\Github_Projects\PerceptualSimilarity")
-import models  # from PerceptualSimilarity folder
-model_vgg = models.PerceptualLoss(model='net-lin', net='vgg', use_gpu=1, gpu_ids=[0])
-from GAN_utils import upconvGAN
-G = upconvGAN("fc6")
-G.requires_grad_(False).cuda()
-model_vgg.requires_grad_(False).cuda()
-#%%
-feat = torch.randn((4096), dtype=torch.float32).requires_grad_(False).cuda()
-GHVP = GANHVPOperator(G, feat, model_vgg)
-GHVP.apply(torch.randn((4096)).requires_grad_(False).cuda())
+#%% Test the module
+if __name__=="__main__":
+    sys.path.append(r"E:\Github_Projects\PerceptualSimilarity")
+    import models  # from PerceptualSimilarity folder
+    # model_vgg = models.PerceptualLoss(model='net-lin', net='vgg', use_gpu=1, gpu_ids=[0])
+    model_squ = models.PerceptualLoss(model='net-lin', net='squeeze', use_gpu=1, gpu_ids=[0])
+    from GAN_utils import upconvGAN
+    G = upconvGAN("fc6")
+    G.requires_grad_(False).cuda()
+    model_squ.requires_grad_(False).cuda()
+    #%%
+    feat = torch.randn((4096), dtype=torch.float32).requires_grad_(False).cuda()
+    GHVP = GANHVPOperator(G, feat, model_squ)
+    GHVP.apply(torch.randn((4096)).requires_grad_(False).cuda())
 
-#%% 300 vectors
-t0 = time()
-feat = torch.randn((1, 4096), dtype=torch.float32).requires_grad_(False).cuda()
-eigenvals, eigenvecs = compute_hessian_eigenthings(G, feat, model_vgg,
-    num_eigenthings=300, mode="lanczos", use_gpu=True,)
-print(time() - t0,"\n")  # 81.02 s
-t0 = time()
-feat = torch.randn((1, 4096), dtype=torch.float32).requires_grad_(False).cuda()
-eigenvals3, eigenvecs3 = compute_hessian_eigenthings(G, feat, model_vgg,
-    num_eigenthings=300, mode="lanczos", use_gpu=True, max_steps=50,)
-print(time() - t0, "\n")  # 82.15 s
-t0 = time()
-eigenvals2, eigenvecs2 = compute_hessian_eigenthings(G, feat, model_vgg,
-    num_eigenthings=300, mode="power_iter", use_gpu=True,)
-print(time() - t0)   # 936.246 / 1002.95
-#%% 100 vectors
-t0 = time()
-feat = torch.randn((1, 4096), dtype=torch.float32).requires_grad_(False).cuda()
-eigenvals, eigenvecs = compute_hessian_eigenthings(G, feat, model_vgg,
-    num_eigenthings=100, mode="lanczos", use_gpu=True,)
-print(time() - t0) # 79.466
-t0 = time()
-eigenvals2, eigenvecs2 = compute_hessian_eigenthings(G, feat, model_vgg,
-    num_eigenthings=100, mode="power_iter", use_gpu=True,)
-print(time() - t0) # 227.1 s
-#%%
-t0 = time()
-feat = torch.randn((1, 4096), dtype=torch.float32).requires_grad_(False).cuda()
-eigenvals, eigenvecs = compute_hessian_eigenthings(G, feat, model_vgg,
-    num_eigenthings=40, mode="lanczos", use_gpu=True,)
-print(time() - t0) # 13.09 sec
-t0 = time()
-eigenvals2, eigenvecs2 = compute_hessian_eigenthings(G, feat, model_vgg,
-    num_eigenthings=40, mode="power_iter", use_gpu=True,)
-print(time() - t0) # 70.09 sec
-#%%
-import numpy as np
-import matplotlib.pylab as plt
-# innerprod = (eigenvecs - eigenvecs.mean(1)[:,np.newaxis]) @ (eigenvecs2 - eigenvecs2.mean(1)[:,np.newaxis])[::-1,:].T
-innerprod = eigenvecs @ eigenvecs2[::-1,:].T
-np.diag(innerprod)
-#%%
-innerprod = eigenvecs @ eigenvecs3[::-1,:].T
-np.diag(innerprod)
+    #%% 300 vectors
+    t0 = time()
+    feat = torch.randn((1, 4096), dtype=torch.float32).requires_grad_(False).cuda()
+    eigenvals, eigenvecs = compute_hessian_eigenthings(G, feat, model_vgg,
+        num_eigenthings=300, mode="lanczos", use_gpu=True,)
+    print(time() - t0,"\n")  # 81.02 s
+    t0 = time()
+    feat = torch.randn((1, 4096), dtype=torch.float32).requires_grad_(False).cuda()
+    eigenvals3, eigenvecs3 = compute_hessian_eigenthings(G, feat, model_vgg,
+        num_eigenthings=300, mode="lanczos", use_gpu=True, max_steps=50,)
+    print(time() - t0, "\n")  # 82.15 s
+    t0 = time()
+    eigenvals2, eigenvecs2 = compute_hessian_eigenthings(G, feat, model_vgg,
+        num_eigenthings=300, mode="power_iter", use_gpu=True,)
+    print(time() - t0)   # 936.246 / 1002.95
+    #%% 100 vectors
+    t0 = time()
+    feat = torch.randn((1, 4096), dtype=torch.float32).requires_grad_(False).cuda()
+    eigenvals, eigenvecs = compute_hessian_eigenthings(G, feat, model_vgg,
+        num_eigenthings=100, mode="lanczos", use_gpu=True,)
+    print(time() - t0) # 79.466
+    t0 = time()
+    eigenvals2, eigenvecs2 = compute_hessian_eigenthings(G, feat, model_vgg,
+        num_eigenthings=100, mode="power_iter", use_gpu=True,)
+    print(time() - t0) # 227.1 s
+    #%%
+    t0 = time()
+    feat = torch.randn((1, 4096), dtype=torch.float32).requires_grad_(False).cuda()
+    eigenvals, eigenvecs = compute_hessian_eigenthings(G, feat, model_vgg,
+        num_eigenthings=40, mode="lanczos", use_gpu=True,)
+    print(time() - t0) # 13.09 sec
+    t0 = time()
+    eigenvals2, eigenvecs2 = compute_hessian_eigenthings(G, feat, model_vgg,
+        num_eigenthings=40, mode="power_iter", use_gpu=True,)
+    print(time() - t0) # 70.09 sec
+    #%%
+    import numpy as np
+    import matplotlib.pylab as plt
+    innerprod = eigenvecs @ eigenvecs2[::-1,:].T
+    np.diag(innerprod)
+    #%%
+    innerprod = eigenvecs @ eigenvecs3[::-1,:].T
+    np.diag(innerprod)
 
-plt.figure()
-plt.subplot(2,1,1)
-plt.plot(eigenvals[::-1], alpha=0.5, lw=2, label="lanczos")
-plt.plot(eigenvals2, alpha=0.5, lw=2, label="power_iter")
-plt.plot(eigenvals3[::-1], alpha=0.5, lw=2, label="lanczos")
-plt.ylabel("eigenvalue")
-plt.legend()
-plt.subplot(2,1,2)
-plt.plot(np.abs(np.diag(eigenvecs[::-1] @ eigenvecs3[::-1].T)))
-plt.plot(np.abs(np.diag(eigenvecs[::-1] @ eigenvecs2.T)))
-plt.ylabel("Inner prod of eigenvector")
-plt.title("Compare Lanczos and Power iter method in computing eigen vectors")
-plt.show()
-#%%
-from sklearn.cross_decomposition import CCA
-
+    plt.figure()
+    plt.subplot(2,1,1)
+    plt.plot(eigenvals[::-1], alpha=0.5, lw=2, label="lanczos")
+    # plt.plot(eigenvals2, alpha=0.5, lw=2, label="power_iter")
+    plt.plot(eigenvals3[::-1], alpha=0.5, lw=2, label="lanczos")
+    plt.ylabel("eigenvalue")
+    plt.legend()
+    plt.subplot(2,1,2)
+    plt.plot(np.abs(np.diag(eigenvecs[::-1] @ eigenvecs3[::-1].T)))
+    # plt.plot(np.abs(np.diag(eigenvecs[::-1] @ eigenvecs2.T)))
+    plt.ylabel("Inner prod of eigenvector")
+    plt.title("Compare Lanczos and Power iter method in computing eigen vectors")
+    plt.show()
+    #%%
+    t0 = time()
+    feat = torch.randn((1, 4096), dtype=torch.float32).requires_grad_(False).cuda()
+    eigenvals, eigenvecs = compute_hessian_eigenthings(G, feat, model_squ,
+        num_eigenthings=100, mode="lanczos", use_gpu=True,)
+    print(time() - t0)  # 79.466
+    t0 = time()
+    eigenvals3, eigenvecs3 = compute_hessian_eigenthings(G, feat, model_squ,
+        num_eigenthings=100, mode="lanczos", use_gpu=True, max_steps=50,)
+    print(time() - t0)
+    #%%
+    t0 = time()
+    eigenvals2, eigenvecs2 = compute_hessian_eigenthings(G, feat, model_squ,
+              num_eigenthings=100, mode="power_iter", use_gpu=True, )
+    print(time() - t0)
+    #%%
+    from sklearn.cross_decomposition import CCA
+    t0 = time()
+    cca = CCA(n_components=100)
+    evec1_c, evec3_c = cca.fit_transform(eigenvecs.T, eigenvecs3.T)
+    print(time() - t0)
+    ccmat = np.corrcoef(evec1_c.T, evec3_c.T, )
+    np.diag(ccmat[50:,:50])
+    #%% Wrap up function
+    def cca_correlation(X, Y, n_comp=50):
+        """
+        :param X, Y: should be N-by-p, N-by-q matrices,
+        :param n_comp: a integer, how many components we want to create and compare.
+        :return: cca_corr, n_comp-by-n_comp matrix
+           X_c, Y_c will be the linear mapped version of X, Y with shape  N-by-n_comp, N-by-n_comp shape
+           cc_mat is the
+        """
+        cca = CCA(n_components=n_comp)
+        X_c, Y_c = cca.fit_transform(X, Y)
+        ccmat = np.corrcoef(X_c, Y_c, rowvar=False)
+        cca_corr = np.diag(ccmat[n_comp:, :n_comp])  # slice out the cross corr part
+        return cca_corr
+    #%%
+    t0 = time()
+    n_comp = 100
+    cca_corr = cca_correlation(eigenvecs.T, eigenvecs3.T, n_comp=n_comp)
+    cca_corr_baseline = cca_correlation(eigenvecs.T, np.random.randn(*eigenvecs.T.shape), n_comp=n_comp)
+    print("%d components CCA corr %.2f, (baseline %.2f) (%.2fsec)" % (n_comp, cca_corr.mean(), cca_corr_baseline.mean(), time() - t0))
+    # 50 components CCA corr 1.00, (baseline 0.20) (15.43sec)
+    # 100 components CCA corr 1.00, (baseline 0.13) (22.50sec)
+    # %%
+    t0 = time()
+    n_comp = 50
+    cca_corr = cca_correlation(eigenvecs.T, eigenvecs2.T, n_comp=n_comp)
+    cca_corr_baseline = cca_correlation(eigenvecs2.T, np.random.randn(*eigenvecs.T.shape), n_comp=n_comp)
+    print("%d components CCA corr %.2f, (baseline %.2f) (%.2fsec)" % (
+    n_comp, cca_corr.mean(), cca_corr_baseline.mean(), time() - t0))
+    # 100 components CCA corr 0.99, (baseline 0.13) (18.22sec)
+    # 50 components CCA corr 0.98, (baseline 0.20) (10.19sec)
