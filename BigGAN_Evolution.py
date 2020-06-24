@@ -1,3 +1,4 @@
+# this is the python library created for using BigGAN in evolution.
 import sys
 from os.path import join
 sys.path.append("C:/Users/zhanq/OneDrive - Washington University in St. Louis/GitHub/pytorch-pretrained-BigGAN")

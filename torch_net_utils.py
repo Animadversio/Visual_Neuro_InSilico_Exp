@@ -77,6 +77,10 @@ def GAN_path(name):
         save_path = os.path.join(netsdir, r"upconv/fc8/generator_state_dict.pt")
         protofile = os.path.join(netsdir, r"upconv/fc8/generator.prototxt")  # 'resnet50/deploy.prototxt'
         weightfile = os.path.join(netsdir, r'upconv/fc8/generator.caffemodel')  # 'resnet50/resnet50.caffemodel'
+    elif name == "pool5":
+        save_path = os.path.join(netsdir, r"upconv/pool5/generator_state_dict.pt")
+        protofile = os.path.join(netsdir, r"upconv/pool5/generator.prototxt")  # 'resnet50/deploy.prototxt'
+        weightfile = os.path.join(netsdir, r'upconv/pool5/generator.caffemodel')  # 'resnet50/resnet50.caffemodel'
     else:
         raise ValueError(name + 'not defined')
     return save_path, protofile, weightfile
@@ -90,7 +94,7 @@ def load_generator(GAN="fc6"):
         Generator.load_state_dict(torch.load(save_path))
     else:
         Generator.load_weights(weightfile)
-        torch.save(Generator.state_dict(), save_path) # Generator.
+        torch.save(Generator.state_dict(), save_path)  # Generator.
     Generator.eval()
     Generator.verbose = False
     Generator.requires_grad_(requires_grad=False)
