@@ -113,6 +113,7 @@ ang_step = 180 / 10
 theta_arr_deg = ang_step * np.linspace(-5,5,11)# np.arange(-5, 6)
 theta_arr = theta_arr_deg / 180 * np.pi
 img_list_all = []
+pc_id_list = [2,3,5,10,15,20,40,60,80,99,150,200,250,299,450,600,799]
 for pc_id in [2,3,5,10,15,20,40,60,80,99,150,200,250,299,450,600,799]:
     # eig_id = 0
     perturb_vect = PC_vectors[pc_id,:] # PC_vectors[1,:]    
@@ -165,7 +166,7 @@ mtg_all = build_montages(img_list_all, [256, 256], [len(theta_arr), int(len(img_
 imwrite(join(summary_dir, "norm%d_eig_all.jpg"%(vec_norm)),mtg_all)
 #%%
 np.savez(join(summary_dir, "PC_eig_stats.npy"), PC_vecs=PC_vectors, eigenvecs=eigenvecs, eigenvals=eigenvals, 
-         theta_arr_deg=theta_arr_deg, inv_PC1=inv_PC1, feat=sphere_norm * PC1_vect, sphere_norm=sphere_norm)
+         theta_arr_deg=theta_arr_deg, inv_PC1=inv_PC1, feat=sphere_norm * PC1_vect, sphere_norm=sphere_norm, pc_id_list=pc_id_list)
 #%% 
 #vec_norm = 220# sphere_norm
 #eig_id = 0
