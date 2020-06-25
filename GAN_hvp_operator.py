@@ -28,7 +28,7 @@ class GANHVPOperator(Operator):
         # self.perturb_vec = torch.zeros((1, 4096), dtype=torch.float32).requires_grad_(True).to(device)
         self.perturb_vec = 0.0001 * torch.randn((1, 4096), dtype=torch.float32).requires_grad_(True).to(device)
         self.activation = activation
-        if activation:
+        if activation:  # single
             self.img_ref = self.model.visualize(self.code + self.perturb_vec)
             activ = self.criterion(self.img_ref)
             gradient = torch.autograd.grad(activ, self.perturb_vec, create_graph=True, retain_graph=True)[0]
@@ -297,4 +297,27 @@ if __name__=="__main__":
     plt.legend()
     plt.title("Comparing Eigenvalue computed by Lanczos and vHv")
     plt.savefig(join(savedir, "Lanczos_vHv_cmp.png"))
+    plt.show()
+    #%% Analyze of isotropy of GAN space using Hessian spectrum
+    feat = 64 * torch.tensor(PC1_vect).float() #torch.randn(4096).float().cuda()
+    eval_col = []
+    evect_col = []
+    t0 = time()
+    for vnorm in [0, 1, 2, 3, 4, 5]:
+        evals, evecs = compute_hessian_eigenthings(G, vnorm * feat, model_squ,
+                  num_eigenthings=800, mode="lanczos", use_gpu=True, )
+        eval_col.append(evals)
+        evect_col.append(evecs)
+        print(
+            "Norm %d \nEigen value: max %.3E min %.3E std %.3E" % (vnorm * 64, evals.max(), evals.min(), evals.std()))
+    print(time() - t0)
+    np.savez("H_norm_relation.npz", eval_col=eval_col, evect_col=evect_col, feat=feat)
+    #%%
+    plt.figure()
+    for evals, vnorm in zip(eval_col, [0, 1, 2, 3, 4, 5]):
+        plt.plot(evals[-50:]  * 1, label="norm%d"%(vnorm*64)) # / evals[-1]
+    plt.legend()
+    plt.xlabel("eigen id")
+    plt.ylabel("eigenvals")
+    plt.savefig(join(savedir, "code_norm_spectra_curv.png"))
     plt.show()
