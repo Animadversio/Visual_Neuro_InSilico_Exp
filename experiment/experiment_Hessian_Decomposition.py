@@ -81,7 +81,7 @@ sphere_norm = final_gen_norm
 print("Set sphere norm to the last generations norm!")
 #%% Do PCA and find the major trend of evolution
 print("Computing PCs")
-code_pca = PCA(n_components=50)
+code_pca = PCA(n_components=800)
 PC_Proj_codes = code_pca.fit_transform(codes_all)
 PC_vectors = code_pca.components_
 if PC_Proj_codes[-1, 0] < 0:  # decide which is the positive direction for PC1
@@ -105,12 +105,41 @@ eigenvecs = eigenvecs[::-1,:]
 innerprod2PC1 = PC1_vect @ eigenvecs.T
 print("EigenDecomposition of Hessian of Image Similarity Metric\nEigen value: max %.3E min %.3E std %.3E \nEigen vector: Innerproduct max %.3E min %.3E std %.3E"%
       (eigenvals.max(), eigenvals.min(), eigenvals.std(), innerprod2PC1.max(), innerprod2PC1.min(), innerprod2PC1.std())) 
-#%% Create images along the spectrum
-save_indiv = False
+#%% Create images along the PCA Axis with PC components of different 
+save_indiv = True
 save_row = False
 vec_norm = sphere_norm
 ang_step = 180 / 10
-theta_arr_deg = ang_step * np.linspace(-5,5,21)# np.arange(-5, 6)
+theta_arr_deg = ang_step * np.linspace(-5,5,11)# np.arange(-5, 6)
+theta_arr = theta_arr_deg / 180 * np.pi
+img_list_all = []
+for pc_id in [2,3,5,10,15,20,40,60,80,99,150,200,250,299,450,600,799]:
+    # eig_id = 0
+    perturb_vect = PC_vectors[pc_id,:] # PC_vectors[1,:]    
+    codes_arc = np.array([np.cos(theta_arr), 
+                          np.sin(theta_arr) ]).T @ np.array([PC1_vect, perturb_vect])
+    norms = np.linalg.norm(codes_arc, axis=1)
+    codes_arc = codes_arc / norms[:,np.newaxis] * vec_norm
+    imgs = G.visualize(torch.from_numpy(codes_arc).float().cuda())
+    npimgs = imgs.detach().cpu().permute([2, 3, 1, 0]).numpy()
+    if save_indiv:
+        for i in range(npimgs.shape[3]):
+            angle = theta_arr_deg[i]
+            imwrite(join(newimg_dir, "norm%d_PC%d_ang%d.jpg"%(vec_norm, pc_id, angle)), npimgs[:,:,:,i])
+    
+    img_list = [npimgs[:,:,:,i] for i in range(npimgs.shape[3])]
+    img_list_all.extend(img_list)
+    if save_row:
+        mtg1 = build_montages(img_list, [256, 256], [len(theta_arr), 1])[0]
+        imwrite(join(summary_dir, "norm%d_PC_%d.jpg"%(vec_norm, pc_id)),mtg1)
+mtg_all = build_montages(img_list_all, [256, 256], [len(theta_arr), int(len(img_list_all)//len(theta_arr))])[0]
+imwrite(join(summary_dir, "norm%d_PC_all.jpg"%(vec_norm)),mtg_all)
+#%% Create images along the spectrum
+save_indiv = True
+save_row = False
+vec_norm = sphere_norm
+ang_step = 180 / 10
+theta_arr_deg = ang_step * np.linspace(-5,5,11)# np.arange(-5, 6)
 theta_arr = theta_arr_deg / 180 * np.pi
 img_list_all = []
 for eig_id in [0,1,5,10,15,20,40,60,80,99,150,200,250,299,450,600,799]:
@@ -134,6 +163,9 @@ for eig_id in [0,1,5,10,15,20,40,60,80,99,150,200,250,299,450,600,799]:
         imwrite(join(summary_dir, "norm%d_eig_%d.jpg"%(vec_norm, eig_id)),mtg1)
 mtg_all = build_montages(img_list_all, [256, 256], [len(theta_arr), int(len(img_list_all)//len(theta_arr))])[0]
 imwrite(join(summary_dir, "norm%d_eig_all.jpg"%(vec_norm)),mtg_all)
+#%%
+np.savez(join(summary_dir, "PC_eig_stats.npy"), PC_vecs=PC_vectors, eigenvecs=eigenvecs, eigenvals=eigenvals, 
+         theta_arr_deg=theta_arr_deg, inv_PC1=inv_PC1, feat=sphere_norm * PC1_vect, sphere_norm=sphere_norm)
 #%% 
 #vec_norm = 220# sphere_norm
 #eig_id = 0
