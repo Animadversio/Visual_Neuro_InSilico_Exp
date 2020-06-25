@@ -3,7 +3,7 @@ from hessian_eigenthings.power_iter import Operator, deflated_power_iteration
 from hessian_eigenthings.lanczos import lanczos
 from time import time
 import sys
-#%%
+#%% This operator could be used as a local distance metric on the GAN image manifold.
 class GANHVPOperator(Operator):
     def __init__(
             self,
@@ -60,8 +60,22 @@ class GANHVPOperator(Operator):
         grad_grad = torch.autograd.grad(
             self.gradient, self.perturb_vec, grad_outputs=vec, only_inputs=True, retain_graph=True
         )
-        hessian_vec_prod = grad_grad[0].view(-1) #torch.cat([g.view(-1) for g in grad_grad]) #.contiguous()
+        hessian_vec_prod = grad_grad[0].view(-1)  # torch.cat([g.view(-1) for g in grad_grad]) #.contiguous()
         return hessian_vec_prod
+
+    def vHv_form(self, vec):
+        """
+        Returns Bilinear form vec.T*H*vec where H is the hessian of the loss.
+        If vec is eigen vector of H this will return the eigen value.
+        """
+        self.zero_grad()
+        # take the second gradient
+        grad_grad = torch.autograd.grad(
+            self.gradient, self.perturb_vec, grad_outputs=vec, only_inputs=True, retain_graph=True
+        )
+        hessian_vec_prod = grad_grad[0].view(-1)
+        vhv = (hessian_vec_prod * vec).sum()
+        return vhv
 
     def zero_grad(self):
         """
@@ -181,6 +195,7 @@ if __name__=="__main__":
         num_eigenthings=40, mode="power_iter", use_gpu=True,)
     print(time() - t0) # 70.09 sec
     #%%
+    from os.path import join
     import numpy as np
     import matplotlib.pylab as plt
     innerprod = eigenvecs @ eigenvecs2[::-1,:].T
@@ -256,3 +271,30 @@ if __name__=="__main__":
     n_comp, cca_corr.mean(), cca_corr_baseline.mean(), time() - t0))
     # 100 components CCA corr 0.99, (baseline 0.13) (18.22sec)
     # 50 components CCA corr 0.98, (baseline 0.20) (10.19sec)
+    #%% Test the eigenvalues are close to that found by vHv bilinear form.
+    t0 = time()
+    feat = torch.randn((1, 4096), dtype=torch.float32).requires_grad_(False).cuda()
+    eigenvals, eigenvecs = compute_hessian_eigenthings(G, feat, model_squ,
+                       num_eigenthings=100, mode="lanczos", use_gpu=True, )
+    print(time() - t0)  # 18.45
+    #%%
+    GHVP = GANHVPOperator(G, feat, model_squ, use_gpu=True)
+    # GHVP.vHv_form(torch.tensor(eigenvecs[1, :]).cuda())
+    # eigenvals
+    t0 = time()
+    vHv_vals = []
+    eigenvecs_tsr = torch.tensor(eigenvecs).cuda()
+    for i in range(eigenvecs_tsr.shape[0]):
+        vHv_vals.append(GHVP.vHv_form(eigenvecs_tsr[i, :]).item())
+    print(time()-t0)
+    #%%
+    savedir = r"E:\OneDrive - Washington University in St. Louis\Artiphysiology\HessianDecomp"
+    plt.figure()
+    plt.plot(eigenvals[::-1], alpha=0.5, lw=2, label="lanczos")
+    # plt.plot(eigenvals2, alpha=0.5, lw=2, label="power_iter")
+    plt.plot(vHv_vals[::-1], alpha=0.5, lw=2, label="vHv")
+    plt.ylabel("eigenvalue")
+    plt.legend()
+    plt.title("Comparing Eigenvalue computed by Lanczos and vHv")
+    plt.savefig(join(savedir, "Lanczos_vHv_cmp.png"))
+    plt.show()
