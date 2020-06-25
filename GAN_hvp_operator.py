@@ -16,8 +16,14 @@ class GANHVPOperator(Operator):
         if use_gpu:
             device = "cuda"
             self.device = device
-        self.model = model.requires_grad_(False)
-        self.criterion = criterion.requires_grad_(False)
+        if hasattr(model,"parameters"):
+            for param in model.parameters():
+                param.requires_grad_(False)
+        if hasattr(criterion,"parameters"):
+            for param in criterion.parameters():
+                param.requires_grad_(False)
+        self.model = model
+        self.criterion = criterion
         self.code = code.clone().requires_grad_(False).float().to(device) # torch.float32
         # self.perturb_vec = torch.zeros((1, 4096), dtype=torch.float32).requires_grad_(True).to(device)
         self.perturb_vec = 0.0001 * torch.randn((1, 4096), dtype=torch.float32).requires_grad_(True).to(device)
@@ -132,7 +138,7 @@ if __name__=="__main__":
     model_squ = models.PerceptualLoss(model='net-lin', net='squeeze', use_gpu=1, gpu_ids=[0])
     from GAN_utils import upconvGAN
     G = upconvGAN("fc6")
-    G.requires_grad_(False).cuda()
+    G.requires_grad_(False).cuda() # this notation is incorrect in older pytorch
     model_squ.requires_grad_(False).cuda()
     #%%
     feat = torch.randn((4096), dtype=torch.float32).requires_grad_(False).cuda()
