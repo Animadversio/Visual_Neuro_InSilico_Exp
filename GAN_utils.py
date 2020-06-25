@@ -27,6 +27,9 @@ else:
     elif os.environ['COMPUTERNAME'] == 'PONCELAB-ML2B':
         homedir = r"C:\Users\Ponce lab\Documents\Python\Generator_DB_Windows"
         netsdir = os.path.join(homedir, 'nets')
+    elif os.environ['COMPUTERNAME'] == 'PONCELAB-ML2A':
+        homedir = r"C:\Users\Poncelab-ML2a\Documents\Python\Generator_DB_Windows"
+        netsdir = os.path.join(homedir, 'nets')
     elif os.environ['COMPUTERNAME'] == 'DESKTOP-MENSD6S':  # Home_WorkStation
         homedir = "E:/Monkey_Data/Generator_DB_Windows"
         netsdir = os.path.join(homedir, 'nets')

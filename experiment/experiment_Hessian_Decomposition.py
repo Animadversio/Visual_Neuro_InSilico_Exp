@@ -6,12 +6,23 @@ Created on Wed Jun 24 19:08:54 2020
 """
 #%% Prepare the generator model and perceptual loss networks
 from time import time
+import os
+from os.path import join
 import sys
-sys.path.append(r"C:\Users\Ponce lab\Documents\Python\Visual_Neuro_InSilico_Exp")
+if os.environ['COMPUTERNAME'] == 'PONCELAB-ML2B':
+    Python_dir = r"C:\Users\Ponce lab\Documents\Python"
+elif os.environ['COMPUTERNAME'] == 'PONCELAB-ML2A':
+    Python_dir = r"C:\Users\Ponce lab\Documents\Python"
+elif os.environ['COMPUTERNAME'] == 'DESKTOP-MENSD6S':
+    Python_dir = r"E:\Github_Projects"
+elif os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':
+    Python_dir = r"D:\Github"
+
+sys.path.append(join(Python_dir,"Visual_Neuro_InSilico_Exp"))
+sys.path.append(join(Python_dir,"PerceptualSimilarity"))
 import torch
 from GAN_utils import upconvGAN
 from GAN_hvp_operator import GANHVPOperator, compute_hessian_eigenthings
-sys.path.append(r"C:\Users\Ponce lab\Documents\Python\PerceptualSimilarity")
 import models  # from PerceptualSimilarity folder
 from build_montages import build_montages
 # model_vgg = models.PerceptualLoss(model='net-lin', net='vgg', use_gpu=1, gpu_ids=[0])
@@ -38,7 +49,7 @@ def load_codes_mat(backup_dir, savefile=False):
     # make sure enough codes for requested size
     if "codes_all.npz" in os.listdir(backup_dir):
         # if the summary table exist, just read from it!
-        with np.load(os.path.join(backup_dir, "codes_all.npz")) as data:
+        with np.load(join(backup_dir, "codes_all.npz")) as data:
             codes_all = data["codes_all"]
             generations = data["generations"]
         return codes_all, generations
@@ -46,7 +57,7 @@ def load_codes_mat(backup_dir, savefile=False):
     codes_all = []
     img_ids = []
     for i, fn in enumerate(codes_fns[:]):
-        matdata = loadmat(os.path.join(backup_dir, fn))
+        matdata = loadmat(join(backup_dir, fn))
         codes_all.append(matdata["codes"])
         img_ids.extend(list(matdata["ids"]))
 
@@ -55,17 +66,16 @@ def load_codes_mat(backup_dir, savefile=False):
     img_ids = [img_ids[i][0] for i in range(len(img_ids))]
     generations = [int(re.findall("gen(\d+)", img_id)[0]) if 'gen' in img_id else -1 for img_id in img_ids]
     if savefile:
-        np.savez(os.path.join(backup_dir, "codes_all.npz"), codes_all=codes_all, generations=generations)
+        np.savez(join(backup_dir, "codes_all.npz"), codes_all=codes_all, generations=generations)
     return codes_all, generations
 #%% 
 from sklearn.decomposition import PCA
 import numpy as np
 import matplotlib.pylab as plt
 from imageio import imwrite
-from os.path import join
 backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_integrated\2020-06-01-09-46-37"
-newimg_dir = os.path.join(backup_dir,"Hess_imgs")
-summary_dir = os.path.join(backup_dir,"Hess_imgs","summary")
+newimg_dir = join(backup_dir,"Hess_imgs")
+summary_dir = join(backup_dir,"Hess_imgs","summary")
 
 os.makedirs(newimg_dir,exist_ok=True)
 os.makedirs(summary_dir,exist_ok=True)
