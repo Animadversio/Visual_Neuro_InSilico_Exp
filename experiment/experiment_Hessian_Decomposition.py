@@ -12,7 +12,7 @@ import sys
 if os.environ['COMPUTERNAME'] == 'PONCELAB-ML2B':
     Python_dir = r"C:\Users\Ponce lab\Documents\Python"
 elif os.environ['COMPUTERNAME'] == 'PONCELAB-ML2A':
-    Python_dir = r"C:\Users\Ponce lab\Documents\Python"
+    Python_dir = r"C:\Users\Poncelab-ML2a\Documents\Python"
 elif os.environ['COMPUTERNAME'] == 'DESKTOP-MENSD6S':
     Python_dir = r"E:\Github_Projects"
 elif os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':
