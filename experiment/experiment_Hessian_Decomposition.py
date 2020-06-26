@@ -73,7 +73,8 @@ from sklearn.decomposition import PCA
 import numpy as np
 import matplotlib.pylab as plt
 from imageio import imwrite
-backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_integrated\2020-06-01-09-46-37"
+# backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_integrated\2020-06-01-09-46-37"
+backup_dir = r"E:\Network_Data_Sync\Stimuli\2019-Manifold\beto-191011a\backup_10_11_2019_13_17_02"
 newimg_dir = join(backup_dir,"Hess_imgs")
 summary_dir = join(backup_dir,"Hess_imgs","summary")
 
@@ -83,7 +84,7 @@ print("Loading the codes from experiment folder %s", backup_dir)
 codes_all, generations = load_codes_mat(backup_dir)
 generations = np.array(generations)
 print("Shape of code", codes_all.shape)
-#%%
+#%
 final_gen_norms = np.linalg.norm(codes_all[generations==max(generations), :], axis=1)
 final_gen_norm = final_gen_norms.mean()
 print("Average norm of the last generation samples %.2f" % final_gen_norm)
@@ -101,7 +102,8 @@ else:
     inv_PC1 = False
     PC1_sign = 1
 
-PC1_vect = PC1_sign * PC_vectors[0,:] 
+PC1_vect = PC1_sign * PC_vectors[0,:]
+
 #%% Compute Hessian decomposition and get the vectors
 print("Computing Hessian Decomposition Through Lanczos decomposition")
 t0 = time()

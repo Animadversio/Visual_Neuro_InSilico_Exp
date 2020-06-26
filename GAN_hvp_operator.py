@@ -1,6 +1,7 @@
 import torch
 from hessian_eigenthings.power_iter import Operator, deflated_power_iteration
 from hessian_eigenthings.lanczos import lanczos
+from sklearn.cross_decomposition import CCA
 from time import time
 import sys
 #%% This operator could be used as a local distance metric on the GAN image manifold.
@@ -144,6 +145,20 @@ def compute_hessian_eigenthings(
         raise ValueError("Unsupported mode %s (must be power_iter or lanczos)" % mode)
     return eigenvals, eigenvecs
 
+#%% Wrap up function
+def cca_correlation(X, Y, n_comp=50):
+    """
+    :param X, Y: should be N-by-p, N-by-q matrices,
+    :param n_comp: a integer, how many components we want to create and compare.
+    :return: cca_corr, n_comp-by-n_comp matrix
+       X_c, Y_c will be the linear mapped version of X, Y with shape  N-by-n_comp, N-by-n_comp shape
+       cc_mat is the
+    """
+    cca = CCA(n_components=n_comp)
+    X_c, Y_c = cca.fit_transform(X, Y)
+    ccmat = np.corrcoef(X_c, Y_c, rowvar=False)
+    cca_corr = np.diag(ccmat[n_comp:, :n_comp])  # slice out the cross corr part
+    return cca_corr
 #%% Test the module
 if __name__=="__main__":
     sys.path.append(r"E:\Github_Projects\PerceptualSimilarity")
@@ -233,27 +248,13 @@ if __name__=="__main__":
               num_eigenthings=100, mode="power_iter", use_gpu=True, )
     print(time() - t0)
     #%%
-    from sklearn.cross_decomposition import CCA
     t0 = time()
     cca = CCA(n_components=100)
     evec1_c, evec3_c = cca.fit_transform(eigenvecs.T, eigenvecs3.T)
     print(time() - t0)
     ccmat = np.corrcoef(evec1_c.T, evec3_c.T, )
     np.diag(ccmat[50:,:50])
-    #%% Wrap up function
-    def cca_correlation(X, Y, n_comp=50):
-        """
-        :param X, Y: should be N-by-p, N-by-q matrices,
-        :param n_comp: a integer, how many components we want to create and compare.
-        :return: cca_corr, n_comp-by-n_comp matrix
-           X_c, Y_c will be the linear mapped version of X, Y with shape  N-by-n_comp, N-by-n_comp shape
-           cc_mat is the
-        """
-        cca = CCA(n_components=n_comp)
-        X_c, Y_c = cca.fit_transform(X, Y)
-        ccmat = np.corrcoef(X_c, Y_c, rowvar=False)
-        cca_corr = np.diag(ccmat[n_comp:, :n_comp])  # slice out the cross corr part
-        return cca_corr
+
     #%%
     t0 = time()
     n_comp = 100
