@@ -29,7 +29,7 @@ class GANHVPOperator(Operator):
         # self.perturb_vec = torch.zeros((1, 4096), dtype=torch.float32).requires_grad_(True).to(device)
         self.perturb_vec = 0.0001 * torch.randn((1, 4096), dtype=torch.float32).requires_grad_(True).to(device)
         self.activation = activation
-        if activation:  # single
+        if activation:  # then criterion is a single entry objective function
             self.img_ref = self.model.visualize(self.code + self.perturb_vec)
             activ = self.criterion(self.img_ref)
             gradient = torch.autograd.grad(activ, self.perturb_vec, create_graph=True, retain_graph=True)[0]
