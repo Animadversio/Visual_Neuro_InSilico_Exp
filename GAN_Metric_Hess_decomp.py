@@ -83,7 +83,7 @@ def get_model_layers(model, getLayerRepr=False):
     get_layers(model)
     return layers
 #%%
-def FeatLinModel(VGG, layername='features_20', type="weight", weight=None):
+def FeatLinModel(VGG, layername='features_20', type="weight", weight=None, pos=(15, 15), chan=10):
     """A factory of linear models on """
     layers_all = get_model_layers(VGG)
     if 'features' in layername:
@@ -91,25 +91,29 @@ def FeatLinModel(VGG, layername='features_20', type="weight", weight=None):
         VGGfeat = VGG.features[:layeridx]
     else:
         VGGfeat = VGG
-    hooks, feat_dict = hook_model(VGG, layerrequest = (layername,))
+    hooks, feat_dict = hook_model(VGG, layerrequest=(layername,))
     layernames = list(feat_dict.keys())
     print(layernames)
     if type == "weight":
-        def weight_objective(img):
+        def weight_objective(img, scaler=True):
             VGGfeat.forward(img.cuda())
             feat = hooks(layername)
-            return -(feat * weight.unsqueeze(0)).mean()
+            if scaler:
+                return -(feat * weight.unsqueeze(0)).mean()
+            else:
+                return -(feat * weight.unsqueeze(0)).mean(axis=[1,2,3])
 
         return weight_objective
     elif type == "neuron":
-        def neuron_objective(img):
+        def neuron_objective(img, scaler=True):
             VGGfeat.forward(img.cuda())
             feat = hooks(layername)
-            return -(feat[:, 10, 15, 15]).mean()
+            if scaler:
+                return -(feat[:, chan, pos[0], pos[1]]).mean()
+            else:
+                return -(feat[:, chan, pos[0], pos[1]]).mean(axis=[1,2,3])
 
         return neuron_objective
-
-
 
 # for name, hk in feat_dict.items():
 #     hk.close()
@@ -129,7 +133,8 @@ feat.requires_grad_(True)
 objective = FeatLinModel(VGG, layername='features_4', type="neuron", weight=None)
 act = objective(G.visualize(feat))
 #%%
-from hessian import hessian
+from hessian import hess
+ian
 # activHVP = GANHVPOperator(G, 5*feat, objective, activation=True)
 H = hessian(act, feat)
 #%%
@@ -199,10 +204,10 @@ vect = torch.tensor(np.random.randn(4096)).float().cuda()
 vect = vect / vect.norm()
 vect.requires_grad_(False)
 #%% Through this I can show that the HVP is converging
-
+#   Forward differencing method
 hvp_col = []
-for eps in [1E-1, 1E-2, 1E-3, 1E-4, 1E-5, 1E-6]:
-    perturb_vecs = feat.detach() + eps * torch.tensor([1, -1.0]).view(-1, 1).cuda() * vect.detach()
+for eps in [1, 1E-1, 1E-2, 1E-3, 1E-4, 1E-5, 1E-6]:
+    perturb_vecs = 5*feat.detach() + eps * torch.tensor([1, -1.0]).view(-1, 1).cuda() * vect.detach()
     perturb_vecs.requires_grad_(True)
     img = G.visualize(perturb_vecs)
     resz_img = F.interpolate(img, (224, 224), mode='bilinear', align_corners=True)
@@ -217,9 +222,10 @@ for eps in [1E-1, 1E-2, 1E-3, 1E-4, 1E-5, 1E-6]:
     # ftgrad_neg = torch.autograd.grad(obj, vect, retain_graph=False, create_graph=False, only_inputs=True)
     # hvp = (ftgrad_pos[0] - ftgrad_neg[0]) / eps / 2
     #
+#%%
 def torch_corr(vec1, vec2):
     return torch.mean((vec1 - vec1.mean()) * (vec2 - vec2.mean())) / vec1.std(unbiased=False) / vec2.std(unbiased=False)
-#%%
+
 for i in range(len(hvp_col)):
     print("correlation %.4f mse %.1E" % (torch_corr(hvp_col[i], hvp_col[-4]).item(),
                                          F.mse_loss(hvp_col[i], hvp_col[-4]).item()))
@@ -263,6 +269,8 @@ class GANForwardHVPOperator(Operator):
         the vectorized model parameters
         """
         vecnorm = vec.norm().item()
+        if vecnorm < 1E-8:
+            return torch.zeros(vec.shape).cuda()
         eps = EPS / vecnorm
         self.zero_grad()
         # take the second gradient
@@ -302,3 +310,67 @@ objective = FeatLinModel(alexnet, layername='features_10', type="weight", weight
 activHVP = GANForwardHVPOperator(G, 5*feat, objective,)
 #%%
 activHVP.apply(1*torch.randn((4096)).requires_grad_(False).cuda())
+#%%
+from time import time
+t0 = time()
+eigvals, eigvects = lanczos(activHVP, num_eigenthings=800, use_gpu=True)
+print(time() - t0)  # 40 sec
+#%%
+eigvals = eigvals[::-1]
+eigvects = eigvects[::-1, :]
+#%%
+from imageio import imwrite
+from build_montages import build_montages
+import matplotlib.pylab as plt
+from os.path import join
+summary_dir = r"E:\OneDrive - Washington University in St. Louis\HessTune\tmp_Act"
+#%%
+ref_vect = (feat / feat.norm()).cpu().numpy()
+save_indiv = False
+save_row = True
+vec_norm = 300
+ang_step = 180 / 10
+theta_arr_deg = ang_step * np.linspace(-5, 5, 21)# np.arange(-5, 6)
+theta_arr = theta_arr_deg / 180 * np.pi
+img_list_all = []
+for eig_id in [0,1,5,10,15,20,40,60,80,99,150,200,250,299,450,600,799]:
+    # eig_id = 0
+    perturb_vect = eigvects[eig_id,:]  # PC_vectors[1,:]
+    codes_arc = np.array([np.cos(theta_arr),
+                          np.sin(theta_arr) ]).T @ np.array([ref_vect, perturb_vect])
+    norms = np.linalg.norm(codes_arc, axis=1)
+    codes_arc = codes_arc / norms[:,np.newaxis] * vec_norm
+    imgs = G.visualize(torch.from_numpy(codes_arc).float().cuda())
+    npimgs = imgs.detach().cpu().permute([2, 3, 1, 0]).numpy()
+
+    if save_indiv:
+        for i in range(npimgs.shape[3]):
+            angle = theta_arr_deg[i]
+            imwrite(join(newimg_dir, "norm%d_eig%d_ang%d.jpg" % (vec_norm, eig_id, angle)), npimgs[:, :, :, i])
+
+    img_list = [npimgs[:, :, :, i] for i in range(npimgs.shape[3])]
+    img_list_all.extend(img_list)
+    if save_row:
+        mtg1 = build_montages(img_list, [256, 256], [len(theta_arr), 1])[0]
+        imwrite(join(summary_dir, "norm%d_eig_%d.jpg" % (vec_norm, eig_id)), mtg1)
+mtg_all = build_montages(img_list_all, [256, 256], [len(theta_arr), int(len(img_list_all) // len(theta_arr))])[0]
+imwrite(join(summary_dir, "norm%d_eig_all.jpg" % (vec_norm)), mtg_all)
+#%%
+scores_col = []
+for eig_id in [0,1,5,10,15,20,40,60,80,99,150,200,250,299,450,600,799]:
+    # eig_id = 0
+    perturb_vect = eigvects[eig_id,:] # PC_vectors[1,:]
+    codes_arc = np.array([np.cos(theta_arr),
+                          np.sin(theta_arr) ]).T @ np.array([ref_vect, perturb_vect])
+    norms = np.linalg.norm(codes_arc, axis=1)
+    codes_arc = codes_arc / norms[:,np.newaxis] * vec_norm
+    imgs = G.visualize(torch.from_numpy(codes_arc).float().cuda())
+    scores = objective(F.interpolate(imgs, (224, 224), mode='bilinear', align_corners=True), scaler=False)
+    scores_col.append(scores.cpu().numpy())
+
+scores_col = np.array(scores_col)
+#%%
+plt.matshow(scores_col)
+plt.axis('image')
+plt.colorbar()
+plt.show()

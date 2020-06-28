@@ -117,7 +117,7 @@ eigenvecs = eigenvecs[::-1,:]
 innerprod2PC1 = PC1_vect @ eigenvecs.T
 print("EigenDecomposition of Hessian of Image Similarity Metric\nEigen value: max %.3E min %.3E std %.3E \nEigen vector: Innerproduct max %.3E min %.3E std %.3E"%
       (eigenvals.max(), eigenvals.min(), eigenvals.std(), innerprod2PC1.max(), innerprod2PC1.min(), innerprod2PC1.std()))
-#%% Test the metric on the PC space.
+#%% Use the metric on the PC space. Compute the vHv value for the PC vectors
 GHVP = GANHVPOperator(G, torch.tensor(sphere_norm * PC1_vect).float(), model_squ, use_gpu=True)
 PC_vHv_vals = []
 PC_vecs_tsr = torch.tensor(PC_vectors).float().cuda()
