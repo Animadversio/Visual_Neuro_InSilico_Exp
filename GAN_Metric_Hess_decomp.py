@@ -1,3 +1,4 @@
+"""Demo code for computing Neuron's tuning w.r.t """
 import torch
 from hessian_eigenthings.power_iter import Operator, deflated_power_iteration
 from hessian_eigenthings.lanczos import lanczos
@@ -21,7 +22,7 @@ VGG = tv.models.vgg16(pretrained=True)
 feat = torch.randn((4096), dtype=torch.float32).requires_grad_(False).cuda()
 GHVP = GANHVPOperator(G, feat, model_squ)
 GHVP.apply(torch.randn((4096)).requires_grad_(False).cuda())
-#%%
+#%% Set up hook and the linear network based on the CNN
 # Set up a network
 from collections import OrderedDict
 class ModuleHook:
@@ -83,7 +84,7 @@ def get_model_layers(model, getLayerRepr=False):
     get_layers(model)
     return layers
 #%%
-def FeatLinModel(VGG, layername='features_20', type="weight", weight=None, pos=(15, 15), chan=10):
+def FeatLinModel(VGG, layername='features_20', type="weight", weight=None, chan=0, pos=(10, 10)):
     """A factory of linear models on """
     layers_all = get_model_layers(VGG)
     if 'features' in layername:
@@ -115,6 +116,8 @@ def FeatLinModel(VGG, layername='features_20', type="weight", weight=None, pos=(
 
         return neuron_objective
 
+
+
 # for name, hk in feat_dict.items():
 #     hk.close()
 #%%
@@ -123,7 +126,7 @@ VGG = tv.models.vgg16(pretrained=True).requires_grad_(False)
 weight = torch.randn(512,32,32).cuda()
 objective = FeatLinModel(VGG, layername='features_19', type="weight", weight=weight)
 activHVP = GANHVPOperator(G, 5*feat, objective, activation=True)
-#%%
+#%
 activHVP.apply(5*torch.randn((4096)).requires_grad_(False).cuda())
 #%%
 
@@ -133,8 +136,7 @@ feat.requires_grad_(True)
 objective = FeatLinModel(VGG, layername='features_4', type="neuron", weight=None)
 act = objective(G.visualize(feat))
 #%%
-from hessian import hess
-ian
+from hessian import hessian
 # activHVP = GANHVPOperator(G, 5*feat, objective, activation=True)
 H = hessian(act, feat)
 #%%
