@@ -366,7 +366,17 @@ activHVP.apply(1*torch.randn((4096)).requires_grad_(False).cuda())
 t0 = time()
 eigvals, eigvects = lanczos(activHVP, num_eigenthings=500, use_gpu=True)
 print(time() - t0)  # 40 sec
-#%
+eigvals = eigvals[::-1]
+eigvects = eigvects[::-1, :]
+#%%
+eigvals_u = eigvals
+eigvects_u = eigvects
+#%%
+feat.requires_grad_(False)
+metricHVP = GANHVPOperator(G, feat, model_squ)
+t0 = time()
+eigvals, eigvects = lanczos_generalized(activHVP, metric_operator=metricHVP, num_eigenthings=500, use_gpu=True)
+print(time() - t0)  # 40 sec
 eigvals = eigvals[::-1]
 eigvects = eigvects[::-1, :]
 #%%
