@@ -4,7 +4,14 @@ from hessian_eigenthings.power_iter import Operator, deflated_power_iteration
 from hessian_eigenthings.lanczos import lanczos
 from lanczos_generalized import lanczos_generalized
 from GAN_hvp_operator import GANHVPOperator, compute_hessian_eigenthings
-
+#%%
+import numpy as np
+from time import time
+from imageio import imwrite
+from build_montages import build_montages
+import matplotlib.pylab as plt
+from os.path import join
+import torch.nn.functional as F
 #%% Prepare the Networks
 import sys
 sys.path.append(r"E:\Github_Projects\PerceptualSimilarity")
@@ -113,148 +120,7 @@ def FeatLinModel(VGG, layername='features_20', type="weight", weight=None, chan=
 
         return neuron_objective
 
-
-# for name, hk in feat_dict.items():
-#     hk.close()
-#%%
-#%%
-import torchvision as tv
-# VGG = tv.models.vgg16(pretrained=True)
-alexnet = tv.models.alexnet(pretrained=True).cuda()
-for param in alexnet.parameters():
-    param.requires_grad_(False)
-#%% This is not working.... The local 2nd order derivative is 0
-feat = torch.randn((4096), dtype=torch.float32).requires_grad_(False).cuda()
-GHVP = GANHVPOperator(G, feat, model_squ)
-GHVP.apply(torch.randn((4096)).requires_grad_(False).cuda())
-#%%
-weight = torch.randn(512,32,32).cuda()
-objective = FeatLinModel(VGG, layername='features_19', type="weight", weight=weight)
-activHVP = GANHVPOperator(G, 5*feat, objective, activation=True)
 #%
-activHVP.apply(5*torch.randn((4096)).requires_grad_(False).cuda())
-#%%
-
-#%%
-feat = torch.randn(4096).cuda()
-feat.requires_grad_(True)
-objective = FeatLinModel(VGG, layername='features_4', type="neuron", weight=None)
-act = objective(G.visualize(feat))
-#%%
-from hessian import hessian
-# activHVP = GANHVPOperator(G, 5*feat, objective, activation=True)
-H = hessian(act, feat)
-#%%
-
-#%%
-feat = torch.randn(4096).cuda()
-feat.requires_grad_(True)
-#%%
-weight = torch.randn(192, 31, 31).cuda()
-objective = FeatLinModel(alexnet, layername='features_4', type="weight", weight=weight)
-act = objective(G.visualize(feat))
-#%%
-gradient = torch.autograd.grad(act, feat, retain_graph=True, create_graph=True,)
-torch.autograd.grad(gradient[0], feat, retain_graph=True, only_inputs=True, grad_outputs=10*torch.ones(4096).cuda())
-#%%
-import numpy as np
-feat = torch.tensor(np.random.randn(4096)).float().cuda()
-feat.requires_grad_(True)
-img = G.visualize(feat)
-fc8 = alexnet.forward(img)
-act = - fc8[0, 1]
-H = hessian(act, feat, create_graph=False)
-#%%
-import numpy as np
-feat = torch.tensor(np.random.randn(4096)).float().cuda()
-feat.requires_grad_(True)
-img = G.visualize(feat)
-act = - img.mean()
-# fc8 = alexnet.forward(img)
-# act = - fc8[0, 1]
-# H = hessian(act, feat, create_graph=False)
-#%%
-gradient = torch.autograd.grad(act, feat, retain_graph=True, create_graph=True,)
-torch.autograd.grad(gradient[0], feat, retain_graph=True, only_inputs=True, grad_outputs=10*torch.ones(4096).cuda())
-#%%
-H = hessian(act, feat, create_graph=False)
-
-#%%
-x = torch.tensor([1.0,2])
-x.requires_grad_(True)
-A = torch.tensor([[2.0, 3], [3, 1]])
-y = x.view(1, -1)@A@x.view(-1, 1)
-x_grad = torch.autograd.grad(y, x, retain_graph=True, create_graph=True)
-torch.autograd.grad(x_grad, x, retain_graph=True, only_inputs=True)
-#%%
-import numpy as np
-from time import time
-from imageio import imwrite
-from build_montages import build_montages
-import matplotlib.pylab as plt
-from os.path import join
-import torch.nn.functional as F
-#%%
-feat = torch.tensor(np.random.randn(4096)).float().cuda()
-feat.requires_grad_(True)
-img = G.visualize(feat)
-resz_img = F.interpolate(img, (224, 224), mode='bilinear', align_corners=True)
-obj = alexnet.features[:10](resz_img)[0, :, 6, 6].mean().pow(2)  # esz_img.std()
-ftgrad = torch.autograd.grad(obj, feat, retain_graph=True, create_graph=True, only_inputs=True)
-torch.autograd.grad(1 * ftgrad[0], feat, retain_graph=True, only_inputs=True, grad_outputs=torch.randn(4096).cuda(), )
-# torch.autograd.grad(ftgrad, img, retain_graph=True, only_inputs=True, grad_outputs=torch.randn(4096).cuda(), )
-#%% Approximate Forward Differencing
-"""
-So here is the conclusion, as the Perceptual loss take a squared difference when comparing 
-feature tensros, the dependency of loss on image is more than power 1, and the derivative 
-of it is not independent of image. However if the 
-"""
-def torch_corr(vec1, vec2):
-    return torch.mean((vec1 - vec1.mean()) * (vec2 - vec2.mean())) / vec1.std(unbiased=False) / vec2.std(unbiased=False)
-
-feat = torch.tensor(np.random.randn(4096)).float().cuda()
-feat.requires_grad_(False)
-vect = torch.tensor(np.random.randn(4096)).float().cuda()
-vect = vect / vect.norm()
-vect.requires_grad_(False)
-#%% Through this I can show that the HVP is converging
-#   Forward differencing method. One Free parameter is the "eps" i.e. the norm of perturbation to apply on the central
-#   vector. Too small norm of this will make the
-hvp_col = []
-for eps in [50, 25, 10, 5, 1, 5E-1, 1E-1, 1E-2, 1E-3, 1E-4, 1E-5, 1E-6, ]:
-    perturb_vecs = 5*feat.detach() + eps * torch.tensor([1, -1.0]).view(-1, 1).cuda() * vect.detach()
-    perturb_vecs.requires_grad_(True)
-    img = G.visualize(perturb_vecs)
-    resz_img = F.interpolate(img, (224, 224), mode='bilinear', align_corners=True)
-    obj = alexnet.features[:10](resz_img)[:, :, 6, 6].mean()   # esz_img.std()
-    ftgrad_both = torch.autograd.grad(obj, perturb_vecs, retain_graph=False, create_graph=False, only_inputs=True)
-    hvp = (ftgrad_both[0][0, :] - ftgrad_both[0][1, :]) / (2 * eps)
-    hvp_col.append(hvp)
-    print(hvp)
-    # img = G.visualize(feat - eps * vect)
-    # resz_img = F.interpolate(img, (224, 224), mode='bilinear', align_corners=True)
-    # obj = alexnet.features[:10](resz_img)[0, :, 6, 6].sum() #esz_img.std()
-    # ftgrad_neg = torch.autograd.grad(obj, vect, retain_graph=False, create_graph=False, only_inputs=True)
-    # hvp = (ftgrad_pos[0] - ftgrad_neg[0]) / eps / 2
-#%
-for i in range(len(hvp_col)):
-    print("correlation %.4f mse %.1E" % (torch_corr(hvp_col[i], hvp_col[1]).item(),
-                                         F.mse_loss(hvp_col[i], hvp_col[1]).item()))
-#%%
-savedir = r"E:\OneDrive - Washington University in St. Louis\HessTune\HessDecomp_Method"
-hvp_arr = torch.cat(tuple(hvp.unsqueeze(0) for hvp in hvp_col), dim=0)
-corrmat = np.corrcoef(hvp_arr.cpu().numpy())
-plt.matshow(corrmat, cmap=plt.cm.jet)
-plt.yticks(range(12), labels=[50, 25, 10, 5, 1, 5E-1, 1E-1, 1E-2, 1E-3, 1E-4, 1E-5, 1E-6, ])
-plt.xticks(range(12), labels=[50, 25, 10, 5, 1, 5E-1, 1E-1, 1E-2, 1E-3, 1E-4, 1E-5, 1E-6, ])
-plt.ylim(top = -0.5, bottom=11.5)
-plt.xlim(left = -0.5, right=11.5)
-plt.xlabel("Perturb Vector Length")
-plt.suptitle("Correlation of HVP result\nusing different EPS in forward differencing")
-plt.colorbar()
-plt.savefig(join(savedir, "HVP_corr_oneTrial.jpg") )
-plt.show()
-#%%
 class GANForwardHVPOperator(Operator):
     def __init__(
             self,
@@ -333,6 +199,138 @@ class GANForwardHVPOperator(Operator):
         Zeros out the gradient info for each parameter in the model
         """
         pass
+# for name, hk in feat_dict.items():
+#     hk.close()
+#%%
+#%%
+import torchvision as tv
+# VGG = tv.models.vgg16(pretrained=True)
+alexnet = tv.models.alexnet(pretrained=True).cuda()
+for param in alexnet.parameters():
+    param.requires_grad_(False)
+#%% This is not working.... The local 2nd order derivative is 0
+feat = torch.randn((4096), dtype=torch.float32).requires_grad_(False).cuda()
+GHVP = GANHVPOperator(G, feat, model_squ)
+GHVP.apply(torch.randn((4096)).requires_grad_(False).cuda())
+#%%
+weight = torch.randn(512,32,32).cuda()
+objective = FeatLinModel(VGG, layername='features_19', type="weight", weight=weight)
+activHVP = GANHVPOperator(G, 5*feat, objective, activation=True)
+#%
+activHVP.apply(5*torch.randn((4096)).requires_grad_(False).cuda())
+#%%
+
+#%%
+feat = torch.randn(4096).cuda()
+feat.requires_grad_(True)
+objective = FeatLinModel(VGG, layername='features_4', type="neuron", weight=None)
+act = objective(G.visualize(feat))
+#%%
+from hessian import hessian
+# activHVP = GANHVPOperator(G, 5*feat, objective, activation=True)
+H = hessian(act, feat)
+#%%
+
+#%%
+feat = torch.randn(4096).cuda()
+feat.requires_grad_(True)
+#%%
+weight = torch.randn(192, 31, 31).cuda()
+objective = FeatLinModel(alexnet, layername='features_4', type="weight", weight=weight)
+act = objective(G.visualize(feat))
+#%%
+gradient = torch.autograd.grad(act, feat, retain_graph=True, create_graph=True,)
+torch.autograd.grad(gradient[0], feat, retain_graph=True, only_inputs=True, grad_outputs=10*torch.ones(4096).cuda())
+#%%
+feat = torch.tensor(np.random.randn(4096)).float().cuda()
+feat.requires_grad_(True)
+img = G.visualize(feat)
+fc8 = alexnet.forward(img)
+act = - fc8[0, 1]
+H = hessian(act, feat, create_graph=False)
+#%%
+feat = torch.tensor(np.random.randn(4096)).float().cuda()
+feat.requires_grad_(True)
+img = G.visualize(feat)
+act = - img.mean()
+# fc8 = alexnet.forward(img)
+# act = - fc8[0, 1]
+# H = hessian(act, feat, create_graph=False)
+#%%
+gradient = torch.autograd.grad(act, feat, retain_graph=True, create_graph=True,)
+torch.autograd.grad(gradient[0], feat, retain_graph=True, only_inputs=True, grad_outputs=10*torch.ones(4096).cuda())
+#%%
+H = hessian(act, feat, create_graph=False)
+
+#%%
+x = torch.tensor([1.0,2])
+x.requires_grad_(True)
+A = torch.tensor([[2.0, 3], [3, 1]])
+y = x.view(1, -1)@A@x.view(-1, 1)
+x_grad = torch.autograd.grad(y, x, retain_graph=True, create_graph=True)
+torch.autograd.grad(x_grad, x, retain_graph=True, only_inputs=True)
+
+#%%
+feat = torch.tensor(np.random.randn(4096)).float().cuda()
+feat.requires_grad_(True)
+img = G.visualize(feat)
+resz_img = F.interpolate(img, (224, 224), mode='bilinear', align_corners=True)
+obj = alexnet.features[:10](resz_img)[0, :, 6, 6].mean().pow(2)  # esz_img.std()
+ftgrad = torch.autograd.grad(obj, feat, retain_graph=True, create_graph=True, only_inputs=True)
+torch.autograd.grad(1 * ftgrad[0], feat, retain_graph=True, only_inputs=True, grad_outputs=torch.randn(4096).cuda(), )
+# torch.autograd.grad(ftgrad, img, retain_graph=True, only_inputs=True, grad_outputs=torch.randn(4096).cuda(), )
+#%% Approximate Forward Differencing
+"""
+So here is the conclusion, as the Perceptual loss take a squared difference when comparing 
+feature tensros, the dependency of loss on image is more than power 1, and the derivative 
+of it is not independent of image. However if the 
+"""
+def torch_corr(vec1, vec2):
+    return torch.mean((vec1 - vec1.mean()) * (vec2 - vec2.mean())) / vec1.std(unbiased=False) / vec2.std(unbiased=False)
+
+feat = torch.tensor(np.random.randn(4096)).float().cuda()
+feat.requires_grad_(False)
+vect = torch.tensor(np.random.randn(4096)).float().cuda()
+vect = vect / vect.norm()
+vect.requires_grad_(False)
+#%% Through this I can show that the HVP is converging
+#   Forward differencing method. One Free parameter is the "eps" i.e. the norm of perturbation to apply on the central
+#   vector. Too small norm of this will make the
+hvp_col = []
+for eps in [50, 25, 10, 5, 1, 5E-1, 1E-1, 1E-2, 1E-3, 1E-4, 1E-5, 1E-6, ]:
+    perturb_vecs = 5*feat.detach() + eps * torch.tensor([1, -1.0]).view(-1, 1).cuda() * vect.detach()
+    perturb_vecs.requires_grad_(True)
+    img = G.visualize(perturb_vecs)
+    resz_img = F.interpolate(img, (224, 224), mode='bilinear', align_corners=True)
+    obj = alexnet.features[:10](resz_img)[:, :, 6, 6].mean()   # esz_img.std()
+    ftgrad_both = torch.autograd.grad(obj, perturb_vecs, retain_graph=False, create_graph=False, only_inputs=True)
+    hvp = (ftgrad_both[0][0, :] - ftgrad_both[0][1, :]) / (2 * eps)
+    hvp_col.append(hvp)
+    print(hvp)
+    # img = G.visualize(feat - eps * vect)
+    # resz_img = F.interpolate(img, (224, 224), mode='bilinear', align_corners=True)
+    # obj = alexnet.features[:10](resz_img)[0, :, 6, 6].sum() #esz_img.std()
+    # ftgrad_neg = torch.autograd.grad(obj, vect, retain_graph=False, create_graph=False, only_inputs=True)
+    # hvp = (ftgrad_pos[0] - ftgrad_neg[0]) / eps / 2
+#%
+for i in range(len(hvp_col)):
+    print("correlation %.4f mse %.1E" % (torch_corr(hvp_col[i], hvp_col[1]).item(),
+                                         F.mse_loss(hvp_col[i], hvp_col[1]).item()))
+#%%
+savedir = r"E:\OneDrive - Washington University in St. Louis\HessTune\HessDecomp_Method"
+hvp_arr = torch.cat(tuple(hvp.unsqueeze(0) for hvp in hvp_col), dim=0)
+corrmat = np.corrcoef(hvp_arr.cpu().numpy())
+plt.matshow(corrmat, cmap=plt.cm.jet)
+plt.yticks(range(12), labels=[50, 25, 10, 5, 1, 5E-1, 1E-1, 1E-2, 1E-3, 1E-4, 1E-5, 1E-6, ])
+plt.xticks(range(12), labels=[50, 25, 10, 5, 1, 5E-1, 1E-1, 1E-2, 1E-3, 1E-4, 1E-5, 1E-6, ])
+plt.ylim(top = -0.5, bottom=11.5)
+plt.xlim(left = -0.5, right=11.5)
+plt.xlabel("Perturb Vector Length")
+plt.suptitle("Correlation of HVP result\nusing different EPS in forward differencing")
+plt.colorbar()
+plt.savefig(join(savedir, "HVP_corr_oneTrial.jpg") )
+plt.show()
+
 #%%
 from torchvision.transforms import Normalize, Compose
 RGB_mean = torch.tensor([0.485, 0.456, 0.406]).view(1,-1,1,1).cuda()
@@ -351,7 +349,7 @@ import torch.optim as optim
 feat = 5*torch.randn(4096).cuda()
 feat.requires_grad_(True)
 optimizer = optim.Adam([feat], lr=5e-2)
-for step in range(100):
+for step in range(200):
     optimizer.zero_grad()
     obj = objective(preprocess(G.visualize(feat)))
     obj.backward()
@@ -364,13 +362,36 @@ activHVP = GANForwardHVPOperator(G, feat, objective, preprocess=preprocess)
 activHVP.apply(1*torch.randn((4096)).requires_grad_(False).cuda())
 #%%
 t0 = time()
-eigvals, eigvects = lanczos(activHVP, num_eigenthings=500, use_gpu=True)
+eigvals, eigvects = lanczos(activHVP, num_eigenthings=2000, use_gpu=True)
 print(time() - t0)  # 40 sec
 eigvals = eigvals[::-1]
 eigvects = eigvects[::-1, :]
 #%%
 eigvals_u = eigvals
 eigvects_u = eigvects
+#%%
+metricHVP = GANHVPOperator(G, feat, model_squ)
+vHv_arr = np.zeros_like(eigvals)
+vHv_arr.fill(np.nan)
+for i, vec in enumerate(eigvects):
+    vHv_arr[i] = metricHVP.vHv_form(torch.tensor(vec).cuda())
+#%%
+savedir = r"E:\OneDrive - Washington University in St. Louis\HessTune\HessDecomp_Method"
+plt.scatter((np.abs(eigvals)), (np.abs(vHv_arr)))
+# plt.scatter(np.log10(np.abs(eigvals)), np.log10(np.abs(vHv_arr)))
+plt.xlabel("Eigenvalue of Activation function")
+plt.ylabel("vHv of metric function")
+plt.savefig(join(savedir, "Activ-vHv-Ratio_lin_%02d.jpg"%(np.random.randint(100))))
+plt.show()
+#%%
+feat.requires_grad_(False)
+metricHVP = GANHVPOperator(G, feat, model_squ)
+t0 = time()
+eigvals, eigvects = lanczos_generalized(metricHVP, metric_operator=activHVP, num_eigenthings=1, tol=1E-1, max_steps=20, use_gpu=True)
+print(time() - t0)  # 40 sec
+eigvals = eigvals[::-1]
+eigvects = eigvects[::-1, :]
+
 #%%
 feat.requires_grad_(False)
 metricHVP = GANHVPOperator(G, feat, model_squ)
@@ -430,8 +451,6 @@ plt.ylim(top=-0.5, bottom=len(eig_id_arr) - 0.5)
 plt.colorbar()
 plt.savefig(join(summary_dir, "norm%d_score_mat_%02d.jpg" % (vec_norm, RND)) )
 plt.show()
-
-
 #%%
 scores_col = []
 for eig_id in [0,1,5,10,15,20,40,60,80,99,150,200,250,299,450,600,799]:
@@ -451,3 +470,112 @@ plt.matshow(scores_col)
 plt.axis('image')
 plt.colorbar()
 plt.show()
+#%%
+
+#%% Compute the full hessian
+from hessian_eigenthings.utils import progress_bar
+def get_full_hessian(loss, param):
+    # from https://discuss.pytorch.org/t/compute-the-hessian-matrix-of-a-network/15270/3
+    # modified from hessian_eigenthings repo
+    hessian_size = param.size(0)
+    hessian = torch.zeros(hessian_size, hessian_size)
+    loss_grad = torch.autograd.grad(loss, param, create_graph=True, retain_graph=True)[0]
+    for idx in range(hessian_size):
+        progress_bar(
+            idx, hessian_size, "full hessian columns: %d of %d" % (idx, hessian_size)
+        )
+        grad2rd = torch.autograd.grad(loss_grad[idx], param, create_graph=False, retain_graph=True, only_inputs=True)
+        hessian[idx] = grad2rd[0].view(-1)
+    return hessian.cpu().data.numpy()
+#%% Try to compute the full Hessian first and use its inverse to investigate
+#%% Fast method of computing Hessian for underlying metric
+perturb_vect = 1E-6 * torch.randn(4096).float().cuda()
+perturb_vect.requires_grad_(True)
+d_sim = model_squ(G.visualize(feat), G.visualize(feat+perturb_vect))
+t0 = time()
+H = get_full_hessian(d_sim, perturb_vect) # it's pretty symmetric
+print(time() - t0)  # 362 sec
+#%%
+Hinv = np.linalg.pinv(H, hermitian=True)  # Wall time: 32.3 s
+#%%
+t0 = time()
+eigvals_g, eigvects_g = lanczos_generalized(activHVP, metric_operator=H, metric_inv_operator=Hinv, num_eigenthings=100, use_gpu=True, max_steps=40)
+print(time() - t0)
+#%%
+%time met_eigval, met_eigvec = np.linalg.eigh(H)
+#%%
+cutoff = 1e-5
+msk = np.abs(met_eigval) < cutoff
+met_eigval_cutoff = met_eigval.copy()
+met_eigval_cutoff[msk] = 0
+met_eiginv_cutoff = met_eigval_cutoff.copy()
+met_eiginv_cutoff[~msk] = 1 / met_eigval_cutoff[~msk] #
+
+Hpinv = met_eigvec @ np.diag(met_eiginv_cutoff) @ met_eigvec.T
+# np.diag(H @ Hpinv)
+#%%
+np.sum(np.round(met_eiginv_cutoff * met_eigval_cutoff))
+#%%
+# (np.mean(np.abs(H - met_eigvec @ np.diag(met_eigval) @ met_eigvec.T)))
+plt.figure()
+plt.hist(np.log10(np.abs(met_eigval)), bins=20)
+plt.show()
+#%%
+t0 = time()
+eigvals_g, eigvects_g = lanczos_generalized(activHVP, metric_operator=H, metric_inv_operator=Hpinv, num_eigenthings=300, use_gpu=True, max_steps=60, tol=1E-5)
+print(time() - t0)
+#%%
+summary_dir = r"E:\OneDrive - Washington University in St. Louis\HessTune\HessDecomp_Method"
+def tuning_plot(G, preprocess, objective, eigvals, eigvects, eig_id_arr=(0, 1, 5, 10, 15, 20, 40, 60, 80,99,150,200,250,299,450),
+        save_indiv=False, save_row=False, ticks=21, summary_dir=summary_dir, veclabel="eig"):
+    RND = np.random.randint(100)
+    vec_norm = feat.norm().item()
+    ref_vect = (feat / vec_norm).cpu().numpy()
+    theta_arr_deg =  np.linspace(-90, 90, ticks) # np.arange(-5, 6)
+    theta_arr = theta_arr_deg / 180 * np.pi
+    img_list_all = []
+    scores_col = []
+    # eig_id_arr = [0, 1, 5, 10, 15, 20, 40, 60, 80,99,150,200,250,299,450]
+    for eig_id in eig_id_arr: #,600,799]:
+        # eig_id = 0
+        perturb_vect = eigvects[eig_id,:]  # PC_vectors[1,:]
+        codes_arc = np.array([np.cos(theta_arr),
+                              np.sin(theta_arr) ]).T @ np.array([ref_vect, perturb_vect])
+        norms = np.linalg.norm(codes_arc, axis=1)
+        codes_arc = codes_arc / norms[:, np.newaxis] * vec_norm
+        imgs = G.visualize(torch.from_numpy(codes_arc).float().cuda())
+        scores = - objective(preprocess(imgs), scaler=False)
+        scores_col.append(scores.cpu().numpy())
+        npimgs = imgs.detach().cpu().permute([2, 3, 1, 0]).numpy()
+
+        if save_indiv:
+            for i in range(npimgs.shape[3]):
+                angle = theta_arr_deg[i]
+                imwrite(join(newimg_dir, "norm%d_%s%d_ang%d.jpg" % (vec_norm, veclabel, eig_id, angle)), npimgs[:, :, :, i])
+
+        img_list = [npimgs[:, :, :, i] for i in range(npimgs.shape[3])]
+        img_list_all.extend(img_list)
+        if save_row:
+            mtg1 = build_montages(img_list, [256, 256], [len(theta_arr), 1])[0]
+            imwrite(join(summary_dir, "norm%d_%s_%d.jpg" % (vec_norm, veclabel, eig_id)), mtg1)
+    mtg_all = build_montages(img_list_all, [256, 256], [len(theta_arr), int(len(img_list_all) // len(theta_arr))])[0]
+    imwrite(join(summary_dir, "norm%d_%s_all_opt_%d.jpg" % (vec_norm, veclabel, RND)), mtg_all)
+    print("Write to ", join(summary_dir, "norm%d_%s_all_opt_%d.jpg" % (vec_norm, veclabel, RND)))
+
+    scores_col = np.array(scores_col)
+    plt.matshow(scores_col)
+    plt.axis('image')
+    plt.title("Neural Tuning Towards Different Eigen Vectors of Activation")
+    plt.xlabel("Angle")
+    plt.ylabel("Eigen Vector #")
+    eiglabel = ["%d %.3f"%(id,eig) for id, eig in zip(eig_id_arr, eigvals[eig_id_arr])]
+    plt.yticks(range(len(eig_id_arr)), eiglabel) # eig_id_arr
+    plt.ylim(top=-0.5, bottom=len(eig_id_arr) - 0.5)
+    plt.colorbar()
+    plt.savefig(join(summary_dir, "norm%d_%s_score_mat_%02d.jpg" % (vec_norm, veclabel, RND)) )
+    plt.show()
+    print("Write to ", join(summary_dir, "norm%d_%s_score_mat_%02d.jpg" % (vec_norm, veclabel, RND)) )
+
+#%%
+
+tuning_plot(G, preprocess, objective, eigvals_g, eigvects_g, eig_id_arr=[5,6,7,8,9,10,11,12])

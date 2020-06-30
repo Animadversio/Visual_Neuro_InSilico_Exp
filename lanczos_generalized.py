@@ -5,10 +5,11 @@ from scipy.sparse.linalg import LinearOperator as ScipyLinearOperator
 from scipy.sparse.linalg import eigsh
 from warnings import warn
 
-
+#%%
 def lanczos_generalized(
     operator,
     metric_operator=None,
+    metric_inv_operator=None,
     num_eigenthings=10,
     which="LM",
     max_steps=20,
@@ -66,15 +67,30 @@ def lanczos_generalized(
         if use_gpu:
             x = x.cuda()
         return operator.apply(x.float()).cpu().numpy()
-
-    def _scipy_apply_metric(x):
-        x = torch.from_numpy(x)
-        if use_gpu:
-            x = x.cuda()
-        return metric_operator.apply(x.float()).cpu().numpy()
-
     scipy_op = ScipyLinearOperator(shape, _scipy_apply)
-    metric_op = ScipyLinearOperator(shape, _scipy_apply_metric)
+
+    if isinstance(metric_operator, np.ndarray) or \
+       isinstance(metric_operator, ScipyLinearOperator):
+        metric_op = metric_operator
+    else:
+        def _scipy_apply_metric(x):
+            x = torch.from_numpy(x)
+            if use_gpu:
+                x = x.cuda()
+            return metric_operator.apply(x.float()).cpu().numpy()
+        metric_op = ScipyLinearOperator(shape, _scipy_apply_metric)
+
+    if isinstance(metric_inv_operator, np.ndarray) or \
+       isinstance(metric_inv_operator, ScipyLinearOperator):
+        metric_inv_op = metric_inv_operator
+    else:
+        def _scipy_apply_metric_inv(x):
+            x = torch.from_numpy(x)
+            if use_gpu:
+                x = x.cuda()
+            return metric_inv_operator.apply(x.float()).cpu().numpy()
+        metric_inv_op = ScipyLinearOperator(shape, _scipy_apply_metric_inv)
+
     if init_vec is None:
         init_vec = np.random.rand(size)
     elif isinstance(init_vec, torch.Tensor):
@@ -83,6 +99,7 @@ def lanczos_generalized(
         A=scipy_op,
         k=num_eigenthings,
         M=metric_op,
+        Minv=metric_inv_op,
         which=which,
         maxiter=max_steps,
         tol=tol,
