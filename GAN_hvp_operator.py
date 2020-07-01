@@ -181,7 +181,7 @@ def compute_hessian_eigenthings(
     Computes the top `num_eigenthings` eigenvalues and eigenvecs
     for the hessian of the given model by using subsampled power iteration
     with deflation and the hessian-vector product
-    (This change the Operator from original HVPOperator to GANHVPOperator.)
+    (This function just change the Operator from the original HVPOperator to GANHVPOperator.)
 
     Parameters
     ---------------

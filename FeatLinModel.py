@@ -86,10 +86,16 @@ def FeatLinModel(VGG, layername='features_20', type="weight", weight=None, chan=
         def neuron_objective(img, scaler=True):
             VGGfeat.forward(img.cuda())
             feat = hooks(layername)
-            if scaler:
-                return -(feat[:, chan, pos[0], pos[1]]).mean()
-            else:
-                batch = img.shape[0]
-                return -(feat[:, chan, pos[0], pos[1]]).view(batch, -1).mean(axis=1)
-
+            if len(feat.shape) == 4:
+                if scaler:
+                    return -(feat[:, chan, pos[0], pos[1]]).mean()
+                else:
+                    batch = img.shape[0]
+                    return -(feat[:, chan, pos[0], pos[1]]).view(batch, -1).mean(axis=1)
+            elif len(feat.shape) == 2:
+                if scaler:
+                    return -(feat[:, chan]).mean()
+                else:
+                    batch = img.shape[0]
+                    return -(feat[:, chan]).view(batch, -1).mean(axis=1)
         return neuron_objective
