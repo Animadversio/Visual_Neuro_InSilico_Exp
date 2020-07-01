@@ -296,7 +296,7 @@ if __name__ == "__main__":
     perturb_vect.requires_grad_(True)
     d_sim = model_squ(G.visualize(feat), G.visualize(feat+perturb_vect))
     t0 = time()
-    H = get_full_hessian(d_sim, perturb_vect) # it's pretty symmetric
+    H = get_full_hessian(d_sim, perturb_vect)  # it's pretty symmetric
     print(time() - t0)  # 362 sec
     #%%
     Hinv = np.linalg.pinv(H, hermitian=True)  # Wall time: 32.3 s
