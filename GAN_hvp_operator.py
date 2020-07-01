@@ -5,6 +5,7 @@ from sklearn.cross_decomposition import CCA
 from time import time
 import sys
 #%% This operator could be used as a local distance metric on the GAN image manifold.
+#   This version copied from hessian_eigenthings use backward autodifferencing
 class GANHVPOperator(Operator):
     def __init__(
             self,
@@ -87,6 +88,86 @@ class GANHVPOperator(Operator):
                 p.grad.data.zero_()
 
 
+class GANForwardHVPOperator(Operator):
+    """This part amalgamates the structure of Lucent and hessian_eigenthings"""
+    def __init__(
+            self,
+            model,
+            code,
+            objective,
+            preprocess=lambda img: F.interpolate(img, (224, 224), mode='bilinear', align_corners=True),
+            use_gpu=True,
+            EPS=1E-2,
+    ):
+        if use_gpu:
+            device = "cuda"
+        else:
+            device = "cpu"
+        self.device = device
+        if hasattr(model, "parameters"):
+            for param in model.parameters():
+                param.requires_grad_(False)
+        if hasattr(objective, "parameters"):
+            for param in objective.parameters():
+                param.requires_grad_(False)
+        self.model = model
+        self.objective = objective
+        self.preprocess = preprocess
+        self.code = code.clone().requires_grad_(False).float().to(device)  # torch.float32
+        self.img_ref = self.model.visualize(self.code)
+        resz_img = self.preprocess(self.img_ref)  # F.interpolate(self.img_ref, (224, 224), mode='bilinear', align_corners=True)
+        activ = self.objective(resz_img)
+        self.size = self.code.numel()
+        self.EPS = EPS
+        self.perturb_norm = self.code.norm() * self.EPS
+
+    def select_code(self, code):
+        self.code = code.clone().requires_grad_(False).float().to(self.device)  # torch.float32
+        self.perturb_norm = self.code.norm() * self.EPS
+        self.img_ref = self.model.visualize(self.code + self.perturb_vec)
+        resz_img = self.preprocess(self.img_ref)
+        activ = self.objective(resz_img)
+        gradient = torch.autograd.grad(activ, self.perturb_vec, create_graph=False, retain_graph=False)[0]
+        self.gradient = gradient.view(-1)
+
+    def apply(self, vec, EPS=None):
+        """
+        Returns H*vec where H is the hessian of the loss w.r.t.
+        the vectorized model parameters
+        """
+        vecnorm = vec.norm()
+        if vecnorm < 1E-8:
+            return torch.zeros_like(vec).cuda()
+        EPS = self.EPS if EPS is None else EPS
+        self.perturb_norm = self.code.norm() * EPS
+        eps = self.perturb_norm / vecnorm
+        # take the second gradient by comparing 2 first order gradient.
+        perturb_vecs = self.code.detach() + eps * torch.tensor([1, -1.0]).view(-1, 1).to(self.device) * vec.detach()
+        perturb_vecs.requires_grad_(True)
+        img = self.model.visualize(perturb_vecs)
+        resz_img = self.preprocess(img)
+        activs = self.objective(resz_img)  # , scaler=True
+        # obj = alexnet.features[:10](resz_img)[:, :, 6, 6].sum()  # esz_img.std()
+        ftgrad_both = torch.autograd.grad(activs, perturb_vecs, retain_graph=False, create_graph=False, only_inputs=True)[0]
+        hessian_vec_prod = (ftgrad_both[0, :] - ftgrad_both[1, :]) / (2 * eps)
+        return hessian_vec_prod
+
+    def vHv_form(self, vec):
+        """
+        Returns Bilinear form vec.T*H*vec where H is the hessian of the loss.
+        If vec is eigen vector of H this will return the eigen value.
+        """
+        hessian_vec_prod = self.apply(vec)
+        vhv = (hessian_vec_prod * vec).sum()
+        return vhv
+
+    def zero_grad(self):
+        """
+        Zeros out the gradient info for each parameter in the model
+        """
+        pass
+
+
 def compute_hessian_eigenthings(
     model,
     code,
@@ -100,6 +181,7 @@ def compute_hessian_eigenthings(
     Computes the top `num_eigenthings` eigenvalues and eigenvecs
     for the hessian of the given model by using subsampled power iteration
     with deflation and the hessian-vector product
+    (This change the Operator from original HVPOperator to GANHVPOperator.)
 
     Parameters
     ---------------

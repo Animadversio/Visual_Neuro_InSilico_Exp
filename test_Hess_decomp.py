@@ -3,7 +3,22 @@ import numpy as np
 import matplotlib.pylab as plt
 from os.path import join
 import torch.nn.functional as F
+#%%
+from GAN_utils import upconvGAN
+G = upconvGAN("fc6")
+G.requires_grad_(False).cuda()  # this notation is incorrect in older pytorch
+import torchvision as tv
+# VGG = tv.models.vgg16(pretrained=True)
+alexnet = tv.models.alexnet(pretrained=True).cuda()
+for param in alexnet.parameters():
+    param.requires_grad_(False)
 #%% Test the new forward mode HVP computation
+#   Forward differencing method. One Free parameter is the "eps" i.e. the norm of perturbation
+#   to apply on the central vector. Too small norm of this will make it numerical unstable. too
+#   large norm will make it in precise. So here we used multiple eps in computation and see how
+#   well they corresponds to each other.
+#   formula:
+#      H@v = (g(x+eps*v) - g(x-eps*v)) / (2*eps)
 savedir = r"E:\OneDrive - Washington University in St. Louis\HessTune\HessDecomp_Method"
 corrmat_col = []
 for i in range(500):
@@ -44,4 +59,7 @@ plt.suptitle("Correlation of HVP result (500 Trials)\nusing different EPS in for
 plt.colorbar()
 plt.savefig(join(savedir, "HVP_corr_TrialAvg500.jpg"))
 plt.show()
-#%% So the result shows using a norm proportion 1E-2 of perturbation vs basis vector will have relatively coherent result
+#%%
+"""
+So the result shows using a norm proportion 1E-2 of perturbation vs basis vector will have relatively coherent result
+"""
