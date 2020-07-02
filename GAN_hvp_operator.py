@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 from hessian_eigenthings.power_iter import Operator, deflated_power_iteration
 from hessian_eigenthings.lanczos import lanczos
 from sklearn.cross_decomposition import CCA
