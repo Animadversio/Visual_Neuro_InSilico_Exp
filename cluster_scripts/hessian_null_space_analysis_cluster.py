@@ -39,7 +39,8 @@ data = loadmat(code_path)
 pasu_codes = data['pasu_code']
 #%%
 t0 = time()
-for imgi, code in enumerate(pasu_codes[:, :]):
+for imgi in range(pasu_codes.shape[0] - 1, 0, -1):
+    code = pasu_codes[imgi, :]
     feat = torch.from_numpy(code[np.newaxis, :])
     feat.requires_grad_(False)
     metricHVP = GANHVPOperator(G, feat, model_squ)
