@@ -329,3 +329,4 @@ if __name__ == "__main__":
     print(time() - t0)
     #%%
     tuning_plot(G, preprocess, objective, eigvals_g, eigvects_g, eig_id_arr=[5,6,7,8,9,10,11,12])
+    #%%
