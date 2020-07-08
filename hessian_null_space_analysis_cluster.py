@@ -17,7 +17,7 @@ from FeatLinModel import FeatLinModel, get_model_layers
 import sys
 sys.path.append(r"E:\Github_Projects\PerceptualSimilarity")
 sys.path.append(r"D:\Github\PerceptualSimilarity")
-sys.path.append(r"~/PerceptualSimilarity")
+sys.path.append(r"/home/binxu/PerceptualSimilarity")
 import models
 model_squ = models.PerceptualLoss(model='net-lin', net='squeeze', use_gpu=1, gpu_ids=[0])
 model_squ.requires_grad_(False).cuda()
@@ -33,7 +33,7 @@ G.requires_grad_(False).cuda()  # this notation is incorrect in older pytorch
 #     param.requires_grad_(False)
 #%%
 from scipy.io import loadmat
-code_path = r"~/pasu_fit_code.mat"
+code_path = r"/home/binxu/pasu_fit_code.mat"
 out_dir = r"/scratch/binxu/GAN_hessian"
 data = loadmat(code_path)
 pasu_codes = data['pasu_code']
