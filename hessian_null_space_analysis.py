@@ -46,3 +46,25 @@ for imgi, code in enumerate(pasu_codes[:, :]):
     print("Finish computing img %d %.2f sec passed, max %.2e min %.2e 10th %.1e 50th %.e 100th %.1e" % (imgi,
         time() - t0, max(np.abs(eigvals)), min(np.abs(eigvals)), eigvals[-10], eigvals[-50], eigvals[-100]))
     np.savez(join(out_dir, "pasu_%03d.npz" % imgi), eigvals=eigvals, eigvects=eigvects, code=code)
+#%%
+imgi, imgj = 0, 1
+with np.load(join(out_dir, "pasu_%03d.npz" % imgi)) as data:
+    basisi = data["eigvects"]
+
+with np.load(join(out_dir, "pasu_%03d.npz" % imgj)) as data:
+    basisj = data["eigvects"]
+#%%
+from sklearn.cross_decomposition import CCA
+def cca_correlation(X, Y, n_comp=50):
+    """
+    :param X, Y: should be N-by-p, N-by-q matrices,
+    :param n_comp: a integer, how many components we want to create and compare.
+    :return: cca_corr, n_comp-by-n_comp matrix
+       X_c, Y_c will be the linear mapped version of X, Y with shape  N-by-n_comp, N-by-n_comp shape
+       cc_mat is the
+    """
+    cca = CCA(n_components=n_comp)
+    X_c, Y_c = cca.fit_transform(X, Y)
+    ccmat = np.corrcoef(X_c, Y_c, rowvar=False)
+    cca_corr = np.diag(ccmat[n_comp:, :n_comp])  # slice out the cross corr part
+    return cca_corr
