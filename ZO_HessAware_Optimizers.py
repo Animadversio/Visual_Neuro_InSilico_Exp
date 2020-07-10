@@ -1,20 +1,27 @@
+"""
+This library collects a bunch of Optimizers inspired by the paper
+
+The older optimizers are stored in Optimizer.py. Those classes are equipped with a `step_simple` function taking in
+scores and codes to generate the next batch of codes.
+"""
+
 from matplotlib import use as use_backend
 use_backend("Agg")
 import matplotlib.pylab as plt
 plt.ioff()
-from insilico_Exp import *
+#
 import time
 import sys
 import utils
 import numpy as np
 from numpy.linalg import norm
+from numpy.random import randn
+from numpy import sqrt, zeros, abs, floor, log, log2, eye, exp
 import os
 orig_stdout = sys.stdout
 # model_unit = ('caffe-net', 'fc6', 1)
 # CNN = CNNmodel(model_unit[0])  # 'caffe-net'
 # CNN.select_unit(model_unit)
-from numpy import sqrt, zeros, abs, floor, log, log2, eye, exp
-from numpy.random import randn
 #%% Classic Optimizers as Reference 
 class CholeskyCMAES:
     """ Note this is a variant of CMAES Cholesky suitable for high dimensional optimization"""
@@ -274,9 +281,8 @@ class HessAware_Gauss:
             new_samples = np.concatenate((new_samples, H_pos_samples, H_neg_samples), axis=0)
         self._istep += 1
         return new_samples
-#%%
 
-#%%
+#%% Geometric Utility Function
 def rankweight(lambda_, mu=None):
     """ Rank weight inspired by CMA-ES code
     mu is the cut off number, how many samples will be kept while `lambda_ - mu` will be ignore
@@ -290,10 +296,55 @@ def rankweight(lambda_, mu=None):
     weights = weights / sum(weights)
     return weights
 
+def ExpMap(x, tang_vec, EPS = 1E-4):
+    angle_dist = sqrt((tang_vec ** 2).sum(axis=1))  # vectorized
+    angle_dist = angle_dist[:, np.newaxis]
+    # print("Angular distance for Exponentiation ", angle_dist[:,0])
+    uni_tang_vec = tang_vec / angle_dist
+    # x = repmat(x, size(tang_vec, 1), 1); # vectorized
+    xnorm = np.linalg.norm(x)
+    assert(xnorm > EPS, "Exponential Map from a basis point at origin is degenerate, examine the code. (May caused by 0 initialization)")
+    y = (np.cos(angle_dist) @ (x[:] / xnorm) + np.sin(angle_dist) * uni_tang_vec) * xnorm
+    return y
+
+def VecTransport(xold, xnew, v):
+    xold = xold / np.linalg.norm(xold)
+    xnew = xnew / np.linalg.norm(xnew)
+    x_symm_axis = xold + xnew
+    v_transport = v - 2 * v @ x_symm_axis.T / np.linalg.norm(
+        x_symm_axis) ** 2 * x_symm_axis  # Equation for vector parallel transport along geodesic
+    # Don't use dot in numpy, it will have wierd behavior if the array is not single dimensional
+    return v_transport
+
+def radial_proj(codes, max_norm):
+    if max_norm is np.inf:
+        return codes
+    else:
+        max_norm = np.array(max_norm)
+        assert np.all(max_norm >= 0)
+        code_norm = np.linalg.norm(codes, axis=1)
+        proj_norm = np.minimum(code_norm, max_norm)
+        return codes / code_norm[:, np.newaxis] * proj_norm[:, np.newaxis]
+
+def orthogonalize(basis, codes):
+    if len(basis.shape) is 1:
+        basis = basis[np.newaxis, :]
+    assert basis.shape[1] == codes.shape[1]
+    unit_basis = basis / norm(basis)
+    codes_ortho = codes - (codes @ unit_basis.T) @ unit_basis
+    return codes_ortho
+
+def renormalize(codes, norms):
+    norms = np.array(norms)
+    assert codes.shape[0] == norms.size or norms.size == 1
+    codes_renorm = norms.reshape([-1, 1]) * codes / norm(codes, axis=1).reshape([-1, 1])  # norms should be a 1d array
+    return codes_renorm
+# Major Classes.
 class HessAware_Gauss_Spherical:
     """Gaussian Sampling method for estimating Hessian"""
-    def __init__(self, space_dimen, population_size=40, lr=0.1, mu=1, Lambda=0.9, Hupdate_freq=5, 
-            sphere_norm=300, maximize=True, rankweight=False):
+
+    def __init__(self, space_dimen, population_size=40, lr=0.1, mu=1, Lambda=0.9, Hupdate_freq=5,
+                 sphere_norm=300, maximize=True, rankweight=False):
         self.dimen = space_dimen  # dimension of input space
         self.B = population_size  # population batch size
         self.mu = mu  # scale of the Gaussian distribution to estimate gradient
@@ -305,7 +356,8 @@ class HessAware_Gauss_Spherical:
 
         self.grad = np.zeros((1, self.dimen))  # estimated gradient
         self.innerU = np.zeros((self.B, self.dimen))  # inner random vectors with covariance matrix Id
-        self.outerV = np.zeros((self.B, self.dimen))  # outer random vectors with covariance matrix H^{-1}, equals self.innerU @ H^{-1/2}
+        self.outerV = np.zeros(
+            (self.B, self.dimen))  # outer random vectors with covariance matrix H^{-1}, equals self.innerU @ H^{-1/2}
         self.xcur = np.zeros((1, self.dimen))  # current base point
         self.xnew = np.zeros((1, self.dimen))  # new base point
         self.fcur = 0  # f(xcur)
@@ -315,35 +367,36 @@ class HessAware_Gauss_Spherical:
         self.HinnerU = np.zeros((self.HB, self.dimen))  # sample deviation vectors for Hessian construction
         # SVD of the weighted HinnerU for Hessian construction
         self.HessUC = np.zeros((self.HB, self.dimen))  # Basis vector for the linear subspace defined by the samples
-        self.HessD  = np.zeros(self.HB)  # diagonal values of the Lambda matrix
-        self.HessV  = np.zeros((self.HB, self.HB))  # seems not used....
+        self.HessD = np.zeros(self.HB)  # diagonal values of the Lambda matrix
+        self.HessV = np.zeros((self.HB, self.HB))  # seems not used....
         self.HUDiag = np.zeros(self.HB)
         self.hess_comp = False
         self._istep = 0  # step counter
         self.maximize = maximize  # maximize / minimize the function
-        self.rankweight = rankweight # Switch between using raw score as weight VS use rank weight as score
-        print("Spereical Space dimension: %d, Population size: %d, Optimization Parameters:\n Exploration: %.3f\n Learning rate: %.3f"
-              % (self.dimen, self.B, self.mu, self.lr))
+        self.rankweight = rankweight  # Switch between using raw score as weight VS use rank weight as score
+        print(
+            "Spereical Space dimension: %d, Population size: %d, Optimization Parameters:\n Exploration: %.3f\n Learning rate: %.3f"
+            % (self.dimen, self.B, self.mu, self.lr))
         if self.rankweight:
             if select_cutoff is None:
                 self.select_cutoff = int(population_size / 2)
-            else: 
+            else:
                 self.select_cutoff = select_cutoff
-            print("Using rank weight, selection size: %d\n"% self.select_cutoff)
-    
+            print("Using rank weight, selection size: %d\n" % self.select_cutoff)
+
     def step_hessian(self, scores):
         '''Currently not implemented in Spherical Version.'''
         fbasis = scores[0]
-        fpos = scores[-2*self.HB:-self.HB]
+        fpos = scores[-2 * self.HB:-self.HB]
         fneg = scores[-self.HB:]
-        weights = abs((fpos + fneg - 2 * fbasis) / 2 / self.mu ** 2 / self.HB)  # use abs to enforce positive definiteness
+        weights = abs(
+            (fpos + fneg - 2 * fbasis) / 2 / self.mu ** 2 / self.HB)  # use abs to enforce positive definiteness
         C = sqrt(weights[:, np.newaxis]) * self.HinnerU  # or the sqrt may not work.
         # H = C^TC + Lambda * I
         self.HessV, self.HessD, self.HessUC = np.linalg.svd(C, full_matrices=False)
         self.HUDiag = 1 / sqrt(self.HessD ** 2 + self.Lambda) - 1 / sqrt(self.Lambda)
         print("Hessian Samples Spectrum", self.HessD)
-        print("Hessian Samples Full Power:%f \nLambda:%f" % ((self.HessD ** 2).sum(), self.Lambda) )
-
+        print("Hessian Samples Full Power:%f \nLambda:%f" % ((self.HessD ** 2).sum(), self.Lambda))
 
     def step_simple(self, scores, codes):
         ''' Assume the 1st row of codes is the  xnew  new starting point '''
@@ -352,8 +405,8 @@ class HessAware_Gauss_Spherical:
         if self.hess_comp:  # if this flag is True then more samples have been added to the trial
             self.step_hessian(scores)
             # you should only get images for gradient estimation, get rid of the Hessian samples, or make use of it to estimate gradient
-            codes = codes[:self.B+1, :]
-            scores = scores[:self.B+1]
+            codes = codes[:self.B + 1, :]
+            scores = scores[:self.B + 1]
             self.hess_comp = False
 
         if self._istep == 0:
@@ -365,17 +418,18 @@ class HessAware_Gauss_Spherical:
         else:
             # self.xcur = self.xnew # should be same as following line
             self.xcur = codes[0:1, :]
-            if self.rankweight is False: # use the score difference as weight
-                # B normalizer should go here larger cohort of codes gives more estimates 
-                self.weights = (scores[1:] - scores[0]) / self.B # / self.mu 
-            else:  # use a function of rank as weight, not really gradient. 
-                if self.maximize is False: # note for weighted recombination, the maximization flag is here. 
-                    code_rank = np.argsort(np.argsort( scores[1:]))  # add - operator it will do maximization.
+            if self.rankweight is False:  # use the score difference as weight
+                # B normalizer should go here larger cohort of codes gives more estimates
+                self.weights = (scores[1:] - scores[0]) / self.B  # / self.mu
+            else:  # use a function of rank as weight, not really gradient.
+                if self.maximize is False:  # note for weighted recombination, the maximization flag is here.
+                    code_rank = np.argsort(np.argsort(scores[1:]))  # add - operator it will do maximization.
                 else:
                     code_rank = np.argsort(np.argsort(-scores[1:]))
-                # Consider do we need to consider the basis code and score here? Or no? 
-                # Note the weights here are internally normalized s.t. sum up to 1, no need to normalize more. 
-                self.weights = rankweight(len(scores)-1, mu=self.select_cutoff)[code_rank] # map the rank to the corresponding weight of recombination
+                # Consider do we need to consider the basis code and score here? Or no?
+                # Note the weights here are internally normalized s.t. sum up to 1, no need to normalize more.
+                self.weights = rankweight(len(scores) - 1, mu=self.select_cutoff)[
+                    code_rank]  # map the rank to the corresponding weight of recombination
 
             # estimate gradient from the codes and scores
             # HAgrad = self.weights[1:] @ (codes[1:] - self.xcur) / self.B  # it doesn't matter if it includes the 0 row!
@@ -383,12 +437,12 @@ class HessAware_Gauss_Spherical:
             print("Estimated Gradient Norm %f" % np.linalg.norm(HAgrad))
             if self.rankweight is False:
                 if self.maximize is True:
-                    self.xnew = ExpMap(self.xcur,   self.lr * HAgrad) # add - operator it will do maximization.
+                    self.xnew = ExpMap(self.xcur, self.lr * HAgrad)  # add - operator it will do maximization.
                 else:
                     self.xnew = ExpMap(self.xcur, - self.lr * HAgrad)
             else:
-                self.xnew = ExpMap(self.xcur,   self.lr * HAgrad) 
-            # vtan_new = VecTransport(self.xcur, self.xnew, vtan_old)
+                self.xnew = ExpMap(self.xcur, self.lr * HAgrad)
+                # vtan_new = VecTransport(self.xcur, self.xnew, vtan_old)
             # uni_vtan_old = vtan_old / np.linalg.norm(vtan_old);
             # uni_vtan_new = vtan_new / np.linalg.norm(vtan_new);  # uniform the tangent vector
 
@@ -396,9 +450,10 @@ class HessAware_Gauss_Spherical:
         self.tang_codes = zeros((self.B, N))  # Tangent vectors of exploration
         new_samples = zeros((self.B + 1, N))
         self.innerU = randn(self.B, N)  # Isotropic gaussian distributions
-        self.outerV = self.innerU / sqrt(self.Lambda) + ((self.innerU @ self.HessUC.T) * self.HUDiag) @ self.HessUC # H^{-1/2}U
+        self.outerV = self.innerU / sqrt(self.Lambda) + (
+                    (self.innerU @ self.HessUC.T) * self.HUDiag) @ self.HessUC  # H^{-1/2}U
         new_samples[0:1, :] = self.xnew
-        self.tang_codes[: , :] = self.mu * self.outerV  # m + sig * Normal(0,C)
+        self.tang_codes[:, :] = self.mu * self.outerV  # m + sig * Normal(0,C)
         new_samples[1:, ] = ExpMap(self.xnew, self.tang_codes)
         if (self._istep + 1) % self.Hupdate_freq == 0:
             # add more samples to next batch for hessian computation
@@ -413,7 +468,9 @@ class HessAware_Gauss_Spherical:
 
 class HessAware_Gauss_Cylind:
     """ Cylindrical Evolution, Both angular and radial. """
-    def __init__(self, space_dimen, population_size=40, population_kept=None, lr_norm=0.5, mu_norm=5, lr_sph=2, mu_sph=0.005,
+
+    def __init__(self, space_dimen, population_size=40, population_kept=None, lr_norm=0.5, mu_norm=5, lr_sph=2,
+                 mu_sph=0.005,
                  Lambda=1, Hupdate_freq=201, max_norm=300, maximize=True, rankweight=False):
         self.dimen = space_dimen  # dimension of input space
         self.B = population_size  # population batch size
@@ -452,7 +509,7 @@ class HessAware_Gauss_Cylind:
               "Norm Exploration Range %.3f Learning rate: %.3f\n Angular Exploration Range:%.3f Learning Rate: %.3f"
               % (self.dimen, self.B, self.mu_norm, self.lr_norm, self.mu_sph, self.lr_sph))
         if rankweight:
-            self.BKeep = population_kept if population_kept is not None else int(self.B//2)
+            self.BKeep = population_kept if population_kept is not None else int(self.B // 2)
             print("Using rank based weights. Keep population size: %d" % (self.BKeep))
 
     def step_hessian(self, scores):
@@ -506,30 +563,32 @@ class HessAware_Gauss_Cylind:
             # estimate gradient from the codes and scores
             # HAgrad = self.weights[1:] @ (codes[1:] - self.xcur) / self.B  # it doesn't matter if it includes the 0 row!
             tang_codes_aug = np.concatenate((np.zeros((1, self.tang_codes.shape[1])), self.tang_codes), axis=0)
-            HAgrad = self.weights[np.newaxis, :] @ tang_codes_aug # self.tang_codes # Changed to take the current location into account. 
+            HAgrad = self.weights[np.newaxis,
+                     :] @ tang_codes_aug  # self.tang_codes # Changed to take the current location into account.
             normgrad = self.weights[np.newaxis, 1:] @ (self.code_norms - norm(self.xcur))  # Recombine norms to get,
             print("Estimated Angular Gradient Norm %f" % norm(HAgrad))
             print("Estimated Radial Gradient Norm %f" % normgrad)
-            mov_sign = -1 if (not self.maximize) and (not self.rankweight) else 1 
-            normnew = np.minimum(self.max_norm, norm(self.xcur) + mov_sign * self.lr_norm * normgrad) # use the new norm to normalize ynew
+            mov_sign = -1 if (not self.maximize) and (not self.rankweight) else 1
+            normnew = np.minimum(self.max_norm, norm(
+                self.xcur) + mov_sign * self.lr_norm * normgrad)  # use the new norm to normalize ynew
             self.xnew = ExpMap(self.xcur, mov_sign * self.lr_sph * HAgrad)  # add - operator it will do maximization.
             self.xnew = renormalize(self.xnew, normnew)
-            
+
         # Generate new sample by sampling from Gaussian distribution
         self.innerU = randn(self.B, N)  # Isotropic gaussian distributions
         self.outerV = self.innerU / sqrt(self.Lambda) + (
-                    (self.innerU @ self.HessUC.T) * self.HUDiag) @ self.HessUC  # H^{-1/2}U
+                (self.innerU @ self.HessUC.T) * self.HUDiag) @ self.HessUC  # H^{-1/2}U
         self.tang_codes = self.mu_sph * self.outerV  # m + sig * Normal(0,C)
-        self.tang_codes = orthogonalize(self.xnew, self.tang_codes) # Tangent vectors of exploration
+        self.tang_codes = orthogonalize(self.xnew, self.tang_codes)  # Tangent vectors of exploration
         new_norms = norm(self.xnew) + self.mu_norm * randn(self.B)
         new_norms = np.minimum(self.max_norm, new_norms)
-        
+
         new_samples = zeros((self.B + 1, N))
         new_samples[0:1, :] = self.xnew
         new_samples[1:, ] = ExpMap(self.xnew, self.tang_codes)
         new_samples[1:, ] = renormalize(new_samples[1:, ], new_norms)
         print("norm of new samples", norm(new_samples, axis=1))
-        self.code_norms = new_norms # doesn't include the norm of the basis vector. 
+        self.code_norms = new_norms  # doesn't include the norm of the basis vector.
         if (self._istep + 1) % self.Hupdate_freq == 0:
             # add more samples to next batch for hessian computation
             self.hess_comp = True
@@ -539,27 +598,7 @@ class HessAware_Gauss_Cylind:
             new_samples = np.concatenate((new_samples, H_pos_samples, H_neg_samples), axis=0)
         self._istep += 1
         return new_samples
-
-def ExpMap(x, tang_vec, EPS = 1E-4):
-    angle_dist = sqrt((tang_vec ** 2).sum(axis=1))  # vectorized
-    angle_dist = angle_dist[:, np.newaxis]
-    print("Angular distance for Exponentiation ", angle_dist[:,0])
-    uni_tang_vec = tang_vec / angle_dist
-    # x = repmat(x, size(tang_vec, 1), 1); # vectorized
-    xnorm = np.linalg.norm(x)
-    assert(xnorm > EPS, "Exponential Map from a basis point at origin is degenerate, examine the code. (May caused by 0 initialization)")
-    y = (np.cos(angle_dist) @ (x[:] / xnorm) + np.sin(angle_dist) * uni_tang_vec) * xnorm
-    return y
-
-def VecTransport(xold, xnew, v):
-    xold = xold / np.linalg.norm(xold)
-    xnew = xnew / np.linalg.norm(xnew)
-    x_symm_axis = xold + xnew
-    v_transport = v - 2 * v @ x_symm_axis.T / np.linalg.norm(
-        x_symm_axis) ** 2 * x_symm_axis  # Equation for vector parallel transport along geodesic
-    # Don't use dot in numpy, it will have wierd behavior if the array is not single dimensional
-    return v_transport
-#%%
+#%
 class HessEstim_Gauss:
     """Code to generate samples and estimate Hessian from it"""
     def __init__(self, space_dimen):
@@ -591,17 +630,7 @@ class HessEstim_Gauss:
         print("Hessian Samples Spectrum", self.HessD)
         print("Hessian Samples Full Power:%f" % ((self.HessD ** 2).sum()))
         return self.HessV, self.HessD, self.HessUC
-#%%
-def radial_proj(codes, max_norm):
-    if max_norm is np.inf:
-        return codes
-    else:
-        max_norm = np.array(max_norm)
-        assert np.all(max_norm >= 0)
-        code_norm = np.linalg.norm(codes, axis=1)
-        proj_norm = np.minimum(code_norm, max_norm)
-        return codes / code_norm[:, np.newaxis] * proj_norm[:, np.newaxis]
-
+#%
 class HessAware_Gauss_DC:
     """Gaussian Sampling method for estimating Hessian"""
     def __init__(self, space_dimen, population_size=40, lr=0.1, mu=1, Lambda=0.9, Hupdate_freq=5, 
@@ -717,8 +746,7 @@ class HessAware_Gauss_DC:
             self.N_in_samp += samp_num
         return new_samples
         # set short name for everything to simplify equations
-
-#%%
+#%
 class HessAware_ADAM_DC:
     """Gaussian Sampling method for estimating Hessian"""
     def __init__(self, space_dimen, population_size=40, lr=0.1, mu=1, nu=0.9, maximize=True, max_norm=300):
@@ -919,7 +947,7 @@ class HessAware_Gauss_Spherical_DC:
             self.N_in_samp += samp_num
         return new_samples
         # set short name for everything to simplify equations
-#%%
+#%
 class HessAware_Gauss_Hybrid_DC:
     """Gaussian Sampling method Hessian Aware Algorithm
     With a automatic switch between linear exploration and spherical exploration
@@ -1216,21 +1244,18 @@ class HessAware_Gauss_Cylind_DC:
         return new_samples
         # set short name for everything to simplify equations
 
-def orthogonalize(basis, codes):
-    if len(basis.shape) is 1:
-        basis = basis[np.newaxis, :]
-    assert basis.shape[1] == codes.shape[1]
-    unit_basis = basis / norm(basis)
-    codes_ortho = codes - (codes @ unit_basis.T) @ unit_basis
-    return codes_ortho
+# Battle Tested ZOHA optimizer translated from matlab
+# class ZOHA_Sphere_lr_euclid:
+#     def __init__(self):
+#
+#     def lr_schedule(self, n_gen, mode):
+#
+#
+#     def step_simple(self, scores, codes):
 
-def renormalize(codes, norms):
-    norms = np.array(norms)
-    assert codes.shape[0] == norms.size or norms.size == 1
-    codes_renorm = norms.reshape([-1, 1]) * codes / norm(codes, axis=1).reshape([-1, 1])  # norms should be a 1d array
-    return codes_renorm
 
 if __name__ is "__main__":
+    from insilico_Exp import *
 #%%
     # savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"
     # unit = ('caffe-net', 'fc8', 1)

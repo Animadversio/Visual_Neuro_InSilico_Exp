@@ -176,6 +176,11 @@ class upconvGAN(nn.Module):
         raw = self.G(x)[:, [2, 1, 0], :, :]
         return torch.clamp(raw + RGB_mean.to(raw.device), 0, 255.0) / 255.0 * scale
 
+    def render(self, x, scale=1.0):
+        with torch.no_grad():
+            imgs = self.visualize(torch.from_numpy(x).float().cuda(), scale).permute(2,3,1,0).cpu().numpy()
+        return [imgs[:, :, :, imgi] for imgi in range(imgs.shape[3])]
+
 # # layer name translation
 # # "defc7.weight", "defc7.bias", "defc6.weight", "defc6.bias", "defc5.weight", "defc5.bias".
 # # "defc7.1.weight", "defc7.1.bias", "defc6.1.weight", "defc6.1.bias", "defc5.1.weight", "defc5.1.bias".

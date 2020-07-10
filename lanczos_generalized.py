@@ -1,11 +1,11 @@
-""" Use scipy/ARPACK implicitly restarted lanczos to find top k eigenthings """
+""" Use scipy/ARPACK implicitly restarted lanczos to find top k eigenthings
+This code solve generalized eigenvalue problem for operators or matrices"""
 import numpy as np
 import torch
 from scipy.sparse.linalg import LinearOperator as ScipyLinearOperator
 from scipy.sparse.linalg import eigsh
 from warnings import warn
 
-#%%
 def lanczos_generalized(
     operator,
     metric_operator=None,

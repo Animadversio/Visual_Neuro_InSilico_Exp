@@ -1,7 +1,9 @@
 """Supporting classes and experimental code for in-silico experiment"""
 # Manifold_experiment
 import torch_net_utils #net_utils
+import net_utils
 import utils
+from ZO_HessAware_Optimizers import HessAware_Gauss_DC
 from utils import load_GAN
 from Generator import Generator
 from time import time, sleep
@@ -174,7 +176,7 @@ from torchvision import transforms
 from torchvision import models
 import torch.nn.functional as F
 from torch_net_utils import layername_dict
-
+from GAN_utils import upconvGAN
 # mini-batches of 3-channel RGB images of shape (3 x H x W), where H and W are expected to be at least 224. The images have to be loaded in to a range of [0, 1] and then normalized using mean = [0.485, 0.456, 0.406] and std = [0.229, 0.224, 0.225].
 
 activation = {} # global variable is important for hook to work! it's an important channel for communication
@@ -204,6 +206,11 @@ class TorchScorer:
     def __init__(self, model_name):
         if model_name == "vgg16":
             self.model = models.vgg16(pretrained=True)
+            self.layers = list(self.model.features) + list(self.model.classifier)
+            self.layername = layername_dict[model_name]
+            self.model.cuda().eval()
+        elif model_name == "alexnet":
+            self.model = models.alexnet(pretrained=True)
             self.layers = list(self.model.features) + list(self.model.classifier)
             self.layername = layername_dict[model_name]
             self.model.cuda().eval()
@@ -258,7 +265,8 @@ class TorchScorer:
             self.set_unit(layer, layer, unit=None)
             self.recordings[layer] = []
 
-    def score(self, images, with_grad=False, B=10):
+    def score(self, images, with_grad=False, B=41):
+        """Score in batch will accelerate processing greatly! """ # assume image is using 255 range
         scores = np.zeros(len(images))
         csr = 0 # if really want efficiency, we should use minibatch processing.
         img_batch = []
@@ -285,17 +293,18 @@ class TorchScorer:
             return scores, self.recordings
         else:
             return scores
-
+#%%
 # Compiled Experimental module!
 # Currently available
 # - Evolution
 # - resize and evolution
 # - evolution in a restricted linear subspace
 # - tuning among major axis of the GAN model and rotated O(N) axis for GAN model
-#%%
+
 class ExperimentEvolve:
-    """
+    """ Basic Evolution Experiments
     Default behavior is to use the current CMAES optimizer to optimize for 200 steps for the given unit.
+    support Caffe or Torch Backend
     """
     def __init__(self, model_unit, max_step=200, backend="caffe", optimizer=None, GAN="fc6"):
         self.recording = []
@@ -313,8 +322,10 @@ class ExperimentEvolve:
             raise NotImplementedError
         self.CNNmodel.select_unit(model_unit)
         if GAN == "fc6" or GAN == "fc7" or GAN == "fc8":
-            self.G = Generator(name=GAN)
+            self.G = upconvGAN(name=GAN).cuda()
             self.render = self.G.render
+            # self.G = Generator(name=GAN)
+            # self.render = self.G.render
             if GAN == "fc8":
                 code_length = 1000
         elif GAN == "BigGAN":
@@ -340,7 +351,8 @@ class ExperimentEvolve:
         for self.istep in range(self.max_steps):
             if self.istep == 0:
                 if init_code is None:
-                    codes = np.zeros([1, code_length])
+                    codes = np.random.randn(20, code_length)
+                    # codes = np.zeros([1, code_length])
                     if type(self.optimizer) is Genetic:
                         # self.optimizer.load_init_population(initcodedir, )
                         codes, self.optimizer._genealogy = utils.load_codes2(initcodedir, self.optimizer._popsize)
@@ -348,7 +360,7 @@ class ExperimentEvolve:
                     codes = init_code
             print('\n>>> step %d' % self.istep)
             t0 = time()
-            self.current_images = self.render(codes)
+            self.current_images = self.render(codes, scale=255.0)
             t1 = time()  # generate image from code
             synscores = self.CNNmodel.score(self.current_images)
             t2 = time()  # score images
@@ -433,7 +445,7 @@ class ExperimentEvolve:
 class ExperimentEvolve_DC:
     """
     Default behavior is to use the current CMAES optimizer to optimize for 200 steps for the given unit.
-    This Experimental Class is defined to test out the new Descent checking
+    This Experimental Class is defined to test out the new Optimizers equipped with Descent Checking
     """
     def __init__(self, model_unit, max_step=200, optimizer=None, backend="caffe", GAN="fc6"):
         self.recording = []
