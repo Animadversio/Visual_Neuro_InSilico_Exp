@@ -119,9 +119,16 @@ plt.xlabel("CC #")
 plt.legend()
 plt.savefig(join(out_dir, "Pasu12_Shared_EigenSpace.jpg"))
 plt.show()
-#%%
+#%% Very useful function
 from PIL import Image
 def visualize_np(G, code, layout=None, show=True):
+    """Utility function to visualize a np code vectors.
+
+    If it's a single vector it will show in a plt window, Or it will show a montage in a windows photo.
+    G: a generator equipped with a visualize method to turn torch code into torch images.
+    layout: controls the layout of the montage. (5,6) create 5 by 6 grid
+    show: if False, it will return the images in 4d array only.
+    """
     with torch.no_grad():
         imgs = G.visualize(torch.from_numpy(code).float().cuda()).cpu().permute([2, 3, 1, 0]).squeeze().numpy()
     if show:
@@ -162,7 +169,7 @@ avg_Hess = avg_Hess / imgn
 eigv_avg, eigvect_avg = np.linalg.eigh(avg_Hess)
 #%%
 np.savez(join(out_dir, "Pasu_Space_Avg_Hess.npz"), H_avg=avg_Hess, eigv_avg=eigv_avg, eigvect_avg=eigvect_avg)
-#%%
+#%% Utility functions for interpolation
 def SLERP(code1, code2, steps, lim=(0,1)):
     """Spherical Linear Interpolation"""
     code1, code2 = code1.squeeze(), code2.squeeze()
@@ -221,7 +228,7 @@ evo_codes_rd = evo_mean + (evo_codes - evo_mean) @ eigvect_avg[:,-200:] @ eigvec
 visualize_np(G, evo_codes_rd, (7, 6))
 #%%
 visualize_np(G, evo_codes, (7, 6))
-#%%
+#%% Compute the null space for
 from os import listdir
 from os.path import isdir
 from glob import glob
@@ -249,3 +256,15 @@ for expi, expname in enumerate(expnames):
           norm(code)))
         np.savez(join(out_dir, "evol_%03d.npz" % expi), eigvals=eigvals, eigvects=eigvects, code=code,
                  source=evo_code_path)
+#%%
+avg_Hess_evo = np.zeros((4096, 4096))
+for expi in range(len(expnames)):
+    with np.load(join(out_dir, "evol_%03d.npz" % expi)) as data:
+        eigvects = data["eigvects"]
+        eigvals = data["eigvals"]
+        avg_Hess_evo += (eigvects.T * eigvals[np.newaxis, :] @ eigvects)
+avg_Hess_evo /= len(expnames)
+%time eigv_avg_evo, eigvect_avg_evo = np.linalg.eigh(avg_Hess_evo)
+#%%
+np.savez(join(out_dir, "Evolution_Avg_Hess.npz"), H_avg=avg_Hess_evo, eigv_avg=eigv_avg_evo,
+         eigvect_avg=eigvect_avg_evo)
