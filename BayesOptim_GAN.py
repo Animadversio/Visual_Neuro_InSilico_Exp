@@ -1,3 +1,5 @@
+"""Try To use Bayes Optim for the Black box optimization in GAN space."""
+
 import GPyOpt
 import GPy
 from GPyOpt.methods import BayesianOptimization

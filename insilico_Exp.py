@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import os
 from os.path import join
 from sys import platform
-#%% Decide the result storage place based on the computer the code is running
+#% Decide the result storage place based on the computer the code is running
 if platform == "linux": # cluster
     recorddir = "/scratch/binxu/CNN_data/"
 else:
@@ -224,20 +224,26 @@ class TorchScorer:
         #                                       transforms.ToTensor(),
         self.normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                                 std=[0.229, 0.224, 0.225]) # Imagenet normalization RGB
+        self.RGBmean = torch.tensor([0.485, 0.456, 0.406]).view([1, 3, 1, 1]).cuda()
+        self.RGBstd = torch.tensor([0.229, 0.224, 0.225]).view([1, 3, 1, 1]).cuda()
         self.artiphys = False
 
     def preprocess(self, img, input_scale=255):
-        """"""
-        # TODO, could be modified to support batch processing
-        # img_tsr = torch.from_numpy(img).float()  # assume img is aready at 255 uint8 scale.
-        # if input_scale != 1.0:
-        #     img_tsr = img_tsr / input_scale
-        # img_tsr = img_tsr.permute([2, 0, 1])
-        img_tsr = transforms.ToTensor()(img / input_scale).float()
-        img_tsr = self.normalize(img_tsr).unsqueeze(0)
-        resz_out_img = F.interpolate(img_tsr, (227, 227), mode='bilinear',
-                                     align_corners=True)
-        return resz_out_img
+        """preprocess single image array or a list (minibatch) of images"""
+        # could be modified to support batch processing. Added batch @ July. 10, 2020
+        # test and optimize the performance by permute the operators. Use CUDA acceleration from preprocessing
+        if type(img) is list:
+            img_tsr = torch.stack(tuple(torch.from_numpy(im) for im in img)).cuda().float().permute(0, 3, 1, 2) / input_scale
+            img_tsr = (img_tsr - self.RGBmean) / self.RGBstd
+            resz_out_tsr = F.interpolate(img_tsr, (227, 227), mode='bilinear',
+                                         align_corners=True)
+            return resz_out_tsr
+        else:  # assume it's individual image
+            img_tsr = transforms.ToTensor()(img / input_scale).float()
+            img_tsr = self.normalize(img_tsr).unsqueeze(0)
+            resz_out_img = F.interpolate(img_tsr, (227, 227), mode='bilinear',
+                                         align_corners=True)
+            return resz_out_img
 
     def set_unit(self, name, layer, unit=None):
         idx = self.layername.index(layer)
@@ -265,28 +271,25 @@ class TorchScorer:
             self.set_unit(layer, layer, unit=None)
             self.recordings[layer] = []
 
-    def score(self, images, with_grad=False, B=41):
+    def score(self, images, with_grad=False, B=42):
         """Score in batch will accelerate processing greatly! """ # assume image is using 255 range
         scores = np.zeros(len(images))
-        csr = 0 # if really want efficiency, we should use minibatch processing.
-        img_batch = []
-        for i, img in enumerate(images):
-            # Note: now only support single repetition
-            resz_out_img = self.preprocess(img, input_scale=255.0)
-            img_batch.append(resz_out_img)
-            if (i + 1) % B == 0 or (i + 1==len(images)):
-                with torch.no_grad():
-                    #self.model(resz_out_img.cuda())
-                    self.model(torch.cat(img_batch).cuda())
-                scores[csr:i+1] = activation["score"].squeeze().cpu().numpy().squeeze()
-                csr = i+1
-                img_batch = []
-                if self.artiphys:  # record the whole layer's activation
-                    for layer in self.record_layers:
-                        score_full = activation[layer]
-                        # self._pattern_array.append(score_full)
-                        self.recordings[layer].append(score_full.cpu().numpy())
-
+        csr = 0  # if really want efficiency, we should use minibatch processing.
+        imgn = len(images)
+        while csr < imgn:
+            csr_end = min(csr + B, imgn)
+            img_batch = self.preprocess(images[csr:csr_end], input_scale=255.0)
+            # img_batch.append(resz_out_img)
+            with torch.no_grad():
+                # self.model(torch.cat(img_batch).cuda())
+                self.model(img_batch)
+            scores[csr:csr_end] = activation["score"].squeeze().cpu().numpy().squeeze()
+            csr = csr_end
+            if self.artiphys:  # record the whole layer's activation
+                for layer in self.record_layers:
+                    score_full = activation[layer]
+                    # self._pattern_array.append(score_full)
+                    self.recordings[layer].append(score_full.cpu().numpy())
             # , input_scale=255 # shape=(3, 227, 227) # assuming input scale is 0,1 output will be 0,255
 
         if self.artiphys:
@@ -316,14 +319,14 @@ class ExperimentEvolve:
         elif backend == "torch":
             if model_unit[0] is 'caffe-net':
                 self.CNNmodel = CNNmodel_Torch(model_unit[0])
-            else: # VGG, DENSE and anything else
+            else: # alexnet, VGG, DENSE and anything else
                 self.CNNmodel = TorchScorer(model_unit[0])
         else:
             raise NotImplementedError
         self.CNNmodel.select_unit(model_unit)
         if GAN == "fc6" or GAN == "fc7" or GAN == "fc8":
             self.G = upconvGAN(name=GAN).cuda()
-            self.render = self.G.render
+            self.render = self.G.render  # function that map a 2d array of code (samp_n by code len) to a list of images
             # self.G = Generator(name=GAN)
             # self.render = self.G.render
             if GAN == "fc8":
@@ -348,6 +351,7 @@ class ExperimentEvolve:
         self.scores_all = []
         self.codes_all = []
         self.generations = []
+        t00 = time()
         for self.istep in range(self.max_steps):
             if self.istep == 0:
                 if init_code is None:
@@ -378,7 +382,8 @@ class ExperimentEvolve:
         self.codes_all = np.concatenate(tuple(self.codes_all), axis=0)
         self.scores_all = np.array(self.scores_all)
         self.generations = np.array(self.generations)
-        print("Summary\nGenerations: %d, Image samples: %d, Best score: %.2f" % (self.istep, self.codes_all.shape[0], self.scores_all.max()))
+        t11 = time()
+        print("Summary\nGenerations: %d, Image samples: %d, Best score: %.2f (spent %.2f sec)" % (self.istep, self.codes_all.shape[0], self.scores_all.max(), t11 - t00))
         
     def visualize_exp(self, show=False, title_str=""):
         """ Visualize the experiment by showing the maximal activating images and the scores in each generations
@@ -440,7 +445,7 @@ class ExperimentEvolve:
             plt.show()
         return figh
 
-#%%
+#%
 # from ZO_HessAware_Optimizers import HessAware_Gauss_DC
 class ExperimentEvolve_DC:
     """
