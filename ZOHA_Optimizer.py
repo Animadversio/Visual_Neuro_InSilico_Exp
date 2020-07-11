@@ -1,3 +1,7 @@
+"""
+This code is translated from matlab code in `CMAES_optimizer_matlab`.
+Code and parameters are battle tested from monkey experiments and insilico experiments! 
+"""
 import numpy as np
 from numpy.linalg import norm, svd
 from scipy.linalg import orth

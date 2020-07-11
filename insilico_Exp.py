@@ -1074,7 +1074,7 @@ class ExperimentGANAxis:
         # figsum.suptitle("%s-%s-unit%03d  %s" % (self.pref_unit[0], self.pref_unit[1], self.pref_unit[2], self.explabel))
         figsum.savefig(os.path.join(self.savedir, "Axis_summary_%s_norm%d.png" % (self.explabel, Norm)))
         return self.scores_all, self.scores_all_rnd, figsum
-#%%
+#%
 class ExperimentRestrictEvolve:
     """Evolution in a restricted linear subspace with subspace_d """
     def __init__(self, subspace_d, model_unit, max_step=200, GAN="fc6"):
@@ -1104,7 +1104,7 @@ class ExperimentRestrictEvolve:
         else:
             raise NotImplementedError
 
-    def get_basis(self):
+    def get_basis(self): # TODO substitute this with np.linalg.qr
         self.basis = np.zeros([self.sub_d, self.code_length])
         for i in range(self.sub_d):
             tmp_code = np.random.randn(1, self.code_length)
@@ -1191,10 +1191,12 @@ class ExperimentRestrictEvolve:
         if show:
             plt.show()
         return figh
-# experiment = ExperimentEvolve()
-# experiment.run()
+
 #%%
 if __name__ == "__main__":
+    # experiment = ExperimentEvolve()
+    # experiment.run()
+    #%%
     # subspace_d = 50
     # for triali in range(100):
     #     experiment = ExperimentRestrictEvolve(subspace_d, ('caffe-net', 'fc8', 1))
@@ -1204,7 +1206,6 @@ if __name__ == "__main__":
     #     fig.savefig(os.path.join(recorddir, "Subspc%dScoreTrajTrial%03d" % (subspace_d, triali) + ".png"))
     #     fig2 = experiment.visualize_exp(show=False)
     #     fig2.savefig(os.path.join(recorddir, "Subspc%dEvolveTrial%03d"%(subspace_d, triali) + ".png"))
-    #
     # #%%
     # #%% Restricted evolution for the 5 examplar layerse
     # subspace_d = 50
