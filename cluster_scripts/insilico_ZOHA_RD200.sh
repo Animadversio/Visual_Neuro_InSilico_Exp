@@ -11,7 +11,7 @@
 # Prepare the virtual env for python
 # export PATH=/act/Anaconda3-2.3.0/bin:${PATH}
 # source activate conda_env
-
+export TORCH_HOME="/scratch/binxu/torch"
 cd ~/Visual_Neuro_InSilico_Exp/
 
 param_list='unit = ("alexnet", "conv1");
