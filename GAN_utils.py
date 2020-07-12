@@ -173,8 +173,8 @@ class upconvGAN(nn.Module):
         return self.G(x)[:, [2, 1, 0], :, :]
 
     def visualize(self, x, scale=1.0):
-        raw = self.G(x)[:, [2, 1, 0], :, :]
-        return torch.clamp(raw + RGB_mean.to(raw.device), 0, 255.0) / 255.0 * scale
+        raw = self.G(x)
+        return torch.clamp(raw[:, [2, 1, 0], :, :] + RGB_mean.to(raw.device), 0, 255.0) / 255.0 * scale
 
     def render(self, x, scale=1.0):
         with torch.no_grad():
