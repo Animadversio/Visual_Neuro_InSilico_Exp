@@ -176,10 +176,17 @@ class upconvGAN(nn.Module):
         raw = self.G(x)
         return torch.clamp(raw[:, [2, 1, 0], :, :] + RGB_mean.to(raw.device), 0, 255.0) / 255.0 * scale
 
-    def render(self, x, scale=1.0):
-        with torch.no_grad():
-            imgs = self.visualize(torch.from_numpy(x).float().cuda(), scale).permute(2,3,1,0).cpu().numpy()
-        return [imgs[:, :, :, imgi] for imgi in range(imgs.shape[3])]
+    def render(self, x, scale=1.0, B=42):  # add batch processing to avoid memory over flow for batch too large
+        coden = x.shape[0]
+        img_all = []
+        csr = 0  # if really want efficiency, we should use minibatch processing.
+        while csr < coden:
+            csr_end = min(csr + B, coden)
+            with torch.no_grad():
+                imgs = self.visualize(torch.from_numpy(x[csr:csr_end, :]).float().cuda(), scale).permute(2,3,1,0).cpu().numpy()
+            img_all.extend([imgs[:, :, :, imgi] for imgi in range(imgs.shape[3])])
+            csr = csr_end
+        return img_all
 
 # # layer name translation
 # # "defc7.weight", "defc7.bias", "defc6.weight", "defc6.bias", "defc5.weight", "defc5.bias".
