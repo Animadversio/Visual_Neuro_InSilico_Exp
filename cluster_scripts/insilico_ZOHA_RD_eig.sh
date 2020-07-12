@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #PBS -N ZOHA_RD_eig
-#PBS -l nodes=1:ppn=1:gpus=1,walltime=18:00:00,mem=10gb
+#PBS -l nodes=1:ppn=1:gpus=1,walltime=22:00:00,mem=10gb
 
 # Specify the default queue for the fastest nodes
 #PBS -m be
