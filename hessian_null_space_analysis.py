@@ -228,7 +228,7 @@ evo_codes_rd = evo_mean + (evo_codes - evo_mean) @ eigvect_avg[:,-200:] @ eigvec
 visualize_np(G, evo_codes_rd, (7, 6))
 #%%
 visualize_np(G, evo_codes, (7, 6))
-#%% Compute the null space for
+#%% Compute the null space for the evolved images
 from os import listdir
 from os.path import isdir
 from glob import glob
@@ -256,7 +256,7 @@ for expi, expname in enumerate(expnames):
           norm(code)))
         np.savez(join(out_dir, "evol_%03d.npz" % expi), eigvals=eigvals, eigvects=eigvects, code=code,
                  source=evo_code_path)
-#%%
+#%% Average the Hessian across the calculations
 avg_Hess_evo = np.zeros((4096, 4096))
 for expi in range(len(expnames)):
     with np.load(join(out_dir, "evol_%03d.npz" % expi)) as data:
@@ -265,6 +265,6 @@ for expi in range(len(expnames)):
         avg_Hess_evo += (eigvects.T * eigvals[np.newaxis, :] @ eigvects)
 avg_Hess_evo /= len(expnames)
 %time eigv_avg_evo, eigvect_avg_evo = np.linalg.eigh(avg_Hess_evo)
-#%%
+#%% Save the averaged hessian.
 np.savez(join(out_dir, "Evolution_Avg_Hess.npz"), H_avg=avg_Hess_evo, eigv_avg=eigv_avg_evo,
          eigvect_avg=eigvect_avg_evo)
