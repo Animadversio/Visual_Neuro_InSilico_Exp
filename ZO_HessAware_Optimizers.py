@@ -5,10 +5,10 @@ The older optimizers are stored in Optimizer.py. Those classes are equipped with
 scores and codes to generate the next batch of codes.
 """
 
-from matplotlib import use as use_backend
-use_backend("Agg")
+# from matplotlib import use as use_backend
+# use_backend("Agg")
 import matplotlib.pylab as plt
-plt.ioff()
+# plt.ioff()
 #
 import time
 import sys

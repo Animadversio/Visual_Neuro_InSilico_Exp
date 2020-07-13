@@ -77,7 +77,7 @@ for triali in range(5):
                 for ofs in [1, 100, 200, 500, 1000, 2000, 3000]:
                     optimizer = ZOHA_Sphere_lr_euclid_ReducDim(4096, subspace_d, population_size=40, select_size=20)
                     optimizer.lr_schedule(n_gen=n_gen, mode="inv")
-                    optimizer.get_basis(eigvect_avg[-ofs-subspace_d: -ofs])
+                    optimizer.get_basis(eigvect_avg[-ofs-subspace_d:-ofs]) # same bug again, column vector is the real eigenvector not row.
                     experiment = ExperimentEvolve(unit, max_step=n_gen, backend="torch", optimizer=optimizer, GAN="fc6")
                     experiment.run()
                     fig0 = experiment.visualize_best(show=False)
@@ -131,6 +131,45 @@ for triali in range(5):
 #
 # best_scores_col = np.array(best_scores_col)
 # np.save(join(savedir, "best_scores.npy"), best_scores_col)
+#%%
+import numpy as np
+import matplotlib.pylab as plt
+import os
+from os.path import join
+recorddir = "E:\Monkey_Data\Generator_DB_Windows\data\with_CNN"
+def max_score_fun(scores_all, generations):
+    lastgen_max = np.percentile(scores_all, 99.5)
+    return lastgen_max
+    # lastgen_max = [scores_all[generations == geni].max() for geni in
+    #                range(generations.max() - 10, generations.max() + 1)]
+best_scores_col = np.zeros((6, 5, 33, 5))
+for triali in range(5):
+    for ui, unit in enumerate([("alexnet", 'fc8'), ("alexnet", 'fc6'), ("alexnet", 'conv5'), ("alexnet", 'conv4'), ("alexnet", 'conv2'), ("alexnet", 'conv1')]):
+        netname, layer = unit
+        for chi in range(5):
+            savedir = os.path.join(recorddir, "%s_%s_%d" % (netname, layer, chi))
+            for si, subspace_d in enumerate([50, 100, 200, 400]):
+                for oi, ofs in enumerate([1, 100, 200, 500, 1000, 2000, 3000]):
+                    with np.load(join(savedir, "eig%dsubspc%dscores_tr%01d.npz" % (ofs, subspace_d, triali)),) as data:
+                        scores_all = data["scores_all"]
+                        generations = data["generations"]
+                        best_scores_col[ui, chi, si * 8 + oi, triali] = max_score_fun(scores_all, generations)
+
+                with np.load(join(savedir, "randsubspc%dscores_tr%01d.npz" % (subspace_d, triali)),) as data:
+                    scores_all = data["scores_all"]
+                    generations = data["generations"]
+                    best_scores_col[ui, chi, si * 8 + 7, triali] = max_score_fun(scores_all, generations)
+
+            with np.load(join(savedir, "scores_tr%01d.npz" % (triali)),) as data:
+                scores_all = data["scores_all"]
+                generations = data["generations"]
+                best_scores_col[ui, chi, -1, triali] = max_score_fun(scores_all, generations)
+#%%
+mean_score = best_scores_col.mean((1,3))
+plt.matshow(mean_score / mean_score[:,-1:])
+plt.ylim([-0.5,5.5])
+plt.yticks(range(6),["fc8","fc6","conv5","conv4","conv2","conv1"])
+plt.show()
 #%%
 netname, layer = unit
 n_gen = 100
