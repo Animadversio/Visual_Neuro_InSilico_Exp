@@ -50,6 +50,8 @@ np.save(join(savedir, "best_scores.npy"), best_scores_col)
 # netname, layer = unit
 # subspace_d = 200  # 50 100 200 400 full
 # ofs = 100  # 1 100 200 500 1000 2000 3000
+import matplotlib
+matplotlib.use("Agg")
 n_gen = 100
 import os
 from os.path import join
@@ -66,7 +68,8 @@ with np.load(hess_mat_path) as data:
 pos_dict = {"conv5": (7, 7), "conv4": (7, 7), "conv3": (7, 7), "conv2": (14, 14), "conv1": (28, 28)}
 best_scores_col = []
 for triali in range(5):
-    for cfg in [("alexnet", 'fc8'), ("alexnet", 'conv4'), ("alexnet", 'conv2')]:
+    for cfg in [("alexnet", 'fc8'), ("alexnet", 'conv4'), ("alexnet", 'conv2'), \
+                ("alexnet", 'fc6'), ("alexnet", 'conv5'), ("alexnet", 'conv1')]:
         netname, layer = cfg
         for chi in range(1):
             savedir = os.path.join(recorddir, "%s_%s_%d" % (netname, layer, chi))
@@ -132,6 +135,7 @@ for triali in range(5):
 # best_scores_col = np.array(best_scores_col)
 # np.save(join(savedir, "best_scores.npy"), best_scores_col)
 #%%
+
 import numpy as np
 import matplotlib.pylab as plt
 import os
@@ -164,9 +168,6 @@ for triali in range(5):
                 scores_all = data["scores_all"]
                 generations = data["generations"]
                 best_scores_col[ui, chi, -1, triali] = max_score_fun(scores_all, generations)
-#%%
-[50, 100, 200, 400]
-[1, 100, 200, 500, 1000, 2000, 3000]
 #%%
 mean_score = best_scores_col.mean((1,3))
 plt.matshow(mean_score / mean_score[:,-1:])

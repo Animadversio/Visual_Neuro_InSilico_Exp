@@ -363,7 +363,7 @@ class ExperimentEvolve:
                         codes, self.optimizer._genealogy = utils.load_codes2(initcodedir, self.optimizer._popsize)
                 else:
                     codes = init_code
-            print('\n>>> step %d' % self.istep)
+            print('>>> step %d' % self.istep)
             t0 = time()
             self.current_images = self.render(codes, scale=255.0)
             t1 = time()  # generate image from code
@@ -378,6 +378,9 @@ class ExperimentEvolve:
             # summarize scores & delays
             if self.verbose:
                 print('synthetic img scores: mean {}, all {}'.format(np.nanmean(synscores), -np.sort(-synscores)))
+            else:
+                print("img scores: mean %.2f max %.2f min %.2f"%(np.nanmean(synscores), np.nanmax(synscores),
+                                                                 np.nanmin(synscores)))
             print(('step %d time: total %.2fs | ' +
                    'code visualize %.2fs  score %.2fs  optimizer step %.2fs')
                   % (self.istep, t3 - t0, t1 - t0, t2 - t1, t3 - t2))
