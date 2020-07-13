@@ -66,12 +66,28 @@ with np.load(hess_mat_path) as data:
 pos_dict = {"conv5": (7, 7), "conv4": (7, 7), "conv3": (7, 7), "conv2": (14, 14), "conv1": (28, 28)}
 best_scores_col = []
 for triali in range(5):
-    for unit in [("alexnet", 'fc8'), ("alexnet", 'conv4'), ("alexnet", 'conv2')]:
+    for unit in [("alexnet", 'fc6'), ("alexnet", 'conv5'), ("alexnet", 'conv1')]:
         netname, layer = unit
         for chi in range(1):
             savedir = os.path.join(recorddir, "%s_%s_%d" % (netname, layer, chi))
             os.makedirs(savedir, exist_ok=True)
             unit = (netname, layer, chi) if "fc" in layer else (netname, layer, chi, *pos_dict[layer])
+
+            optimizer = ZOHA_Sphere_lr_euclid(4096, population_size=40, select_size=20)
+            optimizer.lr_schedule(n_gen=n_gen, mode="inv")
+            experiment = ExperimentEvolve(unit, max_step=n_gen, backend="torch", optimizer=optimizer, GAN="fc6")
+            experiment.run()
+            fig0 = experiment.visualize_best(show=False)
+            fig0.savefig(join(savedir, "BestImgtr%01d.png" % (triali)))
+            fig = experiment.visualize_trajectory(show=False)
+            fig.savefig(join(savedir, "ScoreTrajtr%01d.png" % (triali)))
+            fig2 = experiment.visualize_exp(show=False)
+            fig2.savefig(join(savedir, "Evolvetr%01d.png" % (triali)))
+            plt.close("all")
+            np.savez(join(savedir, "scores_tr%01d.npz" % (triali)),
+                     generations=experiment.generations,
+                     scores_all=experiment.scores_all,
+                     codes_fin=experiment.codes_all[experiment.generations == experiment.max_steps - 1, :])
 
             for subspace_d in [50, 100, 200, 400]:
                 for ofs in [1, 100, 200, 500, 1000, 2000, 3000]:
@@ -108,23 +124,6 @@ for triali in range(5):
                          generations=experiment.generations,
                          scores_all=experiment.scores_all,
                          codes_fin=experiment.codes_all[experiment.generations == experiment.max_steps - 1, :])
-
-            optimizer = ZOHA_Sphere_lr_euclid(4096, population_size=40, select_size=20)
-            optimizer.lr_schedule(n_gen=n_gen, mode="inv")
-            experiment = ExperimentEvolve(unit, max_step=n_gen, backend="torch", optimizer=optimizer, GAN="fc6")
-            experiment.run()
-            fig0 = experiment.visualize_best(show=False)
-            fig0.savefig(join(savedir, "BestImgtr%01d.png" % (triali)))
-            fig = experiment.visualize_trajectory(show=False)
-            fig.savefig(join(savedir, "ScoreTrajtr%01d.png" % (triali)))
-            fig2 = experiment.visualize_exp(show=False)
-            fig2.savefig(join(savedir, "Evolvetr%01d.png" % (triali)))
-            plt.close("all")
-            np.savez(join(savedir, "scores_tr%01d.npz" % (triali)),
-                     generations=experiment.generations,
-                     scores_all=experiment.scores_all,
-                     codes_fin=experiment.codes_all[experiment.generations == experiment.max_steps - 1, :])
-
 #                 lastgen_max = [experiment.scores_all[experiment.generations == geni].max() for geni in
 #                  range(experiment.generations.max() - 10, experiment.generations.max() + 1)]
 #                 best_scores_col.append(lastgen_max)
