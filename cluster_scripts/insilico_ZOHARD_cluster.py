@@ -66,32 +66,31 @@ with np.load(hess_mat_path) as data:
 pos_dict = {"conv5": (7, 7), "conv4": (7, 7), "conv3": (7, 7), "conv2": (14, 14), "conv1": (28, 28)}
 best_scores_col = []
 for triali in range(5):
-    for unit in [("alexnet", 'fc8'), ("alexnet", 'conv4'), ("alexnet", 'conv2')]:
-        netname, layer = unit
+    for cfg in [("alexnet", 'fc8'), ("alexnet", 'conv4'), ("alexnet", 'conv2')]:
+        netname, layer = cfg
         for chi in range(1):
             savedir = os.path.join(recorddir, "%s_%s_%d" % (netname, layer, chi))
             os.makedirs(savedir, exist_ok=True)
             unit = (netname, layer, chi) if "fc" in layer else (netname, layer, chi, *pos_dict[layer])
+            # Full evolution
+            optimizer = ZOHA_Sphere_lr_euclid(4096, population_size=40, select_size=20)
+            optimizer.lr_schedule(n_gen=n_gen, mode="inv")
+            experiment = ExperimentEvolve(unit, max_step=n_gen, backend="torch", optimizer=optimizer, GAN="fc6")
+            experiment.run()
+            fig0 = experiment.visualize_best(show=False)
+            fig0.savefig(join(savedir, "BestImgtr%01d.png" % (triali)))
+            fig = experiment.visualize_trajectory(show=False)
+            fig.savefig(join(savedir, "ScoreTrajtr%01d.png" % (triali)))
+            fig2 = experiment.visualize_exp(show=False)
+            fig2.savefig(join(savedir, "Evolvetr%01d.png" % (triali)))
+            plt.close("all")
+            np.savez(join(savedir, "scores_tr%01d.npz" % (triali)),
+                     generations=experiment.generations,
+                     scores_all=experiment.scores_all,
+                     codes_fin=experiment.codes_all[experiment.generations == experiment.max_steps - 1, :])
 
             for subspace_d in [50, 100, 200, 400]:
-                for ofs in [1, 100, 200, 500, 1000, 2000, 3000]:
-                    optimizer = ZOHA_Sphere_lr_euclid_ReducDim(4096, subspace_d, population_size=40, select_size=20)
-                    optimizer.lr_schedule(n_gen=n_gen, mode="inv")
-                    optimizer.get_basis(eigvect_avg[-ofs-subspace_d:-ofs]) # same bug again, column vector is the real eigenvector not row.
-                    experiment = ExperimentEvolve(unit, max_step=n_gen, backend="torch", optimizer=optimizer, GAN="fc6")
-                    experiment.run()
-                    fig0 = experiment.visualize_best(show=False)
-                    fig0.savefig(join(savedir, "eig%dsubspc%dBestImgtr%01d.png" % (ofs, subspace_d, triali)))
-                    fig = experiment.visualize_trajectory(show=False)
-                    fig.savefig(join(savedir, "eig%dsubspc%dScoreTrajtr%01d.png" % (ofs, subspace_d, triali)))
-                    fig2 = experiment.visualize_exp(show=False)
-                    fig2.savefig(join(savedir, "eig%dsubspc%dEvolvetr%01d.png" % (ofs, subspace_d, triali)))
-                    plt.close("all")
-                    np.savez(join(savedir, "eig%dsubspc%dscores_tr%01d.npz" % (ofs, subspace_d, triali)),
-                             generations=experiment.generations,
-                             scores_all=experiment.scores_all,
-                             codes_fin=experiment.codes_all[experiment.generations==experiment.max_steps-1,:])
-
+                # Random Subspace evolution
                 optimizer = ZOHA_Sphere_lr_euclid_ReducDim(4096, subspace_d, population_size=40, select_size=20)
                 optimizer.lr_schedule(n_gen=n_gen, mode="inv")
                 optimizer.get_basis("rand")
@@ -109,22 +108,23 @@ for triali in range(5):
                          scores_all=experiment.scores_all,
                          codes_fin=experiment.codes_all[experiment.generations == experiment.max_steps - 1, :])
 
-            optimizer = ZOHA_Sphere_lr_euclid(4096, population_size=40, select_size=20)
-            optimizer.lr_schedule(n_gen=n_gen, mode="inv")
-            experiment = ExperimentEvolve(unit, max_step=n_gen, backend="torch", optimizer=optimizer, GAN="fc6")
-            experiment.run()
-            fig0 = experiment.visualize_best(show=False)
-            fig0.savefig(join(savedir, "BestImgtr%01d.png" % (triali)))
-            fig = experiment.visualize_trajectory(show=False)
-            fig.savefig(join(savedir, "ScoreTrajtr%01d.png" % (triali)))
-            fig2 = experiment.visualize_exp(show=False)
-            fig2.savefig(join(savedir, "Evolvetr%01d.png" % (triali)))
-            plt.close("all")
-            np.savez(join(savedir, "scores_tr%01d.npz" % (triali)),
-                     generations=experiment.generations,
-                     scores_all=experiment.scores_all,
-                     codes_fin=experiment.codes_all[experiment.generations == experiment.max_steps - 1, :])
-
+                for ofs in [1, 100, 200, 500, 1000, 2000, 3000]:
+                    optimizer = ZOHA_Sphere_lr_euclid_ReducDim(4096, subspace_d, population_size=40, select_size=20)
+                    optimizer.lr_schedule(n_gen=n_gen, mode="inv")
+                    optimizer.get_basis(eigvect_avg[:, -ofs-subspace_d:-ofs]) # same bug again, column vector is the real eigenvector not row.
+                    experiment = ExperimentEvolve(unit, max_step=n_gen, backend="torch", optimizer=optimizer, GAN="fc6")
+                    experiment.run()
+                    fig0 = experiment.visualize_best(show=False)
+                    fig0.savefig(join(savedir, "eig%dsubspc%dBestImgtr%01d.png" % (ofs, subspace_d, triali)))
+                    fig = experiment.visualize_trajectory(show=False)
+                    fig.savefig(join(savedir, "eig%dsubspc%dScoreTrajtr%01d.png" % (ofs, subspace_d, triali)))
+                    fig2 = experiment.visualize_exp(show=False)
+                    fig2.savefig(join(savedir, "eig%dsubspc%dEvolvetr%01d.png" % (ofs, subspace_d, triali)))
+                    plt.close("all")
+                    np.savez(join(savedir, "eig%dsubspc%dscores_tr%01d.npz" % (ofs, subspace_d, triali)),
+                             generations=experiment.generations,
+                             scores_all=experiment.scores_all,
+                             codes_fin=experiment.codes_all[experiment.generations==experiment.max_steps-1,:])
 #                 lastgen_max = [experiment.scores_all[experiment.generations == geni].max() for geni in
 #                  range(experiment.generations.max() - 10, experiment.generations.max() + 1)]
 #                 best_scores_col.append(lastgen_max)
@@ -165,10 +165,14 @@ for triali in range(5):
                 generations = data["generations"]
                 best_scores_col[ui, chi, -1, triali] = max_score_fun(scores_all, generations)
 #%%
+[50, 100, 200, 400]
+[1, 100, 200, 500, 1000, 2000, 3000]
+#%%
 mean_score = best_scores_col.mean((1,3))
 plt.matshow(mean_score / mean_score[:,-1:])
 plt.ylim([-0.5,5.5])
 plt.yticks(range(6),["fc8","fc6","conv5","conv4","conv2","conv1"])
+plt.xticks(range(33),[""])
 plt.show()
 #%%
 netname, layer = unit
