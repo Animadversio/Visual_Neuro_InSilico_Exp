@@ -68,7 +68,7 @@ best_scores_col = []
 for triali in range(5):
     for unit in [("alexnet", 'fc8'), ("alexnet", 'conv4'), ("alexnet", 'conv2')]:
         netname, layer = unit
-        for chi in range(5):
+        for chi in range(1):
             savedir = os.path.join(recorddir, "%s_%s_%d" % (netname, layer, chi))
             os.makedirs(savedir, exist_ok=True)
             unit = (netname, layer, chi) if "fc" in layer else (netname, layer, chi, *pos_dict[layer])
