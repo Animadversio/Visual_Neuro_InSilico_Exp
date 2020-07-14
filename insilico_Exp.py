@@ -309,7 +309,7 @@ class ExperimentEvolve:
     Default behavior is to use the current CMAES optimizer to optimize for 200 steps for the given unit.
     support Caffe or Torch Backend
     """
-    def __init__(self, model_unit, max_step=200, backend="caffe", optimizer=None, GAN="fc6"):
+    def __init__(self, model_unit, max_step=200, backend="caffe", optimizer=None, GAN="fc6", verbose=False):
         self.recording = []
         self.scores_all = []
         self.codes_all = []
@@ -340,11 +340,12 @@ class ExperimentEvolve:
             raise NotImplementedError
         if optimizer is None:  # Default optimizer is this
             self.optimizer = CholeskyCMAES(recorddir=recorddir, space_dimen=code_length, init_sigma=init_sigma,
-                                           init_code=np.zeros([1, code_length]), Aupdate_freq=Aupdate_freq) # , optim_params=optim_params
+                                           init_code=np.zeros([1, code_length]), Aupdate_freq=Aupdate_freq)
         else:
             # assert issubclass(type(optimizer), Optimizer)
             self.optimizer = optimizer
         self.max_steps = max_step
+        self.verbose = verbose
 
     def run(self, init_code=None):
         self.recording = []
@@ -362,7 +363,7 @@ class ExperimentEvolve:
                         codes, self.optimizer._genealogy = utils.load_codes2(initcodedir, self.optimizer._popsize)
                 else:
                     codes = init_code
-            print('\n>>> step %d' % self.istep)
+            print('>>> step %d' % self.istep)
             t0 = time()
             self.current_images = self.render(codes, scale=255.0)
             t1 = time()  # generate image from code
@@ -375,7 +376,11 @@ class ExperimentEvolve:
             self.generations = self.generations + [self.istep] * len(synscores)
             codes = codes_new
             # summarize scores & delays
-            print('synthetic img scores: mean {}, all {}'.format(np.nanmean(synscores), -np.sort(-synscores)))
+            if self.verbose:
+                print('synthetic img scores: mean {}, all {}'.format(np.nanmean(synscores), -np.sort(-synscores)))
+            else:
+                print("img scores: mean %.2f max %.2f min %.2f"%(np.nanmean(synscores), np.nanmax(synscores),
+                                                                 np.nanmin(synscores)))
             print(('step %d time: total %.2fs | ' +
                    'code visualize %.2fs  score %.2fs  optimizer step %.2fs')
                   % (self.istep, t3 - t0, t1 - t0, t2 - t1, t3 - t2))

@@ -14,17 +14,17 @@
 export TORCH_HOME="/scratch/binxu/torch"
 cd ~/Visual_Neuro_InSilico_Exp/
 
-param_list='unit = ("alexnet", "conv1");
-unit = ("alexnet", "conv2");
-unit = ("alexnet", "conv3");
-unit = ("alexnet", "conv4");
-unit = ("alexnet", "conv5");
-unit = ("alexnet", "fc6");
-unit = ("alexnet", "fc7");
-unit = ("alexnet", "fc8");'
+param_list='cfg = ("alexnet", "conv1");
+cfg = ("alexnet", "conv2");
+cfg = ("alexnet", "conv3");
+cfg = ("alexnet", "conv4");
+cfg = ("alexnet", "conv5");
+cfg = ("alexnet", "fc6");
+cfg = ("alexnet", "fc7");
+cfg = ("alexnet", "fc8");'
 export unit_name="$(echo "$param_list" | head -n $PBS_ARRAYID | tail -1)"
 #$PBS_ARRAYID
-export python_code='netname, layer = unit
+export python_code='netname, layer = cfg
 n_gen = 100
 import os
 from os.path import join
@@ -38,9 +38,7 @@ with np.load(hess_mat_path) as data:
     eigvect_avg = data["eigvect_avg"]
 
 pos_dict = {"conv5": (7, 7), "conv4": (7, 7), "conv3": (7, 7), "conv2": (14, 14), "conv1": (28, 28)}
-best_scores_col = []
 for triali in range(5):
-    netname, layer = unit
     for chi in range(15):
         savedir = os.path.join(recorddir, "%s_%s_%d" % (netname, layer, chi))
         os.makedirs(savedir, exist_ok=True)
@@ -66,7 +64,7 @@ for triali in range(5):
             for ofs in [1, 100, 200, 500, 1000, 2000, 3000]:
                 optimizer = ZOHA_Sphere_lr_euclid_ReducDim(4096, subspace_d, population_size=40, select_size=20)
                 optimizer.lr_schedule(n_gen=n_gen, mode="inv")
-                optimizer.get_basis(eigvect_avg[-ofs-subspace_d: -ofs])
+                optimizer.get_basis(eigvect_avg[:, -ofs-subspace_d:-ofs])
                 experiment = ExperimentEvolve(unit, max_step=n_gen, backend="torch", optimizer=optimizer, GAN="fc6")
                 experiment.run()
                 fig0 = experiment.visualize_best(show=False)
