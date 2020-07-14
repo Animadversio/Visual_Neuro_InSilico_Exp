@@ -66,12 +66,11 @@ with np.load(hess_mat_path) as data:
     eigvect_avg = data["eigvect_avg"]
 
 pos_dict = {"conv5": (7, 7), "conv4": (7, 7), "conv3": (7, 7), "conv2": (14, 14), "conv1": (28, 28)}
-best_scores_col = []
 for triali in range(5):
     for cfg in [("alexnet", 'fc8'), ("alexnet", 'conv4'), ("alexnet", 'conv2'), \
                 ("alexnet", 'fc6'), ("alexnet", 'conv5'), ("alexnet", 'conv1')]:
         netname, layer = cfg
-        for chi in range(1):
+        for chi in range(2,4):
             savedir = os.path.join(recorddir, "%s_%s_%d" % (netname, layer, chi))
             os.makedirs(savedir, exist_ok=True)
             unit = (netname, layer, chi) if "fc" in layer else (netname, layer, chi, *pos_dict[layer])
