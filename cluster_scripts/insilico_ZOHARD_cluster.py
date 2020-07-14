@@ -149,7 +149,7 @@ best_scores_col = np.zeros((6, 1, 33, 5))
 for triali in range(5):
     for ui, unit in enumerate([("alexnet", 'fc8'), ("alexnet", 'fc6'), ("alexnet", 'conv5'), ("alexnet", 'conv4'), ("alexnet", 'conv2'), ("alexnet", 'conv1')]):
         netname, layer = unit
-        for chi in range(1):
+        for chi in range(1, 2):
             savedir = os.path.join(recorddir, "%s_%s_%d" % (netname, layer, chi))
             for si, subspace_d in enumerate([50, 100, 200, 400]):
                 for oi, ofs in enumerate([1, 100, 200, 500, 1000, 2000, 3000]):
@@ -167,7 +167,7 @@ for triali in range(5):
                 scores_all = data["scores_all"]
                 generations = data["generations"]
                 best_scores_col[ui, chi, -1, triali] = max_score_fun(scores_all, generations)
-#%%
+#%% Generate Labels for the figure
 label_list = []
 for subspace_d in [50, 100, 200, 400]:
     for ofs in [1, 100, 200, 500, 1000, 2000, 3000]:
@@ -175,7 +175,7 @@ for subspace_d in [50, 100, 200, 400]:
     label_list.append("rand%d"%(subspace_d))
 label_list.append("full")
 
-#%%
+#%% Plot Figure
 figdir = r"E:\Monkey_Data\Generator_DB_Windows\data\with_CNN"
 mean_score = best_scores_col.mean((1,3))
 fig = plt.figure(figsize=[13, 3.5])
