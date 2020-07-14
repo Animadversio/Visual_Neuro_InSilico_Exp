@@ -20,9 +20,7 @@ from numpy.random import randn
 from numpy import sqrt, zeros, abs, floor, log, log2, eye, exp
 from geometry_utils import ExpMap, VecTransport, radial_proj, orthogonalize, renormalize
 orig_stdout = sys.stdout
-# model_unit = ('caffe-net', 'fc6', 1)
-# CNN = CNNmodel(model_unit[0])  # 'caffe-net'
-# CNN.select_unit(model_unit)
+
 #%% Classic Optimizers as Reference 
 class CholeskyCMAES:
     """ Note this is a variant of CMAES Cholesky suitable for high dimensional optimization"""

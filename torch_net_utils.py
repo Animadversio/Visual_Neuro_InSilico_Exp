@@ -1,4 +1,7 @@
-''' Utilities to streamline the import of Caffenet in torch '''
+'''
+Utilities to streamline the import of Caffenet in torch. Still have dependency on Caffe.
+Can be substituted by later GAN_utils.
+'''
 import os
 from os.path import join
 import torch

@@ -1,3 +1,7 @@
+"""
+Native torch version of fc6 GANs. Support deployment on any machine, since the weights are publicly hosted online.
+The motivation is to get rid of dependencies on Caffe framework totally.
+"""
 #%%
 # import torch
 # torch.save(G, r"E:\Monkey_Data\Generator_DB_Windows\nets\upconv\fc6\fc6GAN.pt")

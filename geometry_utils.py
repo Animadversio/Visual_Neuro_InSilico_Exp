@@ -16,9 +16,9 @@ def SLERP(code1, code2, steps, lim=(0,1)):
     return slerp_code
 
 def LERP(code1, code2, steps, lim=(0,1)):
-    """Spherical Linear Interpolation for numpy arrays"""
+    """ Linear Interpolation for numpy arrays"""
     code1, code2 = code1.reshape(1,-1), code2.reshape(1,-1)
-    ticks = np.linspace(lim[0], lim[1], steps, endpoint=True)[:,np.newaxis]
+    ticks = np.linspace(lim[0], lim[1], steps, endpoint=True)[:, np.newaxis]
     slerp_code = (1 - ticks) @ code1 + ticks @ code2
     return slerp_code
 
