@@ -10,6 +10,7 @@ scores and codes to generate the next batch of codes.
 import matplotlib.pylab as plt
 # plt.ioff()
 #
+import os
 import time
 import sys
 import utils
@@ -17,7 +18,7 @@ import numpy as np
 from numpy.linalg import norm
 from numpy.random import randn
 from numpy import sqrt, zeros, abs, floor, log, log2, eye, exp
-import os
+from geometry_utils import ExpMap, VecTransport, radial_proj, orthogonalize, renormalize
 orig_stdout = sys.stdout
 # model_unit = ('caffe-net', 'fc6', 1)
 # CNN = CNNmodel(model_unit[0])  # 'caffe-net'
@@ -282,7 +283,6 @@ class HessAware_Gauss:
         self._istep += 1
         return new_samples
 
-#%% Geometric Utility Function
 def rankweight(lambda_, mu=None):
     """ Rank weight inspired by CMA-ES code
     mu is the cut off number, how many samples will be kept while `lambda_ - mu` will be ignore
@@ -296,49 +296,6 @@ def rankweight(lambda_, mu=None):
     weights = weights / sum(weights)
     return weights
 
-def ExpMap(x, tang_vec, EPS = 1E-4):
-    angle_dist = sqrt((tang_vec ** 2).sum(axis=1))  # vectorized
-    angle_dist = angle_dist[:, np.newaxis]
-    # print("Angular distance for Exponentiation ", angle_dist[:,0])
-    uni_tang_vec = tang_vec / angle_dist
-    # x = repmat(x, size(tang_vec, 1), 1); # vectorized
-    xnorm = np.linalg.norm(x)
-    assert(xnorm > EPS, "Exponential Map from a basis point at origin is degenerate, examine the code. (May caused by 0 initialization)")
-    y = (np.cos(angle_dist) @ (x[:] / xnorm) + np.sin(angle_dist) * uni_tang_vec) * xnorm
-    return y
-
-def VecTransport(xold, xnew, v):
-    xold = xold / np.linalg.norm(xold)
-    xnew = xnew / np.linalg.norm(xnew)
-    x_symm_axis = xold + xnew
-    v_transport = v - 2 * v @ x_symm_axis.T / np.linalg.norm(
-        x_symm_axis) ** 2 * x_symm_axis  # Equation for vector parallel transport along geodesic
-    # Don't use dot in numpy, it will have wierd behavior if the array is not single dimensional
-    return v_transport
-
-def radial_proj(codes, max_norm):
-    if max_norm is np.inf:
-        return codes
-    else:
-        max_norm = np.array(max_norm)
-        assert np.all(max_norm >= 0)
-        code_norm = np.linalg.norm(codes, axis=1)
-        proj_norm = np.minimum(code_norm, max_norm)
-        return codes / code_norm[:, np.newaxis] * proj_norm[:, np.newaxis]
-
-def orthogonalize(basis, codes):
-    if len(basis.shape) is 1:
-        basis = basis[np.newaxis, :]
-    assert basis.shape[1] == codes.shape[1]
-    unit_basis = basis / norm(basis)
-    codes_ortho = codes - (codes @ unit_basis.T) @ unit_basis
-    return codes_ortho
-
-def renormalize(codes, norms):
-    norms = np.array(norms)
-    assert codes.shape[0] == norms.size or norms.size == 1
-    codes_renorm = norms.reshape([-1, 1]) * codes / norm(codes, axis=1).reshape([-1, 1])  # norms should be a 1d array
-    return codes_renorm
 # Major Classes.
 class HessAware_Gauss_Spherical:
     """Gaussian Sampling method for estimating Hessian"""
