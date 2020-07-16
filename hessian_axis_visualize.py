@@ -22,6 +22,7 @@ from skimage.io import imsave
 def vis_eigen_frame(eigvect_avg, eigv_avg, ref_code=None, figdir=figdir, page_B=50):
     if ref_code is None:
         ref_code = np.zeros((1, 4096))
+    t0=time()
     csr = 0
     img_page = []
     for eigi in range(1, 4097):
@@ -35,10 +36,10 @@ def vis_eigen_frame(eigvect_avg, eigv_avg, ref_code=None, figdir=figdir, page_B=
             imsave(join(figdir, "%d-%d_%.e~%.e.jpg" %
                         (csr+1, eigi, eigv_avg[-csr-1], eigv_avg[-eigi])), np.uint8(mtg * 255.0))
             img_page = []
-            print("Finish printing page eigen %d-%d"%(csr, eigi))
+            print("Finish printing page eigen %d-%d (%.1fs)"%(csr, eigi, time()-t0))
             csr = eigi
 # imgs = visualize_np(G, interp_codes)
-#%%
+#%% Average Hessian for the Pasupathy Patches
 out_dir = r"E:\OneDrive - Washington University in St. Louis\ref_img_fit\Pasupathy\Nullspace"
 with np.load(join(out_dir, "Pasu_Space_Avg_Hess.npz")) as data:
     # H_avg = data["H_avg"]
@@ -46,7 +47,7 @@ with np.load(join(out_dir, "Pasu_Space_Avg_Hess.npz")) as data:
     eigv_avg = data["eigv_avg"]
 figdir = r"E:\OneDrive - Washington University in St. Louis\HessTune\HessEigVec"
 vis_eigen_frame(eigvect_avg, eigv_avg, figdir=figdir)
-#%%
+#%% Average hessian for the evolved images
 out_dir = r"E:\OneDrive - Washington University in St. Louis\HessTune\NullSpace"
 with np.load(join(out_dir, "Evolution_Avg_Hess.npz")) as data:
     # H_avg = data["H_avg"]
@@ -54,3 +55,5 @@ with np.load(join(out_dir, "Evolution_Avg_Hess.npz")) as data:
     eigv_avg = data["eigv_avg"]
 figdir = r"E:\OneDrive - Washington University in St. Louis\HessTune\HessEigVec_Evol"
 vis_eigen_frame(eigvect_avg, eigv_avg, figdir=figdir)
+#%% use the initial gen as reference code, do the same thing
+
