@@ -227,7 +227,23 @@ def compute_hessian_eigenthings(
     else:
         raise ValueError("Unsupported mode %s (must be power_iter or lanczos)" % mode)
     return eigenvals, eigenvecs
-
+#%%
+from IPython.display import clear_output
+from hessian_eigenthings.utils import progress_bar
+def get_full_hessian(loss, param):
+    # from https://discuss.pytorch.org/t/compute-the-hessian-matrix-of-a-network/15270/3
+    # modified from hessian_eigenthings repo. api follows hessian.hessian
+    hessian_size = param.numel()
+    hessian = torch.zeros(hessian_size, hessian_size)
+    loss_grad = torch.autograd.grad(loss, param, create_graph=True, retain_graph=True, only_inputs=True)[0].view(-1)
+    for idx in range(hessian_size):
+        clear_output(wait = True)
+        progress_bar(
+            idx, hessian_size, "full hessian columns: %d of %d" % (idx, hessian_size)
+        )
+        grad2rd = torch.autograd.grad(loss_grad[idx], param, create_graph=False, retain_graph=True, only_inputs=True)
+        hessian[idx] = grad2rd[0].view(-1)
+    return hessian.cpu().data.numpy()
 #%% Wrap up function
 def cca_correlation(X, Y, n_comp=50):
     """
