@@ -17,7 +17,6 @@ import matplotlib.pylab as plt
 from time import time
 from os.path import join
 from imageio import imwrite
-from build_montages import build_montages, color_framed_montages
 from geometry_utils import SLERP, LERP
 #%%
 from FeatLinModel import FeatLinModel, get_model_layers
@@ -28,7 +27,7 @@ import models
 model_squ = models.PerceptualLoss(model='net-lin', net='squeeze', use_gpu=1, gpu_ids=[0])
 model_squ.requires_grad_(False).cuda()
 
-from GAN_utils import upconvGAN
+from GAN_utils import upconvGAN, visualize_np
 G = upconvGAN("fc6")
 G.requires_grad_(False).cuda()  # this notation is incorrect in older pytorch
 
@@ -37,31 +36,7 @@ G.requires_grad_(False).cuda()  # this notation is incorrect in older pytorch
 # alexnet = tv.models.alexnet(pretrained=True).cuda()
 # for param in alexnet.parameters():
 #     param.requires_grad_(False)
-#%% Very useful function
-from PIL import Image
-def visualize_np(G, code, layout=None, show=True):
-    """Utility function to visualize a np code vectors.
 
-    If it's a single vector it will show in a plt window, Or it will show a montage in a windows photo.
-    G: a generator equipped with a visualize method to turn torch code into torch images.
-    layout: controls the layout of the montage. (5,6) create 5 by 6 grid
-    show: if False, it will return the images in 4d array only.
-    """
-    with torch.no_grad():
-        imgs = G.visualize(torch.from_numpy(code).float().cuda()).cpu().permute([2, 3, 1, 0]).squeeze().numpy()
-    if show:
-        if len(imgs.shape) <4:
-            plt.imshow(imgs)
-            plt.show()
-        else:
-            img_list = [imgs[:,:,:,imgi].squeeze() for imgi in range(imgs.shape[3])]
-            if layout is None:
-                mtg = build_montages(img_list,(256,256),(imgs.shape[3],1))[0]
-                Image.fromarray(np.uint8(mtg*255.0)).show()
-            else:
-                mtg = build_montages(img_list, (256, 256), layout)[0]
-                Image.fromarray(np.uint8(mtg*255.0)).show()
-    return imgs
 #%% Load the pasupathy codes
 from scipy.io import loadmat
 code_path = r"E:\OneDrive - Washington University in St. Louis\ref_img_fit\Pasupathy\pasu_fit_code.mat"

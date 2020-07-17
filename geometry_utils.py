@@ -23,8 +23,6 @@ def LERP(code1, code2, steps, lim=(0,1)):
     return slerp_code
 
 #%% Geometric Utility Function
-
-
 def ExpMap(x, tang_vec, EPS = 1E-4):
     angle_dist = sqrt((tang_vec ** 2).sum(axis=1))  # vectorized
     angle_dist = angle_dist[:, np.newaxis]

@@ -232,7 +232,7 @@ class TorchScorer:
         """preprocess single image array or a list (minibatch) of images"""
         # could be modified to support batch processing. Added batch @ July. 10, 2020
         # test and optimize the performance by permute the operators. Use CUDA acceleration from preprocessing
-        if type(img) is list:
+        if type(img) is list: # the following lines have been optimized for speed locally.
             img_tsr = torch.stack(tuple(torch.from_numpy(im) for im in img)).cuda().float().permute(0, 3, 1, 2) / input_scale
             img_tsr = (img_tsr - self.RGBmean) / self.RGBstd
             resz_out_tsr = F.interpolate(img_tsr, (227, 227), mode='bilinear',
