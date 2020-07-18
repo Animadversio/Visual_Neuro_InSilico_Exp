@@ -75,7 +75,7 @@ imgs1 = G.visualize(ref_vect)
 imgs2 = G.visualize(mov_vect)
 dsim = ImDist(imgs1, imgs2)
 
-%time H = get_full_hessian(dsim, mov_vect)
+%time H = get_full_hessian(dsim, mov_vect) # 122 sec for a 256d hessian
 
 
 #%%
