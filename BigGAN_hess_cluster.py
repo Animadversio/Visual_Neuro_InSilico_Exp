@@ -13,9 +13,10 @@ import matplotlib.pylab as plt
 from time import time
 from os.path import join
 from imageio import imwrite
+from skimage.io import imsave
 from build_montages import build_montages, color_framed_montages
 import torchvision.models as tv
-
+from torchvision.utils import make_grid
 from pytorch_pretrained_biggan.model import BigGAN, BigGANConfig
 from pytorch_pretrained_biggan.utils import truncated_noise_sample, save_as_images, one_hot_from_names
 from IPython.display import clear_output
