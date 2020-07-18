@@ -3,12 +3,12 @@
 import torch_net_utils #net_utils
 import net_utils
 import utils
-from ZO_HessAware_Optimizers import HessAware_Gauss_DC
+from ZO_HessAware_Optimizers import HessAware_Gauss_DC, CholeskyCMAES # newer CMAES api
 from utils import load_GAN
 from Generator import Generator
 from time import time, sleep
 import numpy as np
-from Optimizer import CholeskyCMAES, Genetic, Optimizer  # Optimizer is the base class for these things
+from Optimizer import Genetic, Optimizer  # CholeskyCMAES, Optimizer is the base class for these things
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 import os
@@ -232,7 +232,7 @@ class TorchScorer:
         """preprocess single image array or a list (minibatch) of images"""
         # could be modified to support batch processing. Added batch @ July. 10, 2020
         # test and optimize the performance by permute the operators. Use CUDA acceleration from preprocessing
-        if type(img) is list:
+        if type(img) is list: # the following lines have been optimized for speed locally.
             img_tsr = torch.stack(tuple(torch.from_numpy(im) for im in img)).cuda().float().permute(0, 3, 1, 2) / input_scale
             img_tsr = (img_tsr - self.RGBmean) / self.RGBstd
             resz_out_tsr = F.interpolate(img_tsr, (227, 227), mode='bilinear',
@@ -308,6 +308,9 @@ class ExperimentEvolve:
     """ Basic Evolution Experiments
     Default behavior is to use the current CMAES optimizer to optimize for 200 steps for the given unit.
     support Caffe or Torch Backend
+
+    the render function should have such signature, input numpy array of B-by-code_length, output list of images.
+        it also has a named parameter scale=255.0. which specify the range of pixel value of output.
     """
     def __init__(self, model_unit, max_step=200, backend="caffe", optimizer=None, GAN="fc6", verbose=False):
         self.recording = []
@@ -335,17 +338,25 @@ class ExperimentEvolve:
             from BigGAN_Evolution import BigGAN_embed_render
             self.render = BigGAN_embed_render
             code_length = 256  # 128
-            # 128d Class Embedding code or 256d full code could be used. 
+            # 128d Class Embedding code or 256d full code could be used.
+        elif GAN == "BigBiGAN":
+            from BigBiGAN import BigBiGAN_render
+            self.render = BigBiGAN_render
+            code_length = 120  # 120 d space for Unconditional generation in BigBiGAN
         else:
             raise NotImplementedError
-        if optimizer is None:  # Default optimizer is this
-            self.optimizer = CholeskyCMAES(recorddir=recorddir, space_dimen=code_length, init_sigma=init_sigma,
-                                           init_code=np.zeros([1, code_length]), Aupdate_freq=Aupdate_freq)
-        else:
-            # assert issubclass(type(optimizer), Optimizer)
+        if optimizer is not None:  # Default optimizer is this
             self.optimizer = optimizer
+        else:
+            self.optimizer = CholeskyCMAES(code_length, population_size=None, init_sigma=init_sigma,
+                init_code=np.zeros([1, code_length]), Aupdate_freq=Aupdate_freq, maximize=True, random_seed=None,
+                                           optim_params={})
+            # CholeskyCMAES(recorddir=recorddir, space_dimen=code_length, init_sigma=init_sigma,
+            #                                init_code=np.zeros([1, code_length]), Aupdate_freq=Aupdate_freq)
+            # assert issubclass(type(optimizer), Optimizer)
         self.max_steps = max_step
         self.verbose = verbose
+        self.code_length = code_length
 
     def run(self, init_code=None):
         self.recording = []
@@ -356,7 +367,7 @@ class ExperimentEvolve:
         for self.istep in range(self.max_steps):
             if self.istep == 0:
                 if init_code is None:
-                    codes = np.random.randn(20, code_length)
+                    codes = np.random.randn(20, self.code_length)
                     # codes = np.zeros([1, code_length])
                     if type(self.optimizer) is Genetic:
                         # self.optimizer.load_init_population(initcodedir, )
@@ -643,9 +654,12 @@ class ExperimentResizeEvolve:
             self.code_length = 256  # 128 # 128d Class Embedding code or 256d full code could be used.
         else:
             raise NotImplementedError
-        self.optimizer = CholeskyCMAES(recorddir=recorddir, space_dimen=self.code_length, init_sigma=init_sigma,
-                                       init_code=np.zeros([1, self.code_length]),
-                                       Aupdate_freq=Aupdate_freq)  # , optim_params=optim_params
+        self.optimizer = CholeskyCMAES(self.code_length, population_size=None, init_sigma=init_sigma,
+                init_code=np.zeros([1, self.code_length]), Aupdate_freq=Aupdate_freq, maximize=True, random_seed=None,
+                                           optim_params={})
+        # CholeskyCMAES(recorddir=recorddir, space_dimen=self.code_length, init_sigma=init_sigma,
+        #                            init_code=np.zeros([1, self.code_length]),
+        #                            Aupdate_freq=Aupdate_freq)  # , optim_params=optim_params
         self.max_steps = max_step
         self.corner = corner  # up left corner of the image
         self.imgsize = imgsize  # size of image
@@ -770,10 +784,13 @@ class ExperimentManifold:
             self.code_length = 256  # 128 # 128d Class Embedding code or 256d full code could be used.
         else:
             raise NotImplementedError
-
-        self.optimizer = CholeskyCMAES(recorddir=recorddir, space_dimen=self.code_length, init_sigma=init_sigma,
-                                       init_code=np.zeros([1, self.code_length]),
-                                       Aupdate_freq=Aupdate_freq)  # , optim_params=optim_params
+        self.optimizer = CholeskyCMAES(self.code_length, population_size=None, init_sigma=init_sigma,
+                                       init_code=np.zeros([1, self.code_length]), Aupdate_freq=Aupdate_freq,
+                                       maximize=True, random_seed=None,
+                                       optim_params={})
+        # self.optimizer = CholeskyCMAES(recorddir=recorddir, space_dimen=self.code_length, init_sigma=init_sigma,
+        #                                init_code=np.zeros([1, self.code_length]),
+        #                                Aupdate_freq=Aupdate_freq)  # , optim_params=optim_params
         self.max_steps = max_step
         self.corner = corner  # up left corner of the image
         self.imgsize = imgsize  # size of image, allowing showing CNN resized image
@@ -1090,9 +1107,13 @@ class ExperimentRestrictEvolve:
         self.generations = []
         self.CNNmodel = CNNmodel(model_unit[0])  # 'caffe-net'
         self.CNNmodel.select_unit(model_unit)  # ('caffe-net', 'fc8', 1)
-        self.optimizer = CholeskyCMAES(recorddir=recorddir, space_dimen=subspace_d, init_sigma=init_sigma,
-                                       init_code=np.zeros([1, subspace_d]),
-                                       Aupdate_freq=Aupdate_freq)  # , optim_params=optim_params
+        self.optimizer = CholeskyCMAES(subspace_d, population_size=None, init_sigma=init_sigma,
+                                       init_code=np.zeros([1, subspace_d]), Aupdate_freq=Aupdate_freq,
+                                       maximize=True, random_seed=None,
+                                       optim_params={})
+        # self.optimizer = CholeskyCMAES(recorddir=recorddir, space_dimen=subspace_d, init_sigma=init_sigma,
+        #                                init_code=np.zeros([1, subspace_d]),
+        #                                Aupdate_freq=Aupdate_freq)  # , optim_params=optim_params
         self.max_steps = max_step
         if GAN == "fc6" or GAN == "fc7" or GAN == "fc8":
             self.G = Generator(name=GAN)

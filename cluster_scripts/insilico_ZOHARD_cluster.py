@@ -1,3 +1,6 @@
+"""
+Local testing code for deployment on Cluster. Can run on Local machines as well.
+"""
 #%% random subspaaces
 netname, layer = unit
 subspace_d = 200

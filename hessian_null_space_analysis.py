@@ -1,3 +1,8 @@
+"""
+Compute Hessian matrix at different center images / codes.
+Average them and do Eigen-decomposition to get the eigenvectors / basis.
+"""
+
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
@@ -12,7 +17,7 @@ import matplotlib.pylab as plt
 from time import time
 from os.path import join
 from imageio import imwrite
-from build_montages import build_montages, color_framed_montages
+from geometry_utils import SLERP, LERP
 #%%
 from FeatLinModel import FeatLinModel, get_model_layers
 import sys
@@ -22,7 +27,7 @@ import models
 model_squ = models.PerceptualLoss(model='net-lin', net='squeeze', use_gpu=1, gpu_ids=[0])
 model_squ.requires_grad_(False).cuda()
 
-from GAN_utils import upconvGAN
+from GAN_utils import upconvGAN, visualize_np
 G = upconvGAN("fc6")
 G.requires_grad_(False).cuda()  # this notation is incorrect in older pytorch
 
@@ -31,13 +36,14 @@ G.requires_grad_(False).cuda()  # this notation is incorrect in older pytorch
 # alexnet = tv.models.alexnet(pretrained=True).cuda()
 # for param in alexnet.parameters():
 #     param.requires_grad_(False)
-#%%
+
+#%% Load the pasupathy codes
 from scipy.io import loadmat
 code_path = r"E:\OneDrive - Washington University in St. Louis\ref_img_fit\Pasupathy\pasu_fit_code.mat"
 out_dir = r"E:\OneDrive - Washington University in St. Louis\ref_img_fit\Pasupathy\Nullspace"
 data = loadmat(code_path)
 pasu_codes = data['pasu_code']
-#%%
+#%% Compute the Hessian around a certain Pasupathy image.
 t0 = time()
 for imgi, code in enumerate(pasu_codes[:, :]):
     feat = torch.from_numpy(code[np.newaxis, :])
@@ -119,32 +125,8 @@ plt.xlabel("CC #")
 plt.legend()
 plt.savefig(join(out_dir, "Pasu12_Shared_EigenSpace.jpg"))
 plt.show()
-#%% Very useful function
-from PIL import Image
-def visualize_np(G, code, layout=None, show=True):
-    """Utility function to visualize a np code vectors.
 
-    If it's a single vector it will show in a plt window, Or it will show a montage in a windows photo.
-    G: a generator equipped with a visualize method to turn torch code into torch images.
-    layout: controls the layout of the montage. (5,6) create 5 by 6 grid
-    show: if False, it will return the images in 4d array only.
-    """
-    with torch.no_grad():
-        imgs = G.visualize(torch.from_numpy(code).float().cuda()).cpu().permute([2, 3, 1, 0]).squeeze().numpy()
-    if show:
-        if len(imgs.shape) <4:
-            plt.imshow(imgs)
-            plt.show()
-        else:
-            img_list = [imgs[:,:,:,imgi].squeeze() for imgi in range(imgs.shape[3])]
-            if layout is None:
-                mtg = build_montages(img_list,(256,256),(imgs.shape[3],1))[0]
-                Image.fromarray(np.uint8(mtg*255.0)).show()
-            else:
-                mtg = build_montages(img_list, (256, 256), layout)[0]
-                Image.fromarray(np.uint8(mtg*255.0)).show()
-    return imgs
-#%%
+#%% Visualize effect of the Hessian Eigen vectors on the codes
 cutoff = 800
 visualize_np(G, pasu_codes[:20,:]@basisi[:,:].T@basisi[:,:], (4,5))
 #%%
@@ -157,7 +139,7 @@ for imgi in range(imgn):
         eigvi = data["eigvals"]
         basis_col.append(basisi)
         eigv_col.append(eigvi)
-#%% Averaged Hessian
+#%% Averaged Hessian matrix
 avg_Hess = np.zeros((4096, 4096))
 for imgi in range(imgn):
     basisi = basis_col[imgi]
@@ -165,27 +147,11 @@ for imgi in range(imgn):
     avg_Hess = avg_Hess + (basisi.T * eigvi[np.newaxis, :] @ basisi)
 
 avg_Hess = avg_Hess / imgn
-#%%
+#%% And then do Decomposition
 eigv_avg, eigvect_avg = np.linalg.eigh(avg_Hess)
 #%%
 np.savez(join(out_dir, "Pasu_Space_Avg_Hess.npz"), H_avg=avg_Hess, eigv_avg=eigv_avg, eigvect_avg=eigvect_avg)
-#%% Utility functions for interpolation
-def SLERP(code1, code2, steps, lim=(0,1)):
-    """Spherical Linear Interpolation"""
-    code1, code2 = code1.squeeze(), code2.squeeze()
-    cosang = np.dot(code1, code2) / norm(code1) / norm(code2)
-    angle = np.arccos(cosang)
-    ticks = angle * np.linspace(lim[0], lim[1], steps, endpoint=True)
-    slerp_code = np.sin(angle - ticks)[:,np.newaxis] * code1[np.newaxis, :] + np.sin(ticks)[:,np.newaxis] * \
-                 code2[np.newaxis, :]
-    return slerp_code
 
-def LERP(code1, code2, steps, lim=(0,1)):
-    """Spherical Linear Interpolation"""
-    code1, code2 = code1.reshape(1,-1), code2.reshape(1,-1)
-    ticks = np.linspace(lim[0], lim[1], steps, endpoint=True)[:,np.newaxis]
-    slerp_code = (1 - ticks) @ code1 + ticks @ code2
-    return slerp_code
 #%%
 proj_rang = range(2000,3500)
 proj_op = eigvect_avg[proj_rang,:].T @ eigvect_avg[proj_rang,:]
