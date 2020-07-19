@@ -37,20 +37,30 @@ def SExpMap(refvect, tangvect, ticks=11, lims=(-1,1)):
 #%%
 sys.path.append(r"D:\Github\PerceptualSimilarity")
 sys.path.append(r"E:\Github_Projects\PerceptualSimilarity")
+sys.path.append(r"/home/binxu/PerceptualSimilarity")
 import models
 ImDist = models.PerceptualLoss(model='net-lin', net='squeeze', use_gpu=1, gpu_ids=[0])
 #%%
-StyleGAN_root = r"E:\DL_Projects\Vision\stylegan2-pytorch"
+# StyleGAN_root = r"E:\DL_Projects\Vision\stylegan2-pytorch"
+StyleGAN_root = r"/home/binxu/stylegan2-pytorch"
 sys.path.append(StyleGAN_root)
 from model import Generator
 #%%
-ckpt_name = r"stylegan2-ffhq-config-f.pt"# r"AbstractArtFreaGAN.pt"#r"2020-01-11-skylion-stylegan2-animeportraits.pt"
-ckpt_path = join(StyleGAN_root, "checkpoint", ckpt_name)
-size = 1024
+from argparse import ArgumentParser
+parser = ArgumentParser(description='Computing Hessian at different part of the code space in StyleGAN2')
+parser.add_argument('--ckpt_name', type=str, default="model.ckpt-533504.pt", help='checkpoint name')
+parser.add_argument('--size', type=int, default=512, help='resolution of generated image')
+parser.add_argument('--trialn', type=int, default=10, help='resolution of generated image')
+parser.add_argument('--truncation', type=float, default=1, nargs="+")
+args = parser.parse_args()   # ["--ckpt_name", "AbstractArtFreaGAN.pt", '--truncation', '1', '0.8']
+# ckpt_name = "model.ckpt-533504.pt"
+ckpt_path = join("/scratch/binxu/torch/StyleGANckpt", args.ckpt_name)
+size = args.size
 device = "cpu"
 latent = 512
 n_mlp = 8
 channel_multiplier = 2
+trunc_list = args.truncation
 g_ema = Generator(
     size, latent, n_mlp, channel_multiplier=channel_multiplier
 ).to(device)
@@ -86,14 +96,23 @@ class StyleGAN_wrapper():#nn.Module
         return img_all
 
 G = StyleGAN_wrapper(g_ema)
+#%% Demo
+truncation = 0.8
+truncation_mean = 4096
+RND = np.random.randint(1000)
+mean_latent = g_ema.mean_latent(truncation_mean)
+ref_z = torch.randn(1, latent, device=device).cuda()
+mov_z = ref_z.detach().clone().requires_grad_(True) # requires grad doesn't work for 1024 images.
+ref_samp = G.visualize(ref_z, truncation=truncation, mean_latent=mean_latent)
+mov_samp = G.visualize(mov_z, truncation=truncation, mean_latent=mean_latent)
+dsim = ImDist(ref_samp, mov_samp)
+H = get_full_hessian(dsim, mov_z)
 #%%
-savedir = r"E:\OneDrive - Washington University in St. Louis\HessGANCmp\StyleGAN2"
+savedir = r"/scratch/binxu/GAN_hessian/StyleGAN2"
 truncation = 0.5
 T00 = time()
-for triali in range(3):
-    for truncation in [1, 0.8, 0.6]:
-        if truncation == 1 and triali == 0:
-            continue
+for triali in range(args.trialn):
+    for truncation in trunc_list:
         T00 = time()
         truncation_mean = 4096
         RND = np.random.randint(1000)
@@ -105,6 +124,8 @@ for triali in range(3):
         dsim = ImDist(ref_samp, mov_samp)
         H = get_full_hessian(dsim, mov_z)
         print("Computing Hessian Completed, %.1f sec" %(time()-T00))
+        del dsim
+        torch.cuda.empty_cache()
 #%%
         eigvals, eigvects = np.linalg.eigh(H)
         plt.figure(figsize=[7,5])
@@ -117,8 +138,6 @@ for triali in range(3):
         plt.suptitle("Hessian Spectrum Full Space")
         plt.savefig(join(savedir, "Hessian_trunc%.1f_%03d.jpg" % (truncation, RND)))
         np.savez(join(savedir, "Hess_trunc%.1f_%03d.npz" % (truncation, RND)), H=H, eigvals=eigvals, eigvects=eigvects, vect=ref_z.cpu().numpy(),)
-        del dsim
-        torch.cuda.empty_cache()
 #%%
         T00 = time()
         codes_all = []
@@ -156,3 +175,8 @@ for triali in range(3):
         PILimg2.save(join(savedir, "eigvect_sph_fin_trunc%.1f_%03d.jpg" % (truncation, RND)))
         print("Spent time %.1f sec" % (time() - T00))
 #%%
+# try:
+#     mov_samp = G.visualize(mov_z, truncation=truncation, mean_latent=mean_latent)
+# except RuntimeError as e:
+#     if "CUDA out of memory" in str(e):
+#         print(e)
