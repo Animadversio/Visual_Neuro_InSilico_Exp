@@ -44,6 +44,13 @@ for param in BGAN.parameters():
     param.requires_grad_(False)
 embed_mat = BGAN.embeddings.parameters().__next__().data
 BGAN.cuda()
+#%% import BigBiGAN
+import sys
+sys.path.append(r"E:\Github_Projects\BigGANsAreWatching")
+from BigGAN.gan_load import UnconditionalBigGAN, make_big_gan
+from BigGAN.model.BigGAN import Generator
+BBGAN = make_big_gan(r"E:\Github_Projects\BigGANsAreWatching\BigGAN\weights\BigBiGAN_x1.pth", resolution=128)
+# the model is on cuda from this.
 #%%
 sys.path.append(r"D:\Github\PerceptualSimilarity")
 sys.path.append(r"E:\Github_Projects\PerceptualSimilarity")
@@ -73,7 +80,7 @@ savedir = r"E:\iclr2021\Results"
 savedir = r"E:\OneDrive - Washington University in St. Louis\HessGANCmp"
 #%%
 T00 = time()
-for class_id in [17, 79, 95, 107, 224, 346, 493, 542, 579, 637, 667, 754, 761, 805, 814, 847, 856, 941, 954, 968]:
+for class_id in range(999, 700, -1): #[17, 79, 95, 107, 224, 346, 493, 542, 579, 637, 667, 754, 761, 805, 814, 847, 856, 941, 954, 968]:
     classvec = embed_mat[:, class_id:class_id+1].cuda().T
     noisevec = torch.from_numpy(truncated_noise_sample(1, 128, 0.6)).cuda()
     ref_vect = torch.cat((noisevec, classvec, ), dim=1).detach().clone()
@@ -134,45 +141,47 @@ for class_id in [17, 79, 95, 107, 224, 346, 493, 542, 579, 637, 667, 754, 761, 8
     plt.savefig(join(savedir, "Hessian_sep_cls%d.jpg"%class_id))
     # plt.show()
 
-    #%% Interpolation in the full space
-    img_all = None
-    for eigi in range(50): #eigvects.shape[1]
-        interp_codes = LExpMap(ref_vect.cpu().numpy(), eigvects[:, -eigi-1], 11, (-2.5, 2.5))
-        img_list = G.visualize(torch.from_numpy(interp_codes).float().cuda()).cpu()
-        img_all = img_list if img_all is None else torch.cat((img_all, img_list), dim=0)
-        clear_output(wait=True)
-        progress_bar(eigi, 50, "ploting row of page: %d of %d" % (eigi, 256))
+#%% Interpolation in the full space
+img_all = None
+for eigi in range(50): #eigvects.shape[1]
+    interp_codes = LExpMap(ref_vect.cpu().numpy(), eigvects[:, -eigi-1], 11, (-2.5, 2.5))
+    img_list = G.visualize(torch.from_numpy(interp_codes).float().cuda()).cpu()
+    img_all = img_list if img_all is None else torch.cat((img_all, img_list), dim=0)
+    clear_output(wait=True)
+    progress_bar(eigi, 50, "ploting row of page: %d of %d" % (eigi, 256))
 
-    imggrid = make_grid(img_all, nrow=11)
-    PILimg = ToPILImage()(imggrid)#.show()
-    PILimg.save(join(savedir, "eigvect_full_cls%d.jpg"%class_id))
-    #% Interpolation in the class space
-    img_all = None
-    for eigi in range(50): # eigvects_clas.shape[1]
-        interp_class = LExpMap(classvec.cpu().numpy(), eigvects_clas[:, -eigi-1], 11, (-2.5, 2.5))
-        interp_codes = np.hstack((noisevec.cpu().numpy().repeat(11, axis=0), interp_class, ))
-        img_list = G.visualize(torch.from_numpy(interp_codes).float().cuda()).cpu()
-        img_all = img_list if img_all is None else torch.cat((img_all, img_list), dim=0)
-        clear_output(wait=True)
-        progress_bar(eigi, 50, "ploting row of page: %d of %d" % (eigi, 128))
+imggrid = make_grid(img_all, nrow=11)
+PILimg = ToPILImage()(imggrid)#.show()
+PILimg.save(join(savedir, "eigvect_full_cls%d.jpg"%class_id))
+#% Interpolation in the class space
+img_all = None
+for eigi in range(50): # eigvects_clas.shape[1]
+    interp_class = LExpMap(classvec.cpu().numpy(), eigvects_clas[:, -eigi-1], 11, (-2.5, 2.5))
+    interp_codes = np.hstack((noisevec.cpu().numpy().repeat(11, axis=0), interp_class, ))
+    img_list = G.visualize(torch.from_numpy(interp_codes).float().cuda()).cpu()
+    img_all = img_list if img_all is None else torch.cat((img_all, img_list), dim=0)
+    clear_output(wait=True)
+    progress_bar(eigi, 50, "ploting row of page: %d of %d" % (eigi, 128))
 
-    imggrid = make_grid(img_all, nrow=11)
-    PILimg2 = ToPILImage()(imggrid)#.show()
-    PILimg2.save(join(savedir, "eigvect_clas_cls%d.jpg"%class_id))
-    #% Interpolation in the noise space
-    img_all = None
-    for eigi in range(50):#eigvects_nois.shape[1]
-        interp_noise = LExpMap(noisevec.cpu().numpy(), eigvects_nois[:, -eigi-1], 11, (-4.5, 4.5))
-        interp_codes = np.hstack((interp_noise, classvec.cpu().numpy().repeat(11, axis=0), ))
-        img_list = G.visualize(torch.from_numpy(interp_codes).float().cuda()).cpu()
-        img_all = img_list if img_all is None else torch.cat((img_all, img_list), dim=0)
-        clear_output(wait=True)
-        progress_bar(eigi, 50, "ploting row of page: %d of %d" % (eigi, 128))
+imggrid = make_grid(img_all, nrow=11)
+PILimg2 = ToPILImage()(imggrid)#.show()
+PILimg2.save(join(savedir, "eigvect_clas_cls%d.jpg"%class_id))
+#% Interpolation in the noise space
+img_all = None
+for eigi in range(50):#eigvects_nois.shape[1]
+    interp_noise = LExpMap(noisevec.cpu().numpy(), eigvects_nois[:, -eigi-1], 11, (-4.5, 4.5))
+    interp_codes = np.hstack((interp_noise, classvec.cpu().numpy().repeat(11, axis=0), ))
+    img_list = G.visualize(torch.from_numpy(interp_codes).float().cuda()).cpu()
+    img_all = img_list if img_all is None else torch.cat((img_all, img_list), dim=0)
+    clear_output(wait=True)
+    progress_bar(eigi, 50, "ploting row of page: %d of %d" % (eigi, 128))
 
-    imggrid = make_grid(img_all, nrow=11)
-    PILimg3 = ToPILImage()(imggrid)#.show()
-    PILimg3.save(join(savedir, "eigvect_nois_cls%d.jpg"%class_id))
-    print("Spent %.1f sec from start" % (time() - T00))
+imggrid = make_grid(img_all, nrow=11)
+PILimg3 = ToPILImage()(imggrid)#.show()
+PILimg3.save(join(savedir, "eigvect_nois_cls%d.jpg"%class_id))
+print("Spent %.1f sec from start" % (time() - T00))  # 270 sec for one class.
+
+
 #%%
 # go through spectrum in batch, and plot B number of axis in a row
 def vis_eigen_frame(eigvect_avg, eigv_avg, ref_code=None, figdir=figdir, page_B=50):
