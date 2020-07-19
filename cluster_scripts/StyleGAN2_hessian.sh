@@ -18,6 +18,9 @@ param_list='--ckpt_name 2020-01-11-skylion-stylegan2-animeportraits.pt --size 51
 --ckpt_name model.ckpt-533504.pt  --size 512 --trialn 20 --truncation 1.0
 --ckpt_name model.ckpt-533504.pt  --size 512 --trialn 20 --truncation 0.8
 --ckpt_name model.ckpt-533504.pt  --size 512 --trialn 20 --truncation 0.6
+--ckpt_name ffhq-512-avg-tpurun1.pt  --size 512 --trialn 20 --truncation 1.0
+--ckpt_name ffhq-512-avg-tpurun1.pt  --size 512 --trialn 20 --truncation 0.8
+--ckpt_name ffhq-512-avg-tpurun1.pt  --size 512 --trialn 20 --truncation 0.6
 '
 #--ckpt_name AbstractArtFreaGAN.pt --size 1024 --trialn 20 --truncation 1
 #--ckpt_name AbstractArtFreaGAN.pt --size 1024 --trialn 20 --truncation 0.8
