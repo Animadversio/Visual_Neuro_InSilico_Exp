@@ -1,12 +1,12 @@
 #!/bin/sh
 
 #PBS -N StyleGAN2_hessian
-#PBS -l nodes=1:ppn=1:gpus=1:K20x,walltime=23:59:00,mem=10gb
+#PBS -l nodes=1:ppn=1:gpus=1:V100,walltime=23:59:00,mem=10gb
 
 # Specify the default queue for the fastest nodes
 #PBS -m be
 #PBS -q dque
-#PBS -t 16-21
+#PBS -t 19-21
 
 # Prepare the virtual env for python
 # export PATH=/act/Anaconda3-2.3.0/bin:${PATH}

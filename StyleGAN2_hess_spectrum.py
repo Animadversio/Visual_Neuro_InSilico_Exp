@@ -41,12 +41,14 @@ import models
 ImDist = models.PerceptualLoss(model='net-lin', net='squeeze', use_gpu=1, gpu_ids=[0])
 #%%
 StyleGAN_root = r"E:\DL_Projects\Vision\stylegan2-pytorch"
+StyleGAN_root = r"D:\Github\stylegan2-pytorch"
 sys.path.append(StyleGAN_root)
 from model import Generator
 #%%
-ckpt_name = r"stylegan2-ffhq-config-f.pt"# r"AbstractArtFreaGAN.pt"#r"2020-01-11-skylion-stylegan2-animeportraits.pt"
+ckpt_name = r"stylegan2-cat-config-f.pt"# r"stylegan2-ffhq-config-f.pt"#
+# r"AbstractArtFreaGAN.pt"#r"2020-01-11-skylion-stylegan2-animeportraits.pt"
 ckpt_path = join(StyleGAN_root, "checkpoint", ckpt_name)
-size = 1024
+size = 256
 device = "cpu"
 latent = 512
 n_mlp = 8
@@ -86,6 +88,19 @@ class StyleGAN_wrapper():#nn.Module
         return img_all
 
 G = StyleGAN_wrapper(g_ema)
+#%%
+T00 = time()
+truncation = 0.8
+truncation_mean = 4096
+RND = np.random.randint(10000)
+mean_latent = g_ema.mean_latent(truncation_mean)
+ref_z = torch.randn(1, latent, device=device).cuda()
+mov_z = ref_z.detach().clone().requires_grad_(True) # requires grad doesn't work for 1024 images.
+ref_samp = G.visualize(ref_z, truncation=truncation, mean_latent=mean_latent)
+mov_samp = G.visualize(mov_z, truncation=truncation, mean_latent=mean_latent)
+dsim = ImDist(ref_samp, mov_samp)
+H = get_full_hessian(dsim, mov_z)
+print(time() - T00, " sec")
 #%%
 savedir = r"E:\OneDrive - Washington University in St. Louis\HessGANCmp\StyleGAN2"
 truncation = 0.5
