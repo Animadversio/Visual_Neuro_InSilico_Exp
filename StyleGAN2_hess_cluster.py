@@ -53,6 +53,7 @@ parser.add_argument('--ckpt_name', type=str, default="model.ckpt-533504.pt", hel
 parser.add_argument('--size', type=int, default=512, help='resolution of generated image')
 parser.add_argument('--trialn', type=int, default=10, help='resolution of generated image')
 parser.add_argument('--truncation', type=float, default=1, nargs="+")
+parser.add_argument("--channel_multiplier", type=int, default=2,)
 args = parser.parse_args()   # ["--ckpt_name", "AbstractArtFreaGAN.pt", '--truncation', '1', '0.8']
 # ckpt_name = "model.ckpt-533504.pt"
 ckpt_path = join("/scratch/binxu/torch/StyleGANckpt", args.ckpt_name)
@@ -61,7 +62,7 @@ size = args.size
 device = "cpu"
 latent = 512
 n_mlp = 8
-channel_multiplier = 2
+channel_multiplier = args.channel_multiplier
 trunc_list = args.truncation
 g_ema = Generator(
     size, latent, n_mlp, channel_multiplier=channel_multiplier
@@ -99,16 +100,16 @@ class StyleGAN_wrapper():#nn.Module
 
 G = StyleGAN_wrapper(g_ema)
 #%% Demo
-truncation = 0.8
-truncation_mean = 4096
-RND = np.random.randint(1000)
-mean_latent = g_ema.mean_latent(truncation_mean)
-ref_z = torch.randn(1, latent, device=device).cuda()
-mov_z = ref_z.detach().clone().requires_grad_(True) # requires grad doesn't work for 1024 images.
-ref_samp = G.visualize(ref_z, truncation=truncation, mean_latent=mean_latent)
-mov_samp = G.visualize(mov_z, truncation=truncation, mean_latent=mean_latent)
-dsim = ImDist(ref_samp, mov_samp)
-H = get_full_hessian(dsim, mov_z)
+# truncation = 0.8
+# truncation_mean = 4096
+# RND = np.random.randint(1000)
+# mean_latent = g_ema.mean_latent(truncation_mean)
+# ref_z = torch.randn(1, latent, device=device).cuda()
+# mov_z = ref_z.detach().clone().requires_grad_(True) # requires grad doesn't work for 1024 images.
+# ref_samp = G.visualize(ref_z, truncation=truncation, mean_latent=mean_latent)
+# mov_samp = G.visualize(mov_z, truncation=truncation, mean_latent=mean_latent)
+# dsim = ImDist(ref_samp, mov_samp)
+# H = get_full_hessian(dsim, mov_z)
 #%%
 saveroot = r"/scratch/binxu/GAN_hessian/StyleGAN2"
 savedir = join(saveroot, ckpt_fn)
