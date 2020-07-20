@@ -1,12 +1,12 @@
 #!/bin/sh
 
 #PBS -N StyleGAN2_hessian
-#PBS -l nodes=1:ppn=1:gpus=1:K20,walltime=23:00:00,mem=10gb
+#PBS -l nodes=1:ppn=1:gpus=1:K20x,walltime=23:59:00,mem=10gb
 
 # Specify the default queue for the fastest nodes
 #PBS -m be
 #PBS -q dque
-#PBS -t 16-18
+#PBS -t 16-21
 
 # Prepare the virtual env for python
 # export PATH=/act/Anaconda3-2.3.0/bin:${PATH}
@@ -29,7 +29,10 @@ param_list='--ckpt_name 2020-01-11-skylion-stylegan2-animeportraits.pt --size 51
 --ckpt_name stylegan2-car-config-f.pt  --size 512  --trialn 20 --truncation 0.6
 --ckpt_name ffhq-256-config-e-003810.pt  --size 256  --trialn 20 --truncation 1.0
 --ckpt_name ffhq-256-config-e-003810.pt  --size 256  --trialn 20 --truncation 0.8
---ckpt_name ffhq-256-config-e-003810.pt  --size 256  --trialn 20 --truncation 0.6'
+--ckpt_name ffhq-256-config-e-003810.pt  --size 256  --trialn 20 --truncation 0.6
+--ckpt_name stylegan2-cat-config-f.pt  --size 256  --trialn 20 --truncation 1.0
+--ckpt_name stylegan2-cat-config-f.pt  --size 256  --trialn 20 --truncation 0.8
+--ckpt_name stylegan2-cat-config-f.pt  --size 256  --trialn 20 --truncation 0.6'
 #--ckpt_name AbstractArtFreaGAN.pt --size 1024 --trialn 20 --truncation 1
 #--ckpt_name AbstractArtFreaGAN.pt --size 1024 --trialn 20 --truncation 0.8
 #--ckpt_name AbstractArtFreaGAN.pt --size 1024 --trialn 20 --truncation 0.6

@@ -11,6 +11,7 @@ import sys
 import numpy as np
 import matplotlib.pylab as plt
 from time import time
+import os
 from os.path import join
 from imageio import imwrite
 from build_montages import build_montages, color_framed_montages
@@ -55,6 +56,7 @@ parser.add_argument('--truncation', type=float, default=1, nargs="+")
 args = parser.parse_args()   # ["--ckpt_name", "AbstractArtFreaGAN.pt", '--truncation', '1', '0.8']
 # ckpt_name = "model.ckpt-533504.pt"
 ckpt_path = join("/scratch/binxu/torch/StyleGANckpt", args.ckpt_name)
+ckpt_fn = args.ckpt_name[:args.ckpt_name.rfind('.')]
 size = args.size
 device = "cpu"
 latent = 512
@@ -108,14 +110,15 @@ mov_samp = G.visualize(mov_z, truncation=truncation, mean_latent=mean_latent)
 dsim = ImDist(ref_samp, mov_samp)
 H = get_full_hessian(dsim, mov_z)
 #%%
-savedir = r"/scratch/binxu/GAN_hessian/StyleGAN2"
-truncation = 0.5
+saveroot = r"/scratch/binxu/GAN_hessian/StyleGAN2"
+savedir = join(saveroot, ckpt_fn)
+os.makedirs(savedir, exist_ok=True)
 T00 = time()
 for triali in range(args.trialn):
     for truncation in trunc_list:
         T00 = time()
         truncation_mean = 4096
-        RND = np.random.randint(1000)
+        RND = np.random.randint(10000)
         mean_latent = g_ema.mean_latent(truncation_mean)
         ref_z = torch.randn(1, latent, device=device).cuda()
         mov_z = ref_z.detach().clone().requires_grad_(True)
@@ -136,8 +139,9 @@ for triali in range(args.trialn):
         plt.plot(np.log10(eigvals))
         plt.ylabel("eigenvalue (log)")
         plt.suptitle("Hessian Spectrum Full Space")
-        plt.savefig(join(savedir, "Hessian_trunc%.1f_%03d.jpg" % (truncation, RND)))
-        np.savez(join(savedir, "Hess_trunc%.1f_%03d.npz" % (truncation, RND)), H=H, eigvals=eigvals, eigvects=eigvects, vect=ref_z.cpu().numpy(),)
+        plt.savefig(join(savedir, "Hessian_trunc%.1f_%04d.jpg" % (truncation, RND)))
+        np.savez(join(savedir, "Hess_trunc%.1f_%04d.npz" % (truncation, RND)), H=H, eigvals=eigvals,
+                 eigvects=eigvects, vect=ref_z.cpu().numpy(),)
 #%%
         T00 = time()
         codes_all = []
@@ -148,7 +152,7 @@ for triali in range(args.trialn):
         img_all = G.visualize_batch_np(codes_all_arr, truncation=truncation, mean_latent=mean_latent, B=5)
         imggrid = make_grid(img_all, nrow=11)
         PILimg = ToPILImage()(imggrid)  # .show()
-        PILimg.save(join(savedir, "eigvect_lin_trunc%.1f_%03d.jpg" % (truncation, RND)))
+        PILimg.save(join(savedir, "eigvect_lin_trunc%.1f_%04d.jpg" % (truncation, RND)))
         print("Spent time %.1f sec" % (time() - T00))
         #%%
         T00 = time()
@@ -160,7 +164,7 @@ for triali in range(args.trialn):
         img_all = G.visualize_batch_np(codes_all_arr, truncation=truncation, mean_latent=mean_latent, B=5)
         imggrid = make_grid(img_all, nrow=11)
         PILimg2 = ToPILImage()(imggrid)#.show()
-        PILimg2.save(join(savedir, "eigvect_sph_trunc%.1f_%03d.jpg" % (truncation, RND)))
+        PILimg2.save(join(savedir, "eigvect_sph_trunc%.1f_%04d.jpg" % (truncation, RND)))
         print("Spent time %.1f sec" % (time() - T00))
         #%%
         T00 = time()
@@ -172,7 +176,7 @@ for triali in range(args.trialn):
         img_all = G.visualize_batch_np(codes_all_arr, truncation=truncation, mean_latent=mean_latent, B=5)
         imggrid = make_grid(img_all, nrow=15)
         PILimg2 = ToPILImage()(imggrid)#.show()
-        PILimg2.save(join(savedir, "eigvect_sph_fin_trunc%.1f_%03d.jpg" % (truncation, RND)))
+        PILimg2.save(join(savedir, "eigvect_sph_fin_trunc%.1f_%04d.jpg" % (truncation, RND)))
         print("Spent time %.1f sec" % (time() - T00))
 #%%
 # try:
