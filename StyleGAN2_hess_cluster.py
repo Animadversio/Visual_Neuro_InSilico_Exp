@@ -5,8 +5,9 @@ import torch.nn.functional as F
 from torchvision.transforms import ToPILImage, ToTensor
 from hessian_eigenthings.power_iter import Operator, deflated_power_iteration
 from hessian_eigenthings.lanczos import lanczos
-from lanczos_generalized import lanczos_generalized
-from GAN_hvp_operator import GANHVPOperator, GANForwardHVPOperator, compute_hessian_eigenthings, get_full_hessian
+# from lanczos_generalized import lanczos_generalized
+from GAN_hvp_operator import GANHVPOperator, GANForwardHVPOperator, GANForwardMetricHVPOperator, \
+    compute_hessian_eigenthings, get_full_hessian
 import sys
 import numpy as np
 import matplotlib.pylab as plt
@@ -50,8 +51,10 @@ from model import Generator
 from argparse import ArgumentParser
 parser = ArgumentParser(description='Computing Hessian at different part of the code space in StyleGAN2')
 parser.add_argument('--ckpt_name', type=str, default="model.ckpt-533504.pt", help='checkpoint name')
+parser.add_argument('--method', type=str, default="BP", help='Method of computing Hessian can be `BP` or '
+                                                             '`ForwardIter` `BackwardIter` ')
 parser.add_argument('--size', type=int, default=512, help='resolution of generated image')
-parser.add_argument('--trialn', type=int, default=10, help='resolution of generated image')
+parser.add_argument('--trialn', type=int, default=10, help='number of repititions')
 parser.add_argument('--truncation', type=float, default=1, nargs="+")
 parser.add_argument("--channel_multiplier", type=int, default=2,)
 args = parser.parse_args()   # ["--ckpt_name", "AbstractArtFreaGAN.pt", '--truncation', '1', '0.8']
@@ -115,7 +118,7 @@ from GAN_hvp_operator import GANForwardHVPOperator
 # H = get_full_hessian(dsim, mov_z)
 #%%
 saveroot = r"/scratch/binxu/GAN_hessian/StyleGAN2"
-savedir = join(saveroot, ckpt_fn)
+savedir = join(saveroot, ckpt_fn + "_" + args.method[:5])
 os.makedirs(savedir, exist_ok=True)
 T00 = time()
 for triali in range(args.trialn):
@@ -125,22 +128,33 @@ for triali in range(args.trialn):
         RND = np.random.randint(10000)
         mean_latent = g_ema.mean_latent(truncation_mean)
         ref_z = torch.randn(1, latent, device=device).cuda()
-        mov_z = ref_z.detach().clone().requires_grad_(True)
-        ref_samp = G.visualize(ref_z, truncation=truncation, mean_latent=mean_latent)
-        mov_samp = G.visualize(mov_z, truncation=truncation, mean_latent=mean_latent)
-        dsim = ImDist(ref_samp, mov_samp)
-        H = get_full_hessian(dsim, mov_z)
+        if args.method == "BP":
+            mov_z = ref_z.detach().clone().requires_grad_(True)
+            ref_samp = G.visualize(ref_z, truncation=truncation, mean_latent=mean_latent)
+            mov_samp = G.visualize(mov_z, truncation=truncation, mean_latent=mean_latent)
+            dsim = ImDist(ref_samp, mov_samp)
+            H = get_full_hessian(dsim, mov_z)
+            del dsim
+            torch.cuda.empty_cache()
+            eigvals, eigvects = np.linalg.eigh(H)
+        elif args.method == "ForwardIter":
+            SGhvp = GANForwardMetricHVPOperator(G, ref_z, ImDist, preprocess=lambda img: img, EPS=5E-2, )
+            eigenvals, eigenvecs = lanczos(SGhvp, num_eigenthings=250, max_steps=200, tol=1e-5, )
+            eigenvecs = eigenvecs.T
+            sort_idx = np.argsort(np.abs(eigenvals))
+            eigvals = np.abs(eigenvals[sort_idx])
+            eigvects = eigenvecs[:, sort_idx]
+            H = eigvects @ np.diag(eigvals) @ eigvects.T
         print("Computing Hessian Completed, %.1f sec" %(time()-T00))
-        del dsim
-        torch.cuda.empty_cache()
 #%%
-        eigvals, eigvects = np.linalg.eigh(H)
         plt.figure(figsize=[7,5])
         plt.subplot(1, 2, 1)
-        plt.plot(eigvals)
+        plt.plot(eigvals[::-1])
         plt.ylabel("eigenvalue")
+        plt.xlim(right=latent)
         plt.subplot(1, 2, 2)
-        plt.plot(np.log10(eigvals))
+        plt.plot(np.log10(eigvals[::-1]))
+        plt.xlim(right=latent)
         plt.ylabel("eigenvalue (log)")
         plt.suptitle("Hessian Spectrum Full Space")
         plt.savefig(join(savedir, "Hessian_trunc%.1f_%04d.jpg" % (truncation, RND)))
