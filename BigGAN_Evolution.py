@@ -67,7 +67,7 @@ def BigGAN_render(class_vector, noise_vector, truncation):
         output = model(noise_vector, class_vector, truncation)
     imgs = convert_to_images(output.cpu())
     return imgs
-#%
+
 def BigGAN_embed_render(embed_vecs, noise_vecs=None, truncation=0.7, scale=255.0, batch=5):
     if embed_vecs.shape[1] == 256:
         input_vecs = torch.from_numpy(embed_vecs)

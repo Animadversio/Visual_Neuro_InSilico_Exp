@@ -1,3 +1,7 @@
+"""
+Native torch version of fc6 GANs. Support deployment on any machine, since the weights are publicly hosted online.
+The motivation is to get rid of dependencies on Caffe framework totally.
+"""
 #%%
 # import torch
 # torch.save(G, r"E:\Monkey_Data\Generator_DB_Windows\nets\upconv\fc6\fc6GAN.pt")
@@ -51,7 +55,7 @@ def load_statedict_from_online(name="fc6"):
     ckpthome = join(torchhome, "checkpoints")
     os.makedirs(ckpthome, exist_ok=True)
     filepath = join(ckpthome, "upconvGAN_%s.pt"%name)
-    if os.path.exists(filepath):
+    if not os.path.exists(filepath):
         torch.hub.download_url_to_file(model_urls[name], filepath, hash_prefix=None,
                                    progress=True)
     SD = torch.load(filepath)
@@ -173,9 +177,47 @@ class upconvGAN(nn.Module):
         return self.G(x)[:, [2, 1, 0], :, :]
 
     def visualize(self, x, scale=1.0):
-        raw = self.G(x)[:, [2, 1, 0], :, :]
-        return torch.clamp(raw + RGB_mean.to(raw.device), 0, 255.0) / 255.0 * scale
+        raw = self.G(x)
+        return torch.clamp(raw[:, [2, 1, 0], :, :] + RGB_mean.to(raw.device), 0, 255.0) / 255.0 * scale
 
+    def render(self, x, scale=1.0, B=42):  # add batch processing to avoid memory over flow for batch too large
+        coden = x.shape[0]
+        img_all = []
+        csr = 0  # if really want efficiency, we should use minibatch processing.
+        while csr < coden:
+            csr_end = min(csr + B, coden)
+            with torch.no_grad():
+                imgs = self.visualize(torch.from_numpy(x[csr:csr_end, :]).float().cuda(), scale).permute(2,3,1,0).cpu().numpy()
+            img_all.extend([imgs[:, :, :, imgi] for imgi in range(imgs.shape[3])])
+            csr = csr_end
+        return img_all
+#%% Very useful function
+import numpy as np
+from build_montages import build_montages, color_framed_montages
+from PIL import Image
+def visualize_np(G, code, layout=None, show=True):
+    """Utility function to visualize a np code vectors.
+
+    If it's a single vector it will show in a plt window, Or it will show a montage in a windows photo.
+    G: a generator equipped with a visualize method to turn torch code into torch images.
+    layout: controls the layout of the montage. (5,6) create 5 by 6 grid
+    show: if False, it will return the images in 4d array only.
+    """
+    with torch.no_grad():
+        imgs = G.visualize(torch.from_numpy(code).float().cuda()).cpu().permute([2, 3, 1, 0]).squeeze().numpy()
+    if show:
+        if len(imgs.shape) <4:
+            plt.imshow(imgs)
+            plt.show()
+        else:
+            img_list = [imgs[:,:,:,imgi].squeeze() for imgi in range(imgs.shape[3])]
+            if layout is None:
+                mtg = build_montages(img_list,(256,256),(imgs.shape[3],1))[0]
+                Image.fromarray(np.uint8(mtg*255.0)).show()
+            else:
+                mtg = build_montages(img_list, (256, 256), layout)[0]
+                Image.fromarray(np.uint8(mtg*255.0)).show()
+    return imgs
 # # layer name translation
 # # "defc7.weight", "defc7.bias", "defc6.weight", "defc6.bias", "defc5.weight", "defc5.bias".
 # # "defc7.1.weight", "defc7.1.bias", "defc6.1.weight", "defc6.1.bias", "defc5.1.weight", "defc5.1.bias".

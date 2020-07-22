@@ -105,8 +105,7 @@ def build_montages(image_list, image_shape, montage_shape):
         raise Exception('montage shape must be list or tuple of length 2 (rows, cols)')
     image_montages = []
     # start with black canvas to draw images onto
-    montage_image = np.zeros(shape=(image_shape[1] * (montage_shape[1]), image_shape[0] * montage_shape[0], 3),
-                          dtype=np.float64)
+    montage_image = np.zeros(shape=(image_shape[1] * (montage_shape[1]), image_shape[0] * montage_shape[0], 3), dtype=np.float64)
     cursor_pos = [0, 0]
     start_new_img = False
     for img in image_list:
@@ -126,8 +125,55 @@ def build_montages(image_list, image_shape, montage_shape):
                 cursor_pos = [0, 0]
                 image_montages.append(montage_image)
                 # reset black canvas
-                montage_image = np.zeros(shape=(image_shape[1] * (montage_shape[1]), image_shape[0] * montage_shape[0], 3),
-                                      dtype=np.float64)
+                montage_image = np.zeros(shape=(image_shape[1] * (montage_shape[1]), image_shape[0] * montage_shape[0], 3), dtype=np.float64)
+                start_new_img = True
+    if start_new_img is False:
+        image_montages.append(montage_image)  # add unfinished montage
+    return image_montages
+
+#%%
+def color_frame(img, color, pad=10):
+    outimg = np.ones((img.shape[0] + pad * 2, img.shape[1] + pad * 2, 3))
+    outimg = outimg * color[:3]
+    outimg[pad:-pad, pad:-pad, :] = img
+    return outimg
+
+import matplotlib.pylab as plt
+def color_framed_montages(image_list, image_shape, montage_shape, scores, cmap=plt.cm.summer, pad=24):
+    # get color for each cell
+    if (not scores is None) and (not cmap is None):
+        lb = np.min(scores)
+        ub = max(np.max(scores), lb + 0.001)
+        colorlist = [cmap((score - lb) / (ub - lb)) for score in scores]
+        # pad color to the image
+        frame_image_list = [color_frame(img, color, pad=pad) for img, color in zip(image_list, colorlist)]
+    else:
+        frame_image_list = image_list
+    image_montages = []
+    # start with black canvas to draw images onto
+    montage_image = np.zeros(shape=(image_shape[1] * (montage_shape[1]), image_shape[0] * montage_shape[0], 3),
+                             dtype=np.float64)
+    cursor_pos = [0, 0]
+    start_new_img = False
+    for img in frame_image_list:
+        if type(img).__module__ != np.__name__:
+            raise Exception('input of type {} is not a valid numpy array'.format(type(img)))
+        start_new_img = False
+        img = resize(img, image_shape)
+        if img.dtype in (np.uint8, np.int) and img.max() > 1.0:  # float 0,1 image
+            img = (img / 255.0).astype(np.float64)
+        # draw image to black canvas
+        montage_image[cursor_pos[1]:cursor_pos[1] + image_shape[1], cursor_pos[0]:cursor_pos[0] + image_shape[0]] = img
+        cursor_pos[0] += image_shape[0]  # increment cursor x position
+        if cursor_pos[0] >= montage_shape[0] * image_shape[0]:
+            cursor_pos[1] += image_shape[1]  # increment cursor y position
+            cursor_pos[0] = 0
+            if cursor_pos[1] >= montage_shape[1] * image_shape[1]:
+                cursor_pos = [0, 0]
+                image_montages.append(montage_image)
+                # reset black canvas
+                montage_image = np.zeros(
+                    shape=(image_shape[1] * (montage_shape[1]), image_shape[0] * montage_shape[0], 3), dtype=np.float64)
                 start_new_img = True
     if start_new_img is False:
         image_montages.append(montage_image)  # add unfinished montage
