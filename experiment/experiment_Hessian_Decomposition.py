@@ -74,6 +74,7 @@ import numpy as np
 import matplotlib.pylab as plt
 from imageio import imwrite
 backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_integrated\2020-06-01-09-46-37"
+backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_integrated\2020-06-24-09-55-19"
 newimg_dir = join(backup_dir,"Hess_imgs")
 summary_dir = join(backup_dir,"Hess_imgs","summary")
 
