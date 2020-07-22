@@ -33,7 +33,8 @@ param_list='--ckpt_name 2020-01-11-skylion-stylegan2-animeportraits.pt --size 51
 --ckpt_name stylegan2-cat-config-f.pt  --size 256  --trialn 20 --truncation 1.0
 --ckpt_name stylegan2-cat-config-f.pt  --size 256  --trialn 20 --truncation 0.8
 --ckpt_name stylegan2-cat-config-f.pt  --size 256  --trialn 20 --truncation 0.6
---ckpt_name ffhq-256-config-e-003810.pt  --size 256  --channel_multiplier 1 --trialn 50 --truncation 1.0  --method ForwardIter'
+--ckpt_name ffhq-256-config-e-003810.pt  --size 256  --channel_multiplier 1 --trialn 50 --truncation 1.0  --method ForwardIter
+--ckpt_name stylegan2-cat-config-f.pt  --size 256  --channel_multiplier 1 --trialn 50 --truncation 1.0  --method ForwardIter'
 
 #--ckpt_name AbstractArtFreaGAN.pt --size 1024 --trialn 20 --truncation 1
 #--ckpt_name AbstractArtFreaGAN.pt --size 1024 --trialn 20 --truncation 0.8
