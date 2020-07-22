@@ -100,10 +100,7 @@ class GANForwardHVPOperator(Operator):
             use_gpu=True,
             EPS=1E-2,
     ):
-        if use_gpu:
-            device = "cuda"
-        else:
-            device = "cpu"
+        device = "cuda" if use_gpu else "cpu"
         self.device = device
         if hasattr(model, "parameters"):
             for param in model.parameters():
@@ -123,6 +120,7 @@ class GANForwardHVPOperator(Operator):
         self.perturb_norm = self.code.norm() * self.EPS
 
     def select_code(self, code):
+        """Change the reference code"""
         self.code = code.clone().requires_grad_(False).float().to(self.device)  # torch.float32
         self.perturb_norm = self.code.norm() * self.EPS
         self.img_ref = self.model.visualize(self.code + self.perturb_vec)
@@ -168,6 +166,87 @@ class GANForwardHVPOperator(Operator):
         """
         pass
 
+#%%
+class GANForwardMetricHVPOperator(Operator):
+    """This part amalgamates the structure of Lucent and hessian_eigenthings
+    It adapts GANForwardHVPOperator for binary metric function
+    """
+    def __init__(
+            self,
+            model,
+            code,
+            criterion,
+            preprocess=lambda img: F.interpolate(img, (256, 256), mode='bilinear', align_corners=True),
+            use_gpu=True,
+            EPS=1E-2,
+    ):
+        device = "cuda" if use_gpu else "cpu"
+        self.device = device
+        if hasattr(model, "parameters"):
+            for param in model.parameters():
+                param.requires_grad_(False)
+        if hasattr(criterion, "parameters"):
+            for param in criterion.parameters():
+                param.requires_grad_(False)
+        self.model = model
+        self.criterion = criterion  # metric function use to determine the image distance
+        self.preprocess = preprocess
+        self.code = code.clone().requires_grad_(False).float().to(device)  # reference code
+        self.img_ref = self.model.visualize(self.code)
+        self.img_ref = self.preprocess(self.img_ref)  # F.interpolate(self.img_ref, (224, 224), mode='bilinear', align_corners=True)
+        activ = self.criterion(self.img_ref, self.img_ref)
+        self.size = self.code.numel()
+        self.EPS = EPS
+        self.perturb_norm = self.code.norm() * self.EPS  # norm
+
+    def select_code(self, code):
+        self.code = code.clone().requires_grad_(False).float().to(self.device)  # torch.float32
+        self.perturb_norm = self.code.norm() * self.EPS
+        self.img_ref = self.model.visualize(self.code)
+        self.img_ref = self.preprocess(self.img_ref)
+        # dsim = self.criterion(self.img_ref, self.img_ref)
+        # gradient = torch.autograd.grad(dsim, self.perturb_vec, create_graph=False, retain_graph=False)[0]
+        # self.gradient = gradient.view(-1)
+
+    def apply(self, vec, EPS=None):
+        """
+        Returns H*vec where H is the hessian of the loss w.r.t.
+        the vectorized model parameters.
+        Here we implement the forward approximation of HVP.
+         Hv|_x \approx (g(x + eps*v) - g(x - eps*v)) / (2*eps)
+        """
+        vecnorm = vec.norm()
+        if vecnorm < 1E-8:
+            return torch.zeros_like(vec).cuda()
+        EPS = self.EPS if EPS is None else EPS
+        self.perturb_norm = self.code.norm() * EPS
+        eps = self.perturb_norm / vecnorm
+        # take the second gradient by comparing 2 first order gradient.
+        perturb_vecs = self.code.detach() + eps * torch.tensor([1, -1.0]).view(-1, 1).to(self.device) * vec.to(self.device).detach()
+        perturb_vecs.requires_grad_(True)
+        img = self.model.visualize(perturb_vecs)
+        resz_img = self.preprocess(img)
+        dsim = self.criterion(self.img_ref, resz_img)
+        # size 2, 1, 1, 1. Distance from reference to 2 perturbed images. Do mean before grad
+        ftgrad_both = torch.autograd.grad(dsim.mean(), perturb_vecs, retain_graph=False, create_graph=False,
+                                          only_inputs=True)[0]
+        hessian_vec_prod = (ftgrad_both[0, :] - ftgrad_both[1, :]) / (2 * eps)
+        return hessian_vec_prod
+
+    def vHv_form(self, vec):
+        """
+        Returns Bilinear form vec.T*H*vec where H is the hessian of the loss.
+        If vec is eigen vector of H this will return the eigen value.
+        """
+        hessian_vec_prod = self.apply(vec)
+        vhv = (hessian_vec_prod * vec).sum()
+        return vhv
+
+    def zero_grad(self):
+        """
+        Zeros out the gradient info for each parameter in the model
+        """
+        pass
 
 def compute_hessian_eigenthings(
     model,

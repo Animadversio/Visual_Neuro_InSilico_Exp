@@ -99,6 +99,9 @@ class StyleGAN_wrapper():#nn.Module
         return img_all
 
 G = StyleGAN_wrapper(g_ema)
+#%%
+from GAN_hvp_operator import GANForwardHVPOperator
+
 #%% Demo
 # truncation = 0.8
 # truncation_mean = 4096
