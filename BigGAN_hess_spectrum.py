@@ -44,14 +44,16 @@ for param in BGAN.parameters():
     param.requires_grad_(False)
 embed_mat = BGAN.embeddings.parameters().__next__().data
 BGAN.cuda()
-#%% import BigBiGAN
+# the model is on cuda from this.
+
+#%% import BigBiGAN! 
 import sys
 sys.path.append(r"E:\Github_Projects\BigGANsAreWatching")
 from BigGAN.gan_load import UnconditionalBigGAN, make_big_gan
 from BigGAN.model.BigGAN import Generator
 BBGAN = make_big_gan(r"E:\Github_Projects\BigGANsAreWatching\BigGAN\weights\BigBiGAN_x1.pth", resolution=128)
-# the model is on cuda from this.
-#%%
+
+#%% 
 sys.path.append(r"D:\Github\PerceptualSimilarity")
 sys.path.append(r"E:\Github_Projects\PerceptualSimilarity")
 import models
@@ -70,7 +72,7 @@ class BigGAN_wrapper():#nn.Module
         self.space = space
 
     def visualize(self, code, scale=1.0):
-        imgs = self.BigGAN.generator(code, 0.6)
+        imgs = self.BigGAN.generator(code, 0.6) # Matlab version default to 0.7
         return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
 
 G = BigGAN_wrapper(BGAN)
