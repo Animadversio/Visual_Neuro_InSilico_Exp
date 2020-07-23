@@ -1,18 +1,20 @@
 """Supporting classes and experimental code for in-silico experiment"""
 # Manifold_experiment
 import torch_net_utils #net_utils
+import net_utils
 import utils
+from ZO_HessAware_Optimizers import HessAware_Gauss_DC, CholeskyCMAES # newer CMAES api
 from utils import load_GAN
 from Generator import Generator
 from time import time, sleep
 import numpy as np
-from Optimizer import CholeskyCMAES, Genetic, Optimizer  # Optimizer is the base class for these things
+from Optimizer import Genetic, Optimizer  # CholeskyCMAES, Optimizer is the base class for these things
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 import os
 from os.path import join
 from sys import platform
-#%% Decide the result storage place based on the computer the code is running
+#% Decide the result storage place based on the computer the code is running
 if platform == "linux": # cluster
     recorddir = "/scratch/binxu/CNN_data/"
 else:
@@ -174,7 +176,7 @@ from torchvision import transforms
 from torchvision import models
 import torch.nn.functional as F
 from torch_net_utils import layername_dict
-
+from GAN_utils import upconvGAN
 # mini-batches of 3-channel RGB images of shape (3 x H x W), where H and W are expected to be at least 224. The images have to be loaded in to a range of [0, 1] and then normalized using mean = [0.485, 0.456, 0.406] and std = [0.229, 0.224, 0.225].
 
 activation = {} # global variable is important for hook to work! it's an important channel for communication
@@ -207,6 +209,11 @@ class TorchScorer:
             self.layers = list(self.model.features) + list(self.model.classifier)
             self.layername = layername_dict[model_name]
             self.model.cuda().eval()
+        elif model_name == "alexnet":
+            self.model = models.alexnet(pretrained=True)
+            self.layers = list(self.model.features) + list(self.model.classifier)
+            self.layername = layername_dict[model_name]
+            self.model.cuda().eval()
         elif model_name == "densenet121":
             self.model = models.densenet121(pretrained=True)
             self.layers = list(self.model.features) + [self.model.classifier]
@@ -217,20 +224,26 @@ class TorchScorer:
         #                                       transforms.ToTensor(),
         self.normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                                 std=[0.229, 0.224, 0.225]) # Imagenet normalization RGB
+        self.RGBmean = torch.tensor([0.485, 0.456, 0.406]).view([1, 3, 1, 1]).cuda()
+        self.RGBstd = torch.tensor([0.229, 0.224, 0.225]).view([1, 3, 1, 1]).cuda()
         self.artiphys = False
 
     def preprocess(self, img, input_scale=255):
-        """"""
-        # TODO, could be modified to support batch processing
-        # img_tsr = torch.from_numpy(img).float()  # assume img is aready at 255 uint8 scale.
-        # if input_scale != 1.0:
-        #     img_tsr = img_tsr / input_scale
-        # img_tsr = img_tsr.permute([2, 0, 1])
-        img_tsr = transforms.ToTensor()(img / input_scale).float()
-        img_tsr = self.normalize(img_tsr).unsqueeze(0)
-        resz_out_img = F.interpolate(img_tsr, (227, 227), mode='bilinear',
-                                     align_corners=True)
-        return resz_out_img
+        """preprocess single image array or a list (minibatch) of images"""
+        # could be modified to support batch processing. Added batch @ July. 10, 2020
+        # test and optimize the performance by permute the operators. Use CUDA acceleration from preprocessing
+        if type(img) is list: # the following lines have been optimized for speed locally.
+            img_tsr = torch.stack(tuple(torch.from_numpy(im) for im in img)).cuda().float().permute(0, 3, 1, 2) / input_scale
+            img_tsr = (img_tsr - self.RGBmean) / self.RGBstd
+            resz_out_tsr = F.interpolate(img_tsr, (227, 227), mode='bilinear',
+                                         align_corners=True)
+            return resz_out_tsr
+        else:  # assume it's individual image
+            img_tsr = transforms.ToTensor()(img / input_scale).float()
+            img_tsr = self.normalize(img_tsr).unsqueeze(0)
+            resz_out_img = F.interpolate(img_tsr, (227, 227), mode='bilinear',
+                                         align_corners=True)
+            return resz_out_img
 
     def set_unit(self, name, layer, unit=None):
         idx = self.layername.index(layer)
@@ -258,46 +271,48 @@ class TorchScorer:
             self.set_unit(layer, layer, unit=None)
             self.recordings[layer] = []
 
-    def score(self, images, with_grad=False, B=10):
+    def score(self, images, with_grad=False, B=42):
+        """Score in batch will accelerate processing greatly! """ # assume image is using 255 range
         scores = np.zeros(len(images))
-        csr = 0 # if really want efficiency, we should use minibatch processing.
-        img_batch = []
-        for i, img in enumerate(images):
-            # Note: now only support single repetition
-            resz_out_img = self.preprocess(img, input_scale=255.0)
-            img_batch.append(resz_out_img)
-            if (i + 1) % B == 0 or (i + 1==len(images)):
-                with torch.no_grad():
-                    #self.model(resz_out_img.cuda())
-                    self.model(torch.cat(img_batch).cuda())
-                scores[csr:i+1] = activation["score"].squeeze().cpu().numpy().squeeze()
-                csr = i+1
-                img_batch = []
-                if self.artiphys:  # record the whole layer's activation
-                    for layer in self.record_layers:
-                        score_full = activation[layer]
-                        # self._pattern_array.append(score_full)
-                        self.recordings[layer].append(score_full.cpu().numpy())
-
+        csr = 0  # if really want efficiency, we should use minibatch processing.
+        imgn = len(images)
+        while csr < imgn:
+            csr_end = min(csr + B, imgn)
+            img_batch = self.preprocess(images[csr:csr_end], input_scale=255.0)
+            # img_batch.append(resz_out_img)
+            with torch.no_grad():
+                # self.model(torch.cat(img_batch).cuda())
+                self.model(img_batch)
+            scores[csr:csr_end] = activation["score"].squeeze().cpu().numpy().squeeze()
+            csr = csr_end
+            if self.artiphys:  # record the whole layer's activation
+                for layer in self.record_layers:
+                    score_full = activation[layer]
+                    # self._pattern_array.append(score_full)
+                    self.recordings[layer].append(score_full.cpu().numpy())
             # , input_scale=255 # shape=(3, 227, 227) # assuming input scale is 0,1 output will be 0,255
 
         if self.artiphys:
             return scores, self.recordings
         else:
             return scores
-
+#%%
 # Compiled Experimental module!
 # Currently available
 # - Evolution
 # - resize and evolution
 # - evolution in a restricted linear subspace
 # - tuning among major axis of the GAN model and rotated O(N) axis for GAN model
-#%%
+
 class ExperimentEvolve:
-    """
+    """ Basic Evolution Experiments
     Default behavior is to use the current CMAES optimizer to optimize for 200 steps for the given unit.
+    support Caffe or Torch Backend
+
+    the render function should have such signature, input numpy array of B-by-code_length, output list of images.
+        it also has a named parameter scale=255.0. which specify the range of pixel value of output.
     """
-    def __init__(self, model_unit, max_step=200, backend="caffe", optimizer=None, GAN="fc6"):
+    def __init__(self, model_unit, max_step=200, backend="caffe", optimizer=None, GAN="fc6", verbose=False):
         self.recording = []
         self.scores_all = []
         self.codes_all = []
@@ -307,48 +322,61 @@ class ExperimentEvolve:
         elif backend == "torch":
             if model_unit[0] is 'caffe-net':
                 self.CNNmodel = CNNmodel_Torch(model_unit[0])
-            else: # VGG, DENSE and anything else
+            else: # alexnet, VGG, DENSE and anything else
                 self.CNNmodel = TorchScorer(model_unit[0])
         else:
             raise NotImplementedError
         self.CNNmodel.select_unit(model_unit)
         if GAN == "fc6" or GAN == "fc7" or GAN == "fc8":
-            self.G = Generator(name=GAN)
-            self.render = self.G.render
+            self.G = upconvGAN(name=GAN).cuda()
+            self.render = self.G.render  # function that map a 2d array of code (samp_n by code len) to a list of images
+            # self.G = Generator(name=GAN)
+            # self.render = self.G.render
             if GAN == "fc8":
                 code_length = 1000
         elif GAN == "BigGAN":
             from BigGAN_Evolution import BigGAN_embed_render
             self.render = BigGAN_embed_render
             code_length = 256  # 128
-            # 128d Class Embedding code or 256d full code could be used. 
+            # 128d Class Embedding code or 256d full code could be used.
+        elif GAN == "BigBiGAN":
+            from BigBiGAN import BigBiGAN_render
+            self.render = BigBiGAN_render
+            code_length = 120  # 120 d space for Unconditional generation in BigBiGAN
         else:
             raise NotImplementedError
-        if optimizer is None:  # Default optimizer is this
-            self.optimizer = CholeskyCMAES(recorddir=recorddir, space_dimen=code_length, init_sigma=init_sigma,
-                                           init_code=np.zeros([1, code_length]), Aupdate_freq=Aupdate_freq) # , optim_params=optim_params
-        else:
-            # assert issubclass(type(optimizer), Optimizer)
+        if optimizer is not None:  # Default optimizer is this
             self.optimizer = optimizer
+        else:
+            self.optimizer = CholeskyCMAES(code_length, population_size=None, init_sigma=init_sigma,
+                init_code=np.zeros([1, code_length]), Aupdate_freq=Aupdate_freq, maximize=True, random_seed=None,
+                                           optim_params={})
+            # CholeskyCMAES(recorddir=recorddir, space_dimen=code_length, init_sigma=init_sigma,
+            #                                init_code=np.zeros([1, code_length]), Aupdate_freq=Aupdate_freq)
+            # assert issubclass(type(optimizer), Optimizer)
         self.max_steps = max_step
+        self.verbose = verbose
+        self.code_length = code_length
 
     def run(self, init_code=None):
         self.recording = []
         self.scores_all = []
         self.codes_all = []
         self.generations = []
+        t00 = time()
         for self.istep in range(self.max_steps):
             if self.istep == 0:
                 if init_code is None:
-                    codes = np.zeros([1, code_length])
+                    codes = np.random.randn(20, self.code_length)
+                    # codes = np.zeros([1, code_length])
                     if type(self.optimizer) is Genetic:
                         # self.optimizer.load_init_population(initcodedir, )
                         codes, self.optimizer._genealogy = utils.load_codes2(initcodedir, self.optimizer._popsize)
                 else:
                     codes = init_code
-            print('\n>>> step %d' % self.istep)
+            print('>>> step %d' % self.istep)
             t0 = time()
-            self.current_images = self.render(codes)
+            self.current_images = self.render(codes, scale=255.0)
             t1 = time()  # generate image from code
             synscores = self.CNNmodel.score(self.current_images)
             t2 = time()  # score images
@@ -359,14 +387,19 @@ class ExperimentEvolve:
             self.generations = self.generations + [self.istep] * len(synscores)
             codes = codes_new
             # summarize scores & delays
-            print('synthetic img scores: mean {}, all {}'.format(np.nanmean(synscores), -np.sort(-synscores)))
+            if self.verbose:
+                print('synthetic img scores: mean {}, all {}'.format(np.nanmean(synscores), -np.sort(-synscores)))
+            else:
+                print("img scores: mean %.2f max %.2f min %.2f"%(np.nanmean(synscores), np.nanmax(synscores),
+                                                                 np.nanmin(synscores)))
             print(('step %d time: total %.2fs | ' +
                    'code visualize %.2fs  score %.2fs  optimizer step %.2fs')
                   % (self.istep, t3 - t0, t1 - t0, t2 - t1, t3 - t2))
         self.codes_all = np.concatenate(tuple(self.codes_all), axis=0)
         self.scores_all = np.array(self.scores_all)
         self.generations = np.array(self.generations)
-        print("Summary\nGenerations: %d, Image samples: %d, Best score: %.2f" % (self.istep, self.codes_all.shape[0], self.scores_all.max()))
+        t11 = time()
+        print("Summary\nGenerations: %d, Image samples: %d, Best score: %.2f (spent %.2f sec)" % (self.istep, self.codes_all.shape[0], self.scores_all.max(), t11 - t00))
         
     def visualize_exp(self, show=False, title_str=""):
         """ Visualize the experiment by showing the maximal activating images and the scores in each generations
@@ -428,12 +461,12 @@ class ExperimentEvolve:
             plt.show()
         return figh
 
-#%%
+#%
 # from ZO_HessAware_Optimizers import HessAware_Gauss_DC
 class ExperimentEvolve_DC:
     """
     Default behavior is to use the current CMAES optimizer to optimize for 200 steps for the given unit.
-    This Experimental Class is defined to test out the new Descent checking
+    This Experimental Class is defined to test out the new Optimizers equipped with Descent Checking
     """
     def __init__(self, model_unit, max_step=200, optimizer=None, backend="caffe", GAN="fc6"):
         self.recording = []
@@ -621,9 +654,12 @@ class ExperimentResizeEvolve:
             self.code_length = 256  # 128 # 128d Class Embedding code or 256d full code could be used.
         else:
             raise NotImplementedError
-        self.optimizer = CholeskyCMAES(recorddir=recorddir, space_dimen=self.code_length, init_sigma=init_sigma,
-                                       init_code=np.zeros([1, self.code_length]),
-                                       Aupdate_freq=Aupdate_freq)  # , optim_params=optim_params
+        self.optimizer = CholeskyCMAES(self.code_length, population_size=None, init_sigma=init_sigma,
+                init_code=np.zeros([1, self.code_length]), Aupdate_freq=Aupdate_freq, maximize=True, random_seed=None,
+                                           optim_params={})
+        # CholeskyCMAES(recorddir=recorddir, space_dimen=self.code_length, init_sigma=init_sigma,
+        #                            init_code=np.zeros([1, self.code_length]),
+        #                            Aupdate_freq=Aupdate_freq)  # , optim_params=optim_params
         self.max_steps = max_step
         self.corner = corner  # up left corner of the image
         self.imgsize = imgsize  # size of image
@@ -748,10 +784,13 @@ class ExperimentManifold:
             self.code_length = 256  # 128 # 128d Class Embedding code or 256d full code could be used.
         else:
             raise NotImplementedError
-
-        self.optimizer = CholeskyCMAES(recorddir=recorddir, space_dimen=self.code_length, init_sigma=init_sigma,
-                                       init_code=np.zeros([1, self.code_length]),
-                                       Aupdate_freq=Aupdate_freq)  # , optim_params=optim_params
+        self.optimizer = CholeskyCMAES(self.code_length, population_size=None, init_sigma=init_sigma,
+                                       init_code=np.zeros([1, self.code_length]), Aupdate_freq=Aupdate_freq,
+                                       maximize=True, random_seed=None,
+                                       optim_params={})
+        # self.optimizer = CholeskyCMAES(recorddir=recorddir, space_dimen=self.code_length, init_sigma=init_sigma,
+        #                                init_code=np.zeros([1, self.code_length]),
+        #                                Aupdate_freq=Aupdate_freq)  # , optim_params=optim_params
         self.max_steps = max_step
         self.corner = corner  # up left corner of the image
         self.imgsize = imgsize  # size of image, allowing showing CNN resized image
@@ -1057,7 +1096,7 @@ class ExperimentGANAxis:
         # figsum.suptitle("%s-%s-unit%03d  %s" % (self.pref_unit[0], self.pref_unit[1], self.pref_unit[2], self.explabel))
         figsum.savefig(os.path.join(self.savedir, "Axis_summary_%s_norm%d.png" % (self.explabel, Norm)))
         return self.scores_all, self.scores_all_rnd, figsum
-#%%
+#%
 class ExperimentRestrictEvolve:
     """Evolution in a restricted linear subspace with subspace_d """
     def __init__(self, subspace_d, model_unit, max_step=200, GAN="fc6"):
@@ -1068,9 +1107,13 @@ class ExperimentRestrictEvolve:
         self.generations = []
         self.CNNmodel = CNNmodel(model_unit[0])  # 'caffe-net'
         self.CNNmodel.select_unit(model_unit)  # ('caffe-net', 'fc8', 1)
-        self.optimizer = CholeskyCMAES(recorddir=recorddir, space_dimen=subspace_d, init_sigma=init_sigma,
-                                       init_code=np.zeros([1, subspace_d]),
-                                       Aupdate_freq=Aupdate_freq)  # , optim_params=optim_params
+        self.optimizer = CholeskyCMAES(subspace_d, population_size=None, init_sigma=init_sigma,
+                                       init_code=np.zeros([1, subspace_d]), Aupdate_freq=Aupdate_freq,
+                                       maximize=True, random_seed=None,
+                                       optim_params={})
+        # self.optimizer = CholeskyCMAES(recorddir=recorddir, space_dimen=subspace_d, init_sigma=init_sigma,
+        #                                init_code=np.zeros([1, subspace_d]),
+        #                                Aupdate_freq=Aupdate_freq)  # , optim_params=optim_params
         self.max_steps = max_step
         if GAN == "fc6" or GAN == "fc7" or GAN == "fc8":
             self.G = Generator(name=GAN)
@@ -1087,7 +1130,7 @@ class ExperimentRestrictEvolve:
         else:
             raise NotImplementedError
 
-    def get_basis(self):
+    def get_basis(self): # TODO substitute this with np.linalg.qr
         self.basis = np.zeros([self.sub_d, self.code_length])
         for i in range(self.sub_d):
             tmp_code = np.random.randn(1, self.code_length)
@@ -1174,10 +1217,12 @@ class ExperimentRestrictEvolve:
         if show:
             plt.show()
         return figh
-# experiment = ExperimentEvolve()
-# experiment.run()
+
 #%%
 if __name__ == "__main__":
+    # experiment = ExperimentEvolve()
+    # experiment.run()
+    #%%
     # subspace_d = 50
     # for triali in range(100):
     #     experiment = ExperimentRestrictEvolve(subspace_d, ('caffe-net', 'fc8', 1))
@@ -1187,7 +1232,6 @@ if __name__ == "__main__":
     #     fig.savefig(os.path.join(recorddir, "Subspc%dScoreTrajTrial%03d" % (subspace_d, triali) + ".png"))
     #     fig2 = experiment.visualize_exp(show=False)
     #     fig2.savefig(os.path.join(recorddir, "Subspc%dEvolveTrial%03d"%(subspace_d, triali) + ".png"))
-    #
     # #%%
     # #%% Restricted evolution for the 5 examplar layerse
     # subspace_d = 50

@@ -1,4 +1,4 @@
-#%% Preparation for RF computation.
+3#%% Preparation for RF computation.
 import torchvision
 from torch_net_utils import receptive_field, receptive_field_for_unit, layername_dict
 # alexnet = torchvision.models.AlexNet()  # using the pytorch alexnet as proxy for caffenet.

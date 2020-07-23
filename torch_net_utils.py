@@ -1,4 +1,7 @@
-''' Utilities to streamline the import of Caffenet in torch '''
+'''
+Utilities to streamline the import of Caffenet in torch. Still have dependency on Caffe.
+Can be substituted by later GAN_utils.
+'''
 import os
 from os.path import join
 import torch
@@ -199,7 +202,15 @@ def get_layer_names(model):
 # print(activation["score"])
 # activation["score"].shape
 #%%
-layername_dict ={"vgg16":['conv1', 'conv1_relu',
+layername_dict ={"alexnet":["conv1", "conv1_relu", "pool1", 
+                            "conv2", "conv2_relu", "pool2", 
+                            "conv3", "conv3_relu", 
+                            "conv4", "conv4_relu", 
+                            "conv5", "conv5_relu", "pool3", 
+                            "dropout1", "fc6", "fc6_relu", 
+                            "dropout2", "fc7", "fc7_relu", 
+                            "fc8",],
+                "vgg16":['conv1', 'conv1_relu',
                          'conv2', 'conv2_relu', 'pool1',
                          'conv3', 'conv3_relu',
                          'conv4', 'conv4_relu', 'pool2',
