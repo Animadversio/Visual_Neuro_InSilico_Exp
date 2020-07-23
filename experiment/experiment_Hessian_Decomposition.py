@@ -63,7 +63,7 @@ import numpy as np
 import matplotlib.pylab as plt
 from imageio import imwrite
 from os.path import join
-backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_integrated\2020-06-01-09-46-37"
+backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_integrated\2020-06-25-13-43-14"
 newimg_dir = os.path.join(backup_dir,"Hess_imgs")
 summary_dir = os.path.join(backup_dir,"Hess_imgs","summary")
 
