@@ -260,11 +260,17 @@ plt.plot(np.log10(eigvals_nois[::-1]), label="noise")
 plt.ylabel("log(eigval)");plt.legend()
 plt.savefig(join(summary_dir, "spectrum.jpg"))
 #%% Angle with PC1 vector
-innerprod2PC1 = PC1_vect @ eigvects_clas.T
-print("EigenDecomposition of Hessian of Image Similarity Metric\nEigen value: max %.3E min %.3E std %.3E \nEigen vector: Innerproduct max %.3E min %.3E std %.3E"%
-      (eigvals.max(), eigvals.min(), eigvals.std(), innerprod2PC1.max(), innerprod2PC1.min(), innerprod2PC1.std())) 
+if evolspace == "BigGAN_class":
+    innerprod2PC1 = PC1_vect @ eigvects_clas.T
+elif evolspace == "BigGAN_noise":
+    innerprod2PC1 = PC1_vect @ eigvects_nois.T
+elif evolspace == "BigGAN":
+    innerprod2PC1 = PC1_vect @ eigvects.T
+print("Eigen vector: Innerproduct max %.3E min %.3E std %.3E"% (innerprod2PC1.max(), innerprod2PC1.min(), innerprod2PC1.std()))
+print("EigenDecomposition of Hessian of Image Similarity Metric\nEigen value: max %.3E min %.3E std %.3E"%
+      (eigvals.max(), eigvals.min(), eigvals.std(), )) 
 
-#% Do interpolation
+#%% Do interpolation
 
 #% Interpolation in the class space
 codes_all = []
