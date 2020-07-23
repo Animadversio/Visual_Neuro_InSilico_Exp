@@ -4,8 +4,18 @@ Created on Wed Jul 22 19:08:54 2020
 
 @author: Binxu Wang
 
-Find important Nuianced transformations in Noise space for a Class evolved image. 
+Find important Nuisanced transformations in Noise space for a Class evolved image. 
 """
+
+# backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_integrated\2020-06-01-09-46-37"
+# Put the backup folder and the thread to analyze here 
+#backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-07-22-10-14-22"
+#backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2020-07-22-11-05-32"
+backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2020-07-23-09-34-47"
+threadid = 2
+#evolspace = "all"
+
+
 #%% Prepare the generator model and perceptual loss networks
 from time import time
 import os
@@ -46,6 +56,7 @@ for param in BGAN.parameters():
     param.requires_grad_(False)
 embed_mat = BGAN.embeddings.parameters().__next__().data
 BGAN.cuda()
+
 #%%
 def LExpMap(refvect, tangvect, ticks=11, lims=(-1,1)):
     refvect, tangvect = refvect.reshape(1, -1), tangvect.reshape(1, -1)
@@ -131,10 +142,6 @@ from sklearn.decomposition import PCA
 import numpy as np
 import matplotlib.pylab as plt
 from imageio import imwrite
-# backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_integrated\2020-06-01-09-46-37"
-# Put the backup folder and the thread to analyze here 
-backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-07-22-10-14-22"
-threadid = 1
 
 newimg_dir = join(backup_dir,"Hess_imgs")
 summary_dir = join(backup_dir,"Hess_imgs","summary")
@@ -168,16 +175,23 @@ else:
 PC1_vect = PC1_sign * PC_vectors[0,:] 
 #%% From the setting of the bhv2 files find the fixed noise vectors
 space_data = loadmat(join(backup_dir, "space_opts.mat"))["space_opts"]
-fix_noise_vec = space_data[0,threadid]['fix_noise_vec']
-#%% Choose a random final generation codes as our reference
-ref_class_vec = final_gen_codes[0:1, :]
+evolspace = space_data[0,threadid]["name"][0]
+print("Evolution happens in %s space, load the fixed code in `space_opts`" % evolspace)
+if evolspace == "BigGAN_class":
+    ref_noise_vec = space_data[0,threadid]['fix_noise_vec']
+    #% Choose a random final generation codes as our reference
+    ref_class_vec = final_gen_codes[0:1, :]
+elif evolspace == "BigGAN":
+    ref_vec = final_gen_codes[0:1, :]
+    ref_noise_vec = ref_vec[:, :128]
+    ref_class_vec = ref_vec[:, 128:]
 #%% If you want to regenerate the images here. 
 Demo = False
 if Demo:
-    imgs = G.visualize(torch.from_numpy(np.concatenate((fix_noise_vec, ref_class_vec), axis=1)).float().cuda()).cpu()
+    imgs = G.visualize(torch.from_numpy(np.concatenate((ref_noise_vec, ref_class_vec), axis=1)).float().cuda()).cpu()
     ToPILImage()(imgs[0,:,:,:].cpu()).show()
     #%% If you want to regenerate the images here. 
-    imgs = G.visualize(torch.from_numpy(np.concatenate((fix_noise_vec.repeat(5,axis=0), final_gen_codes[:5,:]), axis=1)).float().cuda()).cpu()
+    imgs = G.visualize(torch.from_numpy(np.concatenate((ref_noise_vec.repeat(5,axis=0), final_gen_codes[:5,:]), axis=1)).float().cuda()).cpu()
     ToPILImage()(imgs[0,:,:,:].cpu()).show()
     ToPILImage()(make_grid(imgs.cpu())).show()
 #%% Compute Hessian decomposition and get the vectors
@@ -186,7 +200,7 @@ t0 = time()
 if Hess_method == "BP":
     print("Computing Hessian Decomposition Through auto-grad and full eigen decomposition.")
     classvec = torch.from_numpy(ref_class_vec).float().cuda()  # embed_mat[:, class_id:class_id+1].cuda().T
-    noisevec = torch.from_numpy(fix_noise_vec).float().cuda()
+    noisevec = torch.from_numpy(ref_noise_vec).float().cuda()
     ref_vect = torch.cat((noisevec, classvec, ), dim=1).detach().clone()
     mov_vect = ref_vect.detach().clone().requires_grad_(True)
     #%
