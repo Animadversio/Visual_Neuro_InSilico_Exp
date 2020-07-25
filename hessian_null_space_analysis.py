@@ -151,7 +151,6 @@ avg_Hess = avg_Hess / imgn
 eigv_avg, eigvect_avg = np.linalg.eigh(avg_Hess)
 #%%
 np.savez(join(out_dir, "Pasu_Space_Avg_Hess.npz"), H_avg=avg_Hess, eigv_avg=eigv_avg, eigvect_avg=eigvect_avg)
-
 #%%
 proj_rang = range(2000,3500)
 proj_op = eigvect_avg[proj_rang,:].T @ eigvect_avg[proj_rang,:]
@@ -234,3 +233,18 @@ avg_Hess_evo /= len(expnames)
 #%% Save the averaged hessian.
 np.savez(join(out_dir, "Evolution_Avg_Hess.npz"), H_avg=avg_Hess_evo, eigv_avg=eigv_avg_evo,
          eigvect_avg=eigvect_avg_evo)
+#%%
+from os.path import join
+savedir = r"E:\OneDrive - Washington University in St. Louis\HessTune\NullSpace"
+code_all = []
+exp_src = []
+for expi in range(284):#len(expnames)
+    with np.load(join(savedir, "evol_%03d.npz" % expi)) as data:
+        code = data["code"]
+        source = data["source"]
+        code_all.append(code.copy())
+        exp_src.append(source.copy())
+#%%
+code_arr = np.concatenate(tuple(code_all), axis=0)
+exp_srcs = [str(src) for src in exp_src]
+np.savez(join(savedir, "evol_codes_all.npz"), code_arr=code_arr, exp_srcs=exp_srcs)
