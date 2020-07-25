@@ -215,7 +215,7 @@ for expi, expname in enumerate(expnames):
         t0 = time()
         feat = torch.from_numpy(code)
         feat.requires_grad_(False)
-        metricHVP = GANHVPOperator(G, feat, model_squ)
+        metricHVP = GANHVPOperator(G, feat, model_squ)  # using backward Iterative method to compute Hessian.
         eigvals, eigvects = lanczos(metricHVP, num_eigenthings=800, use_gpu=True)
         print("Finish computing expi %d %.2f sec passed, max %.2e min %.2e 10th %.1e 50th %.e 100th %.1e (norm %.1f)"
           % (expi, time() - t0,max(np.abs(eigvals)), min(np.abs( eigvals)), eigvals[ -10], eigvals[-50],eigvals[-100],

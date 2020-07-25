@@ -217,7 +217,7 @@ for triali in range(3):
         mov_samp = G.visualize(mov_z, truncation=truncation, mean_latent=mean_latent)
         dsim = ImDist(ref_samp, mov_samp)
         H = get_full_hessian(dsim, mov_z)
-        print("Computing Hessian Completed, %.1f sec" %(time()-T00))
+        print("Computing Hessian Completed, %.1f sec" % (time()-T00))
 #%%
         eigvals, eigvects = np.linalg.eigh(H)
         plt.figure(figsize=[7,5])

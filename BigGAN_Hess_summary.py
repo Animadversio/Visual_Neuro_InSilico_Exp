@@ -1,5 +1,6 @@
 """
 This script summarize and the Hessian computation for BigGAN
+Analyze the geometry of the BigGAN manifold. How the metric tensor relates to the coordinate.
 """
 #%%
 import sys
@@ -242,22 +243,27 @@ plt.colorbar()
 plt.savefig(join(figdir, "embed_vec_L2distmat.jpg"))
 plt.show()
 #%%
-np.corrcoef(embed_corr.reshape(-1), corr_mat_log.reshape(-1)) # 0.300
+from scipy.stats.stats import pearsonr
+np.corrcoef(embed_corr.reshape(-1), corr_mat_log.reshape(-1))  # 0.300 (diagonals can inflate the correlation)
 embed_corr_nodiag = embed_corr.copy()
 corr_mat_lin_nodiag = corr_mat_lin.copy()
 corr_mat_log_nodiag = corr_mat_log.copy()
 np.fill_diagonal(embed_corr_nodiag, np.nan)
 np.fill_diagonal(corr_mat_lin_nodiag, np.nan)
 np.fill_diagonal(corr_mat_log_nodiag, np.nan)
-np.corrcoef(embed_corr_nodiag[~np.isnan(embed_corr_nodiag)], corr_mat_lin_nodiag[~np.isnan(corr_mat_lin_nodiag)]) # 0.081
-np.corrcoef(embed_corr_nodiag[~np.isnan(embed_corr_nodiag)], corr_mat_log_nodiag[~np.isnan(corr_mat_log_nodiag)]) # 0.292
+# np.corrcoef(embed_corr_nodiag[~np.isnan(embed_corr_nodiag)], corr_mat_lin_nodiag[~np.isnan(corr_mat_lin_nodiag)]) # 0.081
+cc_lin, p_lin = pearsonr(embed_corr_nodiag[~np.isnan(embed_corr_nodiag)], corr_mat_lin_nodiag[~np.isnan(corr_mat_lin_nodiag)])  # 0.0813
+# np.corrcoef(embed_corr_nodiag[~np.isnan(embed_corr_nodiag)], corr_mat_log_nodiag[~np.isnan(
+#     corr_mat_log_nodiag)])
+cc_log, p_log = pearsonr(embed_corr_nodiag[~np.isnan(embed_corr_nodiag)], corr_mat_log_nodiag[~np.isnan(
+    corr_mat_log_nodiag)]) # 0.292
 #%%
 plt.figure(figsize=[8, 8 ])
 plt.scatter(embed_corr_nodiag[~np.isnan(embed_corr_nodiag)], corr_mat_log_nodiag[~np.isnan(corr_mat_log_nodiag)],
             s=10, alpha=0.4)
 plt.xlabel("corr of embed vector")
 plt.ylabel("corr of Hessian (vHv and eigenvalue)")
-plt.savefig("corr_embedvect_vs_corr_H.jpg")
+plt.savefig(join(figdir, "corr_embedvect_vs_corr_H.jpg"))
 plt.show()
 #%%
 # plt.figure(figsize=[8, 8 ])
@@ -268,7 +274,8 @@ plt.show()
 # plt.ylabel("corr of Hessian (vHv and eigenvalue)")
 # plt.show()
 
-#%%
+#%% Compute the averaged Hessian tensor in the space
+#   (Naive way of averaging. No cut off on spectrum.)
 H_clas_avg = None
 H_nois_avg = None
 H_avg = None
