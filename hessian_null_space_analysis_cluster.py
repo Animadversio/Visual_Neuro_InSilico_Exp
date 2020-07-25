@@ -56,7 +56,7 @@ elif args.dataset == 'evol':
 hessian_method = "ForwardIter"
 labeldict = {"BP": "bpfull", "BackwardIter": "bkwlancz", "ForwardIter": "frwlancz"}
 if len(args.idx_rg) == 2:
-    id_str, id_end = args.idx_rgp[0], args.idx_rgp[1]
+    id_str, id_end = args.idx_rg[0], args.idx_rg[1]
     id_end = min(id_end, codes_all.shape[0])
 else:
     print("doing it all! ")

@@ -21,7 +21,7 @@ if platform == "linux":  # CHPC cluster
     # netsdir = os.path.join(homedir, 'Generate_DB/nets')
     homedir = "/scratch/binxu"
     netsdir = "/scratch/binxu/torch/checkpoints"
-    load_urls = True
+    load_urls = True # note it will try to load from $TORCH_HOME\checkpoints\"upconvGAN_%s.pt"%"fc6"
     # ckpt_path = {"vgg16": "/scratch/binxu/torch/vgg16-397923af.pth"}
 else:
     if os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':  # PonceLab-Desktop 3
