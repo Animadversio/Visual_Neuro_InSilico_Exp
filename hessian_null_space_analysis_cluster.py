@@ -1,3 +1,6 @@
+import sys
+sys.path.append(r"/home/binxu/PerceptualSimilarity")
+sys.path.append(r"/home/binxu/Visual_Neuro_InSilico_Exp")
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
@@ -15,18 +18,14 @@ from imageio import imwrite
 from build_montages import build_montages, color_framed_montages
 #%%
 from FeatLinModel import FeatLinModel, get_model_layers
-import sys
-sys.path.append(r"E:\Github_Projects\PerceptualSimilarity")
-sys.path.append(r"D:\Github\PerceptualSimilarity")
-sys.path.append(r"/home/binxu/PerceptualSimilarity")
-import models
+import models # from PerceptualSimilarity
 model_squ = models.PerceptualLoss(model='net-lin', net='squeeze', use_gpu=1, gpu_ids=[0])
 model_squ.requires_grad_(False).cuda()
 
 from GAN_utils import upconvGAN
 G = upconvGAN("fc6")
 G.requires_grad_(False).cuda()  # this notation is incorrect in older pytorch
-
+#%%
 # import torchvision as tv
 # # VGG = tv.models.vgg16(pretrained=True)
 # alexnet = tv.models.alexnet(pretrained=True).cuda()

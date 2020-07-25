@@ -17,9 +17,11 @@ from os.path import join
 from sys import platform
 load_urls = False
 if platform == "linux":  # CHPC cluster
-    homedir = os.path.expanduser('~')
-    netsdir = os.path.join(homedir, 'Generate_DB/nets')
-    load_urls = True
+    # homedir = os.path.expanduser('~')
+    # netsdir = os.path.join(homedir, 'Generate_DB/nets')
+    homedir = "/scratch/binxu"
+    netsdir = "/scratch/binxu/torch/checkpoints"
+    load_urls = False
     # ckpt_path = {"vgg16": "/scratch/binxu/torch/vgg16-397923af.pth"}
 else:
     if os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':  # PonceLab-Desktop 3
