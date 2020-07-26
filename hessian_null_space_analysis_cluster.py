@@ -42,7 +42,7 @@ parser.add_argument('--EPS', type=float, default=1E-2, help='EPS of finite diffe
                                                             'used when method is `ForwardIter`')
 args = parser.parse_args()  # ["--dataset", "pasu", '--method', "BP", '--idx_rg', '0', '50', '--EPS', '1E-2'])
 #%%
-out_dir = r"/scratch/binxu/GAN_hessian"
+out_dir = r"/scratch/binxu/GAN_hessian/FC6GAN"
 from scipy.io import loadmat
 if args.dataset == 'pasu':
     code_path = r"/home/binxu/pasu_fit_code.mat"
