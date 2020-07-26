@@ -36,7 +36,7 @@ model_squ.requires_grad_(False).cuda()
 
 from GAN_utils import upconvGAN
 if args.GAN in ["fc6", "fc7", "fc8"]:
-    G = upconvGAN("fc6")
+    G = upconvGAN(args.GAN)
 elif args.GAN == "fc6_shfl":
     G = upconvGAN("fc6")
     SD = G.state_dict()
@@ -94,8 +94,8 @@ for imgi in range(id_str, id_end):#range(pasu_codes.shape[0] - 1, 0, -1):
         # EPS=1E-2, max_steps=20 takes 84 sec on K20x cluster.
         # The hessian is not so close
     elif hessian_method == "BP":  # 240 sec on cluster
-        ref_vect = feat.detach().clone().cuda()
-        mov_vect = ref_vect.detach().clone().requires_grad_(True)
+        ref_vect = feat.detach().clone().float().cuda()
+        mov_vect = ref_vect.float().detach().clone().requires_grad_(True)
         imgs1 = G.visualize(ref_vect)
         imgs2 = G.visualize(mov_vect)
         dsim = model_squ(imgs1, imgs2)
