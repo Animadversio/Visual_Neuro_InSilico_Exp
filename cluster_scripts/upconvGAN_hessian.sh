@@ -29,11 +29,11 @@ param_list='--dataset pasu --method BP --idx_rg 0 100
 --dataset evol --method ForwardIter --idx_rg 0 100  --EPS 1E-2
 --dataset evol --method ForwardIter --idx_rg 100 200  --EPS 1E-2
 --dataset evol --method ForwardIter --idx_rg 200 300  --EPS 1E-2
---dataset pasu --method BackwardIter --idx_rg 0 100  --GAN fc6_shuf
---dataset pasu --method BackwardIter --idx_rg 100 200  --GAN fc6_shuf
---dataset evol --method BackwardIter --idx_rg 0 100  --GAN fc6_shuf
---dataset evol --method BackwardIter --idx_rg 100 200  --GAN fc6_shuf
---dataset evol --method BackwardIter --idx_rg 200 300  --GAN fc6_shuf'
+--dataset pasu --method BackwardIter --idx_rg 0 100  --GAN fc6_shfl
+--dataset pasu --method BackwardIter --idx_rg 100 200  --GAN fc6_shfl
+--dataset evol --method BackwardIter --idx_rg 0 100  --GAN fc6_shfl
+--dataset evol --method BackwardIter --idx_rg 100 200  --GAN fc6_shfl
+--dataset evol --method BackwardIter --idx_rg 200 300  --GAN fc6_shfl'
 export csr_lim="$(echo "$param_list" | head -n $PBS_ARRAYID | tail -1)"
 
 cd ~/Visual_Neuro_InSilico_Exp/
