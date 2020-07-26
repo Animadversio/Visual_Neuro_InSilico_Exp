@@ -188,7 +188,7 @@ for class_id in range(1000):
     H_col.append(H_clas)
     eigvals_col.append(eigvals_clas)
     eigvects_col.append(eigvects_clas)
-#%
+#% Compute the Correlation matrix on the log scale and on linear scale.
 T0 = time()
 corr_mat_log = np.zeros((1000, 1000))
 corr_mat_lin = np.zeros((1000, 1000))
@@ -199,7 +199,7 @@ for eigi in range(1000):
         corr_mat_lin[eigi, eigj] = np.corrcoef(vHv_ij, eigvals_col[eigj])[0, 1]
 
 print("%.1f sec" % (time() - T0)) # 582.2 secs for the 1000 by 1000 mat. not bad!
-#%
+#% save it in   E:\Cluster_Backup\BigGANH\summary
 np.savez(join(figdir, "Hess_%s_consistency_corr_mat.npz"%Hlabel), corr_mat_log=corr_mat_log, corr_mat_lin=corr_mat_lin)
 #%
 plt.figure(figsize=[10, 8])
@@ -218,7 +218,7 @@ plt.show()
 #%
 corr_mat_log_nodiag = corr_mat_log.copy()
 np.fill_diagonal(corr_mat_log_nodiag, np.nan) # corr_mat_log_nodiag =
-print("mean corr value %.3f"%np.nanmean(corr_mat_log_nodiag))
+print("mean corr value %.3f"%np.nanmean(corr_mat_log_nodiag))  # 0.934
 #%%
 from pytorch_pretrained_biggan import BigGAN
 G = BigGAN.from_pretrained("biggan-deep-256")

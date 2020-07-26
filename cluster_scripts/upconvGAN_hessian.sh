@@ -6,7 +6,7 @@
 # Specify the default queue for the fastest nodes
 #PBS -m be
 #PBS -q dque
-#PBS -t 1-15
+#PBS -t 1-10
 
 # Prepare the virtual env for python
 # export PATH=/act/Anaconda3-2.3.0/bin:${PATH}

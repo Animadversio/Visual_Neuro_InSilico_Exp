@@ -13,27 +13,14 @@ from GAN_hvp_operator import GANHVPOperator, GANForwardMetricHVPOperator, GANFor
 import numpy as np
 import matplotlib.pylab as plt
 from time import time
+import os
 from os.path import join
 from imageio import imwrite
 from build_montages import build_montages, color_framed_montages
 #%%
-from FeatLinModel import FeatLinModel, get_model_layers
-import models # from PerceptualSimilarity
-model_squ = models.PerceptualLoss(model='net-lin', net='squeeze', use_gpu=1, gpu_ids=[0])
-model_squ.requires_grad_(False).cuda()
-
-from GAN_utils import upconvGAN
-G = upconvGAN("fc6")
-G.requires_grad_(False).cuda()  # this notation is incorrect in older pytorch
-#%%
-# import torchvision as tv
-# # VGG = tv.models.vgg16(pretrained=True)
-# alexnet = tv.models.alexnet(pretrained=True).cuda()
-# for param in alexnet.parameters():
-#     param.requires_grad_(False)
-#%%
 from argparse import ArgumentParser
 parser = ArgumentParser(description='Computing Hessian at different part of the code space in FC6 GAN')
+parser.add_argument('--GAN', type=str, default="fc6", help='GAN model can be fc6, fc7, fc8, fc6_shuf')
 parser.add_argument('--dataset', type=str, default="pasu", help='dataset name `pasu` or `evol`')
 parser.add_argument('--method', type=str, default="BP", help='Method of computing Hessian can be `BP` or '
                                                              '`ForwardIter` `BackwardIter` ')
@@ -42,7 +29,35 @@ parser.add_argument('--EPS', type=float, default=1E-2, help='EPS of finite diffe
                                                             'used when method is `ForwardIter`')
 args = parser.parse_args()  # ["--dataset", "pasu", '--method', "BP", '--idx_rg', '0', '50', '--EPS', '1E-2'])
 #%%
+from FeatLinModel import FeatLinModel, get_model_layers
+import models # from PerceptualSimilarity
+model_squ = models.PerceptualLoss(model='net-lin', net='squeeze', use_gpu=1, gpu_ids=[0])
+model_squ.requires_grad_(False).cuda()
+
+from GAN_utils import upconvGAN
+if args.GAN in ["fc6", "fc7", "fc8"]:
+    G = upconvGAN("fc6")
+elif args.GAN == "fc6_shfl":
+    G = upconvGAN("fc6")
+    SD = G.state_dict()
+    shuffled_SD = {}
+    for name, Weight in SD.items():
+        idx = torch.randperm(Weight.numel())
+        W_shuf = Weight.view(-1)[idx].view(Weight.shape)
+        shuffled_SD[name] = W_shuf
+    G.load_state_dict(shuffled_SD)
+G.requires_grad_(False).cuda()  # this notation is incorrect in older pytorch
+#%%
+# import torchvision as tv
+# # VGG = tv.models.vgg16(pretrained=True)
+# alexnet = tv.models.alexnet(pretrained=True).cuda()
+# for param in alexnet.parameters():
+#     param.requires_grad_(False)
+
+#%%
 out_dir = r"/scratch/binxu/GAN_hessian/FC6GAN"
+out_dir = r"/scratch/binxu/GAN_hessian/%sGAN"%(args.GAN)
+
 from scipy.io import loadmat
 if args.dataset == 'pasu':
     code_path = r"/home/binxu/pasu_fit_code.mat"
@@ -53,7 +68,7 @@ elif args.dataset == 'evol':
     data = np.load(code_path)
     codes_all = data["code_arr"]
 #%%
-hessian_method = "ForwardIter"
+hessian_method = args.method
 labeldict = {"BP": "bpfull", "BackwardIter": "bkwlancz", "ForwardIter": "frwlancz"}
 if len(args.idx_rg) == 2:
     id_str, id_end = args.idx_rg[0], args.idx_rg[1]
