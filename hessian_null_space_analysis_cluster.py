@@ -40,7 +40,7 @@ parser.add_argument('--method', type=str, default="BP", help='Method of computin
 parser.add_argument('--idx_rg', type=int, default=[0, 50], nargs="+", help='range of index of vectors to use')
 parser.add_argument('--EPS', type=float, default=1E-2, help='EPS of finite differencing HVP operator, will only be '
                                                             'used when method is `ForwardIter`')
-args = parser.parse_args(["--dataset", "pasu", '--method', "BP", '--idx_rg', '0', '50', '--EPS', '1E-2'])   # ["--dataset", "pasu", '--method', "BP", '--idx_rg', '0', '50', '--EPS', '1E-2']
+args = parser.parse_args()  # ["--dataset", "pasu", '--method', "BP", '--idx_rg', '0', '50', '--EPS', '1E-2'])
 #%%
 out_dir = r"/scratch/binxu/GAN_hessian"
 from scipy.io import loadmat
