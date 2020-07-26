@@ -55,9 +55,9 @@ G.requires_grad_(False).cuda()  # this notation is incorrect in older pytorch
 #     param.requires_grad_(False)
 
 #%%
-out_dir = r"/scratch/binxu/GAN_hessian/FC6GAN"
-out_dir = r"/scratch/binxu/GAN_hessian/%sGAN"%(args.GAN)
-
+# out_dir = r"/scratch/binxu/GAN_hessian/FC6GAN"
+out_dir = r"/scratch/binxu/GAN_hessian/%sGAN" % (args.GAN)
+os.makedirs(out_dir, exist_ok=True)
 from scipy.io import loadmat
 if args.dataset == 'pasu':
     code_path = r"/home/binxu/pasu_fit_code.mat"
@@ -104,6 +104,6 @@ for imgi in range(id_str, id_end):#range(pasu_codes.shape[0] - 1, 0, -1):
 
     print("Finish computing img %d %.2f sec passed, max %.2e min %.2e 5th %.1e 10th %.1e 50th %.1e 100th %.1e 200th "
           "%.1e 400th %.1e" % (imgi, time() - t0, max(np.abs(eigvals)), min(np.abs(eigvals)), eigvals[-5],
-          eigvals[-10], eigvals[-50], eigvals[-100],eigvals[-200], eigvals[-400]))
+          eigvals[-10], eigvals[-50], eigvals[-100], eigvals[-200], eigvals[-400]))
     np.savez(join(out_dir, "%s_%03d_%s.npz" % (args.dataset, imgi, labeldict[hessian_method])), eigvals=eigvals,
              eigvects=eigvects, code=code)
