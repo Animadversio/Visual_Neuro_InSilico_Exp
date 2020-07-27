@@ -40,12 +40,15 @@ for param in G.parameters():
 #eigenvals, eigenvecs = compute_hessian_eigenthings(G, feat, model_squ,
 #    num_eigenthings=300, mode="lanczos", use_gpu=True,)
 #print(time() - t0,"\n")  # 81.02 s 
-#%%
+#%% Load the codes from the Backup folder 
 import os
 from  scipy.io import loadmat
 import re
-def load_codes_mat(backup_dir, savefile=False):
-    """ load all the code mat file in the experiment folder and summarize it into nparrays"""
+def load_codes_mat(backup_dir, threadnum=None, savefile=False):
+    """ load all the code mat file in the experiment folder and summarize it into nparrays
+    threadnum: can select one thread of the code if it's a parallel evolution. Usually, 0 or 1. 
+        None for all threads. 
+    """
     # make sure enough codes for requested size
     if "codes_all.npz" in os.listdir(backup_dir):
         # if the summary table exist, just read from it!
@@ -53,7 +56,10 @@ def load_codes_mat(backup_dir, savefile=False):
             codes_all = data["codes_all"]
             generations = data["generations"]
         return codes_all, generations
-    codes_fns = sorted([fn for fn in os.listdir(backup_dir) if "_code.mat" in fn])
+    if threadnum is None:
+        codes_fns = sorted([fn for fn in os.listdir(backup_dir) if "_code.mat" in fn])
+    else:
+        codes_fns = sorted([fn for fn in os.listdir(backup_dir) if "thread%03d_code.mat"%(threadnum) in fn])
     codes_all = []
     img_ids = []
     for i, fn in enumerate(codes_fns[:]):
@@ -68,13 +74,15 @@ def load_codes_mat(backup_dir, savefile=False):
     if savefile:
         np.savez(join(backup_dir, "codes_all.npz"), codes_all=codes_all, generations=generations)
     return codes_all, generations
-#%% 
+#%% Load up the codes
 from sklearn.decomposition import PCA
 import numpy as np
 import matplotlib.pylab as plt
 from imageio import imwrite
 # backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_integrated\2020-06-01-09-46-37"
 backup_dir = r"E:\Network_Data_Sync\Stimuli\2019-Manifold\beto-191011a\backup_10_11_2019_13_17_02"
+backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_integrated\2020-06-01-09-46-37"
+backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_integrated\2020-06-24-09-55-19"
 newimg_dir = join(backup_dir,"Hess_imgs")
 summary_dir = join(backup_dir,"Hess_imgs","summary")
 
@@ -84,7 +92,7 @@ print("Loading the codes from experiment folder %s", backup_dir)
 codes_all, generations = load_codes_mat(backup_dir)
 generations = np.array(generations)
 print("Shape of code", codes_all.shape)
-#%
+#%% PCA of the Existing code 
 final_gen_norms = np.linalg.norm(codes_all[generations==max(generations), :], axis=1)
 final_gen_norm = final_gen_norms.mean()
 print("Average norm of the last generation samples %.2f" % final_gen_norm)
@@ -92,7 +100,7 @@ sphere_norm = final_gen_norm
 print("Set sphere norm to the last generations norm!")
 #%% Do PCA and find the major trend of evolution
 print("Computing PCs")
-code_pca = PCA(n_components=50)
+code_pca = PCA(n_components=800)
 PC_Proj_codes = code_pca.fit_transform(codes_all)
 PC_vectors = code_pca.components_
 if PC_Proj_codes[-1, 0] < 0:  # decide which is the positive direction for PC1
@@ -127,11 +135,11 @@ print("vHv of top PC space: mean %.2E max %.2E (rank in spectrum %d)"%(np.mean(P
 # vHv of top PC space: mean 1.14E-04 max 1.75E-04 (rank in spectrum 235)
 # So normally the vHv is small in top PC space.
 #%% Create images along the spectrum
-save_indiv = False
+save_indiv = True
 save_row = False
 vec_norm = sphere_norm
 ang_step = 180 / 10
-theta_arr_deg = ang_step * np.linspace(-5,5,21)# np.arange(-5, 6)
+theta_arr_deg = ang_step * np.linspace(-5,5,11)# np.arange(-5, 6)
 theta_arr = theta_arr_deg / 180 * np.pi
 img_list_all = []
 for eig_id in [0,1,5,10,15,20,40,60,80,99,150,200,250,299,450,600,799]:

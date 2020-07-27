@@ -17,9 +17,11 @@ from os.path import join
 from sys import platform
 load_urls = False
 if platform == "linux":  # CHPC cluster
-    homedir = os.path.expanduser('~')
-    netsdir = os.path.join(homedir, 'Generate_DB/nets')
-    load_urls = True
+    # homedir = os.path.expanduser('~')
+    # netsdir = os.path.join(homedir, 'Generate_DB/nets')
+    homedir = "/scratch/binxu"
+    netsdir = "/scratch/binxu/torch/checkpoints"
+    load_urls = True # note it will try to load from $TORCH_HOME\checkpoints\"upconvGAN_%s.pt"%"fc6"
     # ckpt_path = {"vgg16": "/scratch/binxu/torch/vgg16-397923af.pth"}
 else:
     if os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':  # PonceLab-Desktop 3
@@ -72,7 +74,7 @@ RGB_mean = torch.tensor([123.0, 117.0, 104.0])
 RGB_mean = torch.reshape(RGB_mean, (1, 3, 1, 1))
 
 class upconvGAN(nn.Module):
-    def __init__(self, name="fc6", pretrained=True):
+    def __init__(self, name="fc6", pretrained=True, shuffled=True):
         super(upconvGAN, self).__init__()
         self.name = name
         if name == "fc6" or name == "fc7":
@@ -172,6 +174,9 @@ class upconvGAN(nn.Module):
                     name = name.replace(".1.", ".")
                     SDnew[name] = W
             self.G.load_state_dict(SDnew)
+        # if shuffled:
+
+
 
     def forward(self, x):
         return self.G(x)[:, [2, 1, 0], :, :]
