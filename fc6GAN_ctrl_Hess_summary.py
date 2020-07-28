@@ -12,11 +12,13 @@ from os.path import join
 from imageio import imwrite
 from build_montages import build_montages, color_framed_montages
 import torch
+import os
 #%%
-savedir = r"E:\Cluster_Backup\FC6GAN"
-figdir = r"E:\Cluster_Backup\FC6GAN\summary"
+savedir = r"E:\Cluster_Backup\fc6_shflGAN"
+figdir = r"E:\Cluster_Backup\fc6_shflGAN\summary"
+os.makedirs(figdir,exist_ok=True)
 labeldict = {"BP": "bpfull", "BackwardIter": "bkwlancz", "ForwardIter": "frwlancz"}
-method = "BP"
+method = "BackwardIter"
 space = "evol"
 labstr = labeldict[method]
 idx = 0
@@ -38,35 +40,37 @@ for idx in range(284): # Note load it altogether is very slow, not recommended
     eigvals_col.append(eigvals.copy())
     # eigvects_col.append(eigvects.copy())
     code_all.append(code.copy())
-#%%
+#%
 eigval_arr = np.array(eigvals_col)
 code_all = np.array(code_all)
 eigmean = eigval_arr[:, ::-1].mean(axis=0)
 eigstd = eigval_arr[:, ::-1].std(axis=0)
 eiglim = np.percentile(eigval_arr[:, ::-1], [5, 95], axis=0)
+
 #%%
 def plot_spectra(savename="spectrum_stat_4096.jpg", ):
     """A local function to compute these figures for different subspaces. """
     fig = plt.figure(figsize=[10, 5])
+    cutoff = len(eigmean)
     plt.subplot(1,2,1)
-    plt.plot(range(4096), eigmean, alpha=0.7)  #, eigval_arr.std(axis=0)
-    plt.fill_between(range(4096), eiglim[0, :], eiglim[1, :], alpha=0.5, color="orange", label="all space")
+    plt.plot(range(cutoff), eigmean, alpha=0.7)  #, eigval_arr.std(axis=0)
+    plt.fill_between(range(cutoff), eiglim[0, :], eiglim[1, :], alpha=0.5, color="orange", label="5-95 percentile")
     plt.ylabel("eigenvalue")
     plt.xlabel("eig id")
     plt.xlim([-50, 4100])
     plt.legend()
     plt.subplot(1,2,2)
-    plt.plot(range(4096), np.log10(eigmean), alpha=0.7)  #, eigval_arr.std(axis=0)
-    plt.fill_between(range(4096), np.log10(eiglim[0, :]), np.log10(eiglim[1, :]), alpha=0.5, color="orange", label="all space")
+    plt.plot(range(cutoff), np.log10(eigmean), alpha=0.7)  #, eigval_arr.std(axis=0)
+    plt.fill_between(range(cutoff), np.log10(eiglim[0, :]), np.log10(eiglim[1, :]), alpha=0.5, color="orange", label="5-95 percentile")
     plt.ylabel("eigenvalue(log)")
     plt.xlabel("eig id")
     plt.xlim([-50, 4100])
     plt.legend()
-    st = plt.suptitle("Hessian Spectrum of FC6GAN in Different Spaces\n (error bar for [5,95] percentile in  "
-                      "classes)")
+    st = plt.suptitle("Hessian Spectrum of Weight shuffled FC6GAN \n (error bar for [5,"
+                      "95] percentile among 284 positions)")
     plt.savefig(join(figdir, savename), bbox_extra_artists=[st]) # this is working.
     plt.show()
-plot_spectra(savename="spectrum_stat_4096_org.jpg", )
+plot_spectra(savename="spectrum_stat_org_shuffleG.jpg", )
 #%%
 # plt.figure()
 # plt.plot(range(4096), eigmean, alpha=0.7)  #, eigval_arr.std(axis=0)
@@ -135,11 +139,10 @@ def corr_nan_torch(V1, V2):
     return corr_torch(V1[~Msk], V2[~Msk])
 
 corr_nan_torch(eva_i.log10(), vHv_ij.log10())
-
 #%%
 T0 = time()
-corr_mat_log = torch.zeros((284,284)).cuda()
-corr_mat_lin = torch.zeros((284,284)).cuda()
+corr_mat_log_ctrl = torch.zeros((284,284)).cuda()
+corr_mat_lin_ctrl = torch.zeros((284,284)).cuda()
 for eigi in range(284):
     eigval_i, eigvect_i = load_eig(space, eigi, labstr)
     evc_i = torch.from_numpy(eigvect_i).cuda()
@@ -150,38 +153,40 @@ for eigi in range(284):
         eva_j = torch.from_numpy(eigval_j).cuda()
         inpr = evc_i.T @ evc_j
         vHv_ij = torch.diag((inpr * eva_j.unsqueeze(0)) @ inpr.T)
-        corr_mat_log[eigi, eigj] = corr_nan_torch(vHv_ij.log10(), eva_j.log10())
-        corr_mat_lin[eigi, eigj] = corr_nan_torch(vHv_ij, eva_j)
+        corr_mat_log_ctrl[eigi, eigj] = corr_nan_torch(vHv_ij.log10(), eva_j.log10())
+        corr_mat_lin_ctrl[eigi, eigj] = corr_nan_torch(vHv_ij, eva_j)
         # vHv_ij = np.diag(eigvect_i.T @ eigvect_j @ np.diag(eigval_j) @ eigvect_j.T @ eigvect_i)
         # corr_mat_log[eigi, eigj] = np.corrcoef(np.log10(vHv_ij), np.log10(eigvect_j))[0, 1]
         # corr_mat_lin[eigi, eigj] = np.corrcoef(vHv_ij, eigvect_j)[0, 1]
     print(time() - T0)
-print(time() - T0) # 18531.1444375515
+print(time() - T0) # 3239.401490688324
+corr_mat_log_ctrl = corr_mat_log_ctrl.cpu().numpy()
+corr_mat_lin_ctrl = corr_mat_lin_ctrl.cpu().numpy()
 #%%
-np.savez(join(figdir, "evol_hess_corr_mat.npz"), corr_mat_log=corr_mat_log.cpu().numpy(),
-         corr_mat_lin=corr_mat_lin.cpu().numpy(),code_all=code_all)
+np.savez(join(figdir, "evol_hess_ctrl_corr_mat.npz"), corr_mat_log=corr_mat_log_ctrl,
+         corr_mat_lin=corr_mat_lin_ctrl,code_all=code_all)
 #%%
 Hlabel = "evol"
 plt.figure(figsize=[10, 8])
-plt.matshow(corr_mat_log.cpu(), fignum=0)
+plt.matshow(corr_mat_log_ctrl, fignum=0)
 plt.title("FC6GAN Hessian at evolved codes\nCorrelation Mat of log of vHv and eigenvalues", fontsize=16)
 plt.colorbar()
-plt.savefig(join(figdir, "%s_Hess_corrmat_log.jpg"%Hlabel))
+plt.savefig(join(figdir, "%s_Hess_ctrl_corrmat_log.jpg"%Hlabel))
 plt.show()
 #%
 fig = plt.figure(figsize=[10, 8])
-plt.matshow(corr_mat_lin.cpu(), fignum=0)
+plt.matshow(corr_mat_lin_ctrl, fignum=0)
 plt.title("FC6GAN Hessian at evolved codes\nCorrelation Mat of vHv and eigenvalues", fontsize=16)
 plt.colorbar()
-plt.savefig(join(figdir, "%s_Hess_corrmat_lin.jpg"%Hlabel))
+plt.savefig(join(figdir, "%s_Hess_ctrl_corrmat_lin.jpg"%Hlabel))
 plt.show()
 #%
-corr_mat_log_nodiag = corr_mat_log.cpu().numpy().copy()
-corr_mat_lin_nodiag = corr_mat_lin.cpu().numpy().copy()
-np.fill_diagonal(corr_mat_log_nodiag, np.nan)
-np.fill_diagonal(corr_mat_lin_nodiag, np.nan)
-print("Log scale mean corr value %.3f"%np.nanmean(corr_mat_log_nodiag))  # 0.984
-print("Linear scale mean corr value %.3f"%np.nanmean(corr_mat_lin_nodiag))  # 0.600
+corr_mat_log_ctrl_nodiag = corr_mat_log_ctrl
+corr_mat_lin_ctrl_nodiag = corr_mat_lin_ctrl
+np.fill_diagonal(corr_mat_log_ctrl_nodiag, np.nan)
+np.fill_diagonal(corr_mat_lin_ctrl_nodiag, np.nan)
+print("Log scale mean corr value %.3f"%np.nanmean(corr_mat_log_ctrl_nodiag))  # 0.984
+print("Linear scale mean corr value %.3f"%np.nanmean(corr_mat_lin_ctrl_nodiag))  # 0.600
 
 #%%
 code_corr = np.corrcoef(code_all)
@@ -244,8 +249,6 @@ cc_log, p_log = pearsonr(code_corr_nodiag[~np.isnan(code_corr_nodiag)], corr_mat
     corr_mat_log_nodiag)]) # 0.292
 print("Correlation between code correlation  and  Hessian similarity (non-diagonal) ", cc_lin)
 print("Correlation between code correlation  and  log Hessian similarity (non-diagonal) ", cc_log)
-# Evolution codes
-# Correlation between code correlation  and  Hessian similarity  0.1514754571939899
-# Correlation between code correlation  and  log Hessian similarity  0.3159495935200964
 # Correlation between code correlation  and  Hessian similarity (non-diagonal)  0.020121576393265176
 # Correlation between code correlation  and  log Hessian similarity (non-diagonal)  0.022462684881444483
+
