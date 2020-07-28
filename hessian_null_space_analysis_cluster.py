@@ -46,6 +46,9 @@ elif args.GAN == "fc6_shfl":
         W_shuf = Weight.view(-1)[idx].view(Weight.shape)
         shuffled_SD[name] = W_shuf
     G.load_state_dict(shuffled_SD)
+elif args.GAN == "fc6_shfl_fix":
+    G = upconvGAN("fc6", pretrained=False)
+    G.load_state_dict(torch.load("/scratch/binxu/torch/checkpoints/upconvGAN_fc6_shuffle.pt"))
 G.requires_grad_(False).cuda()  # this notation is incorrect in older pytorch
 #%%
 # import torchvision as tv
@@ -53,7 +56,6 @@ G.requires_grad_(False).cuda()  # this notation is incorrect in older pytorch
 # alexnet = tv.models.alexnet(pretrained=True).cuda()
 # for param in alexnet.parameters():
 #     param.requires_grad_(False)
-
 #%%
 # out_dir = r"/scratch/binxu/GAN_hessian/FC6GAN"
 out_dir = r"/scratch/binxu/GAN_hessian/%sGAN" % (args.GAN)

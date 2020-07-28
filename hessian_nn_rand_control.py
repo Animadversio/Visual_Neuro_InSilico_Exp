@@ -6,7 +6,7 @@ from GAN_utils import upconvGAN
 import torch
 from torchvision.utils import make_grid
 from torchvision.transforms import ToPILImage
-G = upconvGAN("fc6")
+G = upconvGAN("fc6",pretrained=True)
 SD = G.state_dict()
 #%% Shuffle the weight matrix of each layer of GAN
 shuffled_SD = {}
@@ -14,10 +14,12 @@ for name, Weight in SD.items():
     idx = torch.randperm(Weight.numel())
     W_shuf = Weight.view(-1)[idx].view(Weight.shape)
     shuffled_SD[name] = W_shuf
+#%%
+torch.save(shuffled_SD, "upconvGAN_fc6_shuffle.pt")
     # print(name, Weight.shape, Weight.mean().item(), Weight.std().item())
 #%%
 G_sf = upconvGAN("fc6")
-G_sf.load_state_dict(shuffled_SD)
+G_sf.load_state_dict(torch.load("upconvGAN_fc6_shuffle.pt"))
 #%%
 img = G_sf.visualize(torch.randn(10, 4096))
 ToPILImage()(make_grid(img[:,:])).show()
