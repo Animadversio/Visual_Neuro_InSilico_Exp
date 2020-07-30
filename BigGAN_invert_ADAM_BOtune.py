@@ -146,7 +146,7 @@ def Hess_all_reg_BigGAN_optim(param):
 imgroot  = r"/scratch/binxu/GAN_invert/img2fit" if sys.platform == "linux" else \
     r"E:\Cluster_Backup\BigGAN_invert\img2fit"
 saveroot = r"/scratch/binxu/GAN_invert" if sys.platform == "linux" else r"E:\Cluster_Backup\BigGAN_invert"
-imgnm = "block079_thread000_gen_gen078_003146.bmp"
+imgnm = "block079_thread000_gen_gen078_003146.jpg"
 foldernm = imgnm.split("/")[-1].split(".")[0]
 savedir = join(saveroot, foldernm)
 os.makedirs(savedir, exist_ok=True)
