@@ -25,6 +25,10 @@ idx = 0
 data = np.load(join(savedir, "%s_%03d_%s.npz" % (space, idx, labstr)))
 
 #%%
+savedir = r"E:\Cluster_Backup\fc6_shflGAN"
+space = "evol"
+method = "BackwardIter"
+labstr = labeldict[method]
 H_col = []
 eigvals_col = []
 eigvects_col = []
@@ -33,35 +37,29 @@ for idx in range(284): # Note load it altogether is very slow, not recommended
     fn = "%s_%03d_%s.npz" % (space, idx, labstr)
     data = np.load(join(savedir, fn))
     eigvals = data['eigvals']
-    # eigvects = data['eigvects']
-    code = data['code']
-    # H = eigvects @ np.diag(eigvals) @ eigvects.T # data["H_clas"]
-    # H_col.append(H.copy())
     eigvals_col.append(eigvals.copy())
-    # eigvects_col.append(eigvects.copy())
-    code_all.append(code.copy())
+    # eigvects = data['eigvects']
 #%
-eigval_arr = np.array(eigvals_col)
-code_all = np.array(code_all)
-eigmean = eigval_arr[:, ::-1].mean(axis=0)
-eigstd = eigval_arr[:, ::-1].std(axis=0)
-eiglim = np.percentile(eigval_arr[:, ::-1], [5, 95], axis=0)
+eigval_arr_ctrl = np.array(eigvals_col)
+eigmean_ctrl = eigval_arr_ctrl[:, ::-1].mean(axis=0)
+eigstd_ctrl = eigval_arr_ctrl[:, ::-1].std(axis=0)
+eiglim_ctrl = np.percentile(eigval_arr_ctrl[:, ::-1], [5, 95], axis=0)
 
 #%%
 def plot_spectra(savename="spectrum_stat_4096.jpg", ):
     """A local function to compute these figures for different subspaces. """
     fig = plt.figure(figsize=[10, 5])
-    cutoff = len(eigmean)
+    cutoff = len(eigmean_ctrl)
     plt.subplot(1,2,1)
-    plt.plot(range(cutoff), eigmean, alpha=0.7)  #, eigval_arr.std(axis=0)
-    plt.fill_between(range(cutoff), eiglim[0, :], eiglim[1, :], alpha=0.5, color="orange", label="5-95 percentile")
+    plt.plot(range(cutoff), eigmean_ctrl, alpha=0.7)  #, eigval_arr.std(axis=0)
+    plt.fill_between(range(cutoff), eiglim_ctrl[0, :], eiglim_ctrl[1, :], alpha=0.5, color="orange", label="5-95 percentile")
     plt.ylabel("eigenvalue")
     plt.xlabel("eig id")
     plt.xlim([-50, 4100])
     plt.legend()
     plt.subplot(1,2,2)
-    plt.plot(range(cutoff), np.log10(eigmean), alpha=0.7)  #, eigval_arr.std(axis=0)
-    plt.fill_between(range(cutoff), np.log10(eiglim[0, :]), np.log10(eiglim[1, :]), alpha=0.5, color="orange", label="5-95 percentile")
+    plt.plot(range(cutoff), np.log10(eigmean_ctrl), alpha=0.7)  #, eigval_arr.std(axis=0)
+    plt.fill_between(range(cutoff), np.log10(eiglim_ctrl[0, :]), np.log10(eiglim_ctrl[1, :]), alpha=0.5, color="orange", label="5-95 percentile")
     plt.ylabel("eigenvalue(log)")
     plt.xlabel("eig id")
     plt.xlim([-50, 4100])
@@ -252,3 +250,4 @@ print("Correlation between code correlation  and  log Hessian similarity (non-di
 # Correlation between code correlation  and  Hessian similarity (non-diagonal)  0.020121576393265176
 # Correlation between code correlation  and  log Hessian similarity (non-diagonal)  0.022462684881444483
 
+#%%
