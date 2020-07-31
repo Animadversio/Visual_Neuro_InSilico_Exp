@@ -6,7 +6,7 @@
 # Specify the default queue for the fastest nodes
 #PBS -m be
 #PBS -q dque
-#PBS -t 2-3
+#PBS -t 4-7
 
 # Prepare the virtual env for python
 # export PATH=/act/Anaconda3-2.3.0/bin:${PATH}
@@ -16,6 +16,10 @@ export TORCH_HOME="/scratch/binxu/torch"
 param_list='--img  block079_thread000_gen_gen078_003146.jpg  --basis all
 --img  block079_thread000_gen_gen078_003146.jpg  --basis sep
 --img  block079_thread000_gen_gen078_003146.jpg  --basis none
+--img  cute_cat_rsz.jpg  --basis all
+--img  cute_cat_rsz.jpg  --basis sep
+--img  cute_cat_rsz2.jpg  --basis all
+--img  cute_cat_rsz2.jpg  --basis sep
 '
 export csr_lim="$(echo "$param_list" | head -n $PBS_ARRAYID | tail -1)"
 
