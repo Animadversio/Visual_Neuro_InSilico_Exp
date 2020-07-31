@@ -51,8 +51,7 @@ evc_nois = torch.from_numpy(data['eigvects_nois_avg']).cuda()
 evc_all = torch.from_numpy(data['eigvects_avg']).cuda()
 
 #%%
-from argparse import ArgumentParser
-parser = ArgumentParser()
+
 # def Hess_all_BigGAN_optim(param):
 #     lr = 10 ** param[0, 0]
 #     wd = 10 ** param[0, 1]
@@ -97,7 +96,12 @@ def Hess_all_reg_BigGAN_optim(param):
     sched_gamma = param[0, 5]
     noise_init = torch.from_numpy(truncated_noise_sample(1, 128)).cuda()
     class_init = 0.06 * torch.randn(1, 128).cuda()
-    latent_coef = (torch.cat((noise_init, class_init), dim=1) @ evc_all).detach().clone().requires_grad_(True)
+    if basis == "all":
+        latent_coef = (torch.cat((noise_init, class_init), dim=1) @ evc_all).detach().clone().requires_grad_(True)
+    elif basis == "sep":
+        latent_coef = (torch.cat((noise_init @ evc_nois, class_init @ evc_clas), dim=1)).detach().clone().requires_grad_(True)
+    else:
+        latent_coef = (torch.cat((noise_init, class_init), dim=1)).detach().clone().requires_grad_(True)
     optim = Adam([latent_coef], lr=lr, weight_decay=0, betas=(beta1, beta2))
     scheduler = torch.optim.lr_scheduler.StepLR(optim, step_size=200, gamma=sched_gamma)
     RNDid = np.random.randint(1000000)
@@ -106,7 +110,12 @@ def Hess_all_reg_BigGAN_optim(param):
     cls_norm = []
     for step in range(maxstep):
         optim.zero_grad()
-        latent_code = latent_coef @ evc_all.T
+        if basis == "all":
+            latent_code = latent_coef @ evc_all.T
+        elif basis == "sep":
+            latent_code = torch.cat((latent_coef[:, :128] @ evc_nois.T, latent_coef[:, 128:] @ evc_clas.T), dim=1)
+        else:
+            latent_code = latent_coef
         noise_vec = latent_code[:, :128]
         class_vec = latent_code[:, 128:]
         fitimg = BGAN.generator(latent_code, 0.7)
@@ -143,12 +152,22 @@ def Hess_all_reg_BigGAN_optim(param):
              nos_norm=np.array(nos_norm),cls_norm=np.array(cls_norm), code=latent_code.detach().cpu().numpy())
     return dsim.item() if not torch.isnan(dsim) else 1E6
 #%%
+from argparse import ArgumentParser
+parser = ArgumentParser()
+parser.add_argument('--basis', type=str, default="all", help='Method of computing Hessian can be `BP` or '
+                                                             '`ForwardIter` `BackwardIter` ')
+parser.add_argument('--img', type=str, default="block079_thread000_gen_gen078_003146.jpg", help='name of image to '
+                                                                                                'invert')
+args = parser.parse_args()
+# ["--basis", 'sep', "--img","block079_thread000_gen_gen078_003146.jpg"]
+#%%
 imgroot  = r"/scratch/binxu/GAN_invert/img2fit" if sys.platform == "linux" else \
     r"E:\Cluster_Backup\BigGAN_invert\img2fit"
 saveroot = r"/scratch/binxu/GAN_invert" if sys.platform == "linux" else r"E:\Cluster_Backup\BigGAN_invert"
-imgnm = "block079_thread000_gen_gen078_003146.jpg"
+imgnm = args.img  # "block079_thread000_gen_gen078_003146.jpg"
+basis = args.basis
 foldernm = imgnm.split("/")[-1].split(".")[0]
-savedir = join(saveroot, foldernm)
+savedir = join(saveroot, foldernm+"_"+basis)
 os.makedirs(savedir, exist_ok=True)
 alpha = 5
 maxstep = 600
@@ -159,6 +178,11 @@ target_tsr = target_tsr.float().cuda()
 t0 = time()
 dsim = Hess_all_reg_BigGAN_optim(np.array([[-1.3, -0.5, -2.34, -4, -3, 0.7]]))
 dsim2 = Hess_all_reg_BigGAN_optim(np.array([[-1.3, -0.5, -2.34, -4, -3, 1.0]]))
+dsim3 = Hess_all_reg_BigGAN_optim(np.array([[-1.3, -0.5, -2.34, -4, -3, 1.3]]))
+dsim4 = Hess_all_reg_BigGAN_optim(np.array([[-1, -0.5, -2.34, -4, -3, 0.7]]))
+dsim5 = Hess_all_reg_BigGAN_optim(np.array([[-1.3, -1, -2.34, -4, -3, 0.7]]))
+dsim6 = Hess_all_reg_BigGAN_optim(np.array([[-1.3, -0.5, -2.34, -3, -2, 0.7]]))
+dsim7 = Hess_all_reg_BigGAN_optim(np.array([[-1.8, -0.5, -2.34, -4, -3, 0.7]]))
 print(time() - t0)  # 113 sec for 600 steps
 #%%
 hess_all_domain =[{'name': 'lr', 'type': 'continuous', 'domain': (-3, -1), 'dimensionality': 1},
@@ -174,15 +198,22 @@ hess_all_reg_domain =[{'name': 'lr', 'type': 'continuous', 'domain': (-3, -1), '
 
 myBopt = BayesianOptimization(f=Hess_all_reg_BigGAN_optim,                     # Objective function
                              domain=hess_all_reg_domain,          # Box-constraints of the problem
-                             initial_design_numdata=5,   # Number data initial design
+                             initial_design_numdata=0,   # Number data initial design
                              initial_design_type="random",
                              acquisition_optimizer_type='lbfgs',
                              acquisition_type='EI',        # Expected Improvement ‘EI’
                              exact_feval = False,         # True evaluations, no sample noise
                              maximize=False)
 #%%
-# myBopt.X = np.array([[-1.5, -2, -1, -3], [-1.5, -3, -1, -3], [-1.5, -2, -2, -3]])
-# myBopt.Y = np.array([[1.11],[0.90],[1.29]])
+myBopt.X = np.array([[-1.3, -0.5, -2.34, -4, -3, 0.7],
+                    [-1.3, -0.5, -2.34, -4, -3, 1.0],
+                    [-1.3, -0.5, -2.34, -4, -3, 1.3],
+                    [-1, -0.5, -2.34, -4, -3, 0.7],
+                    [-1.3, -1, -2.34, -4, -3, 0.7],
+                    [-1.3, -0.5, -2.34, -3, -2, 0.7],
+                    [-1.8, -0.5, -2.34, -4, -3, 0.7]])
+myBopt.Y = np.array([[dsim],[dsim2],[dsim3],[dsim4],[dsim5],[dsim6],[dsim7]])
+
 #%% 40 mins for 48 iterations
 max_iter = 1000       ## maximum number of iterations
 max_time = 36000      ## maximum allowed time

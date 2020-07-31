@@ -13,12 +13,12 @@
 # source activate conda_env
 export TORCH_HOME="/scratch/binxu/torch"
 
-#param_list='400 500
-#500 600
-#600 700
-#700 800'
-#export csr_lim="$(echo "$param_list" | head -n $PBS_ARRAYID | tail -1)"
+param_list='--img  block079_thread000_gen_gen078_003146.jpg  --basis all
+--img  block079_thread000_gen_gen078_003146.jpg  --basis sep
+--img  block079_thread000_gen_gen078_003146.jpg  --basis none
+'
+export csr_lim="$(echo "$param_list" | head -n $PBS_ARRAYID | tail -1)"
 
 cd ~/Visual_Neuro_InSilico_Exp/
-python BigGAN_invert_ADAM_BOtune.py #$csr_lim
+python BigGAN_invert_ADAM_BOtune.py $csr_lim
 
