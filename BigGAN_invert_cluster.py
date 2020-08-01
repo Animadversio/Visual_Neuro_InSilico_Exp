@@ -182,4 +182,4 @@ for imgid in tqdm(range(csr_min, csr_max)):
                       savedir=savedir, namestr=imgnm, RND=RNDid)
         exprecord.append([imgid, imgnm, triali, dsim_all, dsim_sep, dsim_none, RNDid])
 
-np.savez(join(savedir, "cmp_exprecord.npz"), exprecord=exprecord)
+np.savez(join(savedir, "cmp_exprecord_%d-%d.npz"%(csr_min, csr_max)), exprecord=exprecord)
