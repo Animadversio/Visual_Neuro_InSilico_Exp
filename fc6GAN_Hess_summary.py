@@ -23,9 +23,11 @@ idx = 0
 data = np.load(join(savedir, "%s_%03d_%s.npz" % (space, idx, labstr)))
 
 #%%
-H_col = []
+savedir = r"E:\Cluster_Backup\FC6GAN"
+method = "BP"
+labstr = labeldict[method]
+space = "evol"
 eigvals_col = []
-eigvects_col = []
 code_all = []
 for idx in range(284): # Note load it altogether is very slow, not recommended
     fn = "%s_%03d_%s.npz" % (space, idx, labstr)
@@ -38,19 +40,23 @@ for idx in range(284): # Note load it altogether is very slow, not recommended
     eigvals_col.append(eigvals.copy())
     # eigvects_col.append(eigvects.copy())
     code_all.append(code.copy())
-#%%
+#%
 eigval_arr = np.array(eigvals_col)
 code_all = np.array(code_all)
 eigmean = eigval_arr[:, ::-1].mean(axis=0)
 eigstd = eigval_arr[:, ::-1].std(axis=0)
 eiglim = np.percentile(eigval_arr[:, ::-1], [5, 95], axis=0)
 #%%
-def plot_spectra(savename="spectrum_stat_4096.jpg", ):
+def plot_spectra(control=False, savename="spectrum_stat_4096.jpg", ):
     """A local function to compute these figures for different subspaces. """
     fig = plt.figure(figsize=[10, 5])
     plt.subplot(1,2,1)
     plt.plot(range(4096), eigmean, alpha=0.7)  #, eigval_arr.std(axis=0)
     plt.fill_between(range(4096), eiglim[0, :], eiglim[1, :], alpha=0.5, color="orange", label="all space")
+    if control:
+        plt.plot(range(800), eigmean_ctrl, alpha=0.7)  # , eigval_arr.std(axis=0)
+        plt.fill_between(range(800), eiglim_ctrl[0, :], eiglim_ctrl[1, :], alpha=0.5,
+                         color="purple", label="control")
     plt.ylabel("eigenvalue")
     plt.xlabel("eig id")
     plt.xlim([-50, 4100])
@@ -58,6 +64,11 @@ def plot_spectra(savename="spectrum_stat_4096.jpg", ):
     plt.subplot(1,2,2)
     plt.plot(range(4096), np.log10(eigmean), alpha=0.7)  #, eigval_arr.std(axis=0)
     plt.fill_between(range(4096), np.log10(eiglim[0, :]), np.log10(eiglim[1, :]), alpha=0.5, color="orange", label="all space")
+    if control:
+        plt.plot(range(800), np.log10(eigmean_ctrl), alpha=0.7)  # , eigval_arr.std(axis=0)
+        plt.fill_between(range(800), np.log10(eiglim_ctrl[0, :]), np.log10(eiglim_ctrl[1, :]), alpha=0.5,
+                         color="purple", label="control")
+
     plt.ylabel("eigenvalue(log)")
     plt.xlabel("eig id")
     plt.xlim([-50, 4100])
@@ -66,7 +77,8 @@ def plot_spectra(savename="spectrum_stat_4096.jpg", ):
                       "classes)")
     plt.savefig(join(figdir, savename), bbox_extra_artists=[st]) # this is working.
     plt.show()
-plot_spectra(savename="spectrum_stat_4096_org.jpg", )
+plot_spectra(control=False, savename="spectrum_stat_4096_org.jpg", )
+plot_spectra(control=True, savename="spectrum_stat_ctrl_cmp.jpg", )
 #%%
 # plt.figure()
 # plt.plot(range(4096), eigmean, alpha=0.7)  #, eigval_arr.std(axis=0)

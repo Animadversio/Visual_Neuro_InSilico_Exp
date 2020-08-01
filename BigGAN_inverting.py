@@ -7,12 +7,12 @@ from torch.optim import SGD, Adam
 import numpy as np
 import pandas as pd
 from os.path import join
+from imageio import imread
 import GPy
 import GPyOpt
 from GPyOpt.methods import BayesianOptimization
 #%%
 BGAN = BigGAN.from_pretrained("biggan-deep-256")
-# BGAN.generator()
 BGAN.cuda()
 BGAN.eval()
 for param in BGAN.parameters():
@@ -26,6 +26,8 @@ ImDist = models.PerceptualLoss(model='net-lin', net='squeeze', use_gpu=1, gpu_id
 #%
 def L1loss(target, img):
     return (img - target).abs().sum(axis=1).mean()
+
+alpha = 5 # relative weight
 #%% Load up Hessian data for BigGAN
 savedir = r"E:\OneDrive - Washington University in St. Louis\BigGAN_invert\Hessian"
 data = np.load(r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\BigGAN\H_avg_1000cls.npz")
@@ -400,6 +402,7 @@ doggoBopt.run_optimization(max_iter=max_iter, max_time=max_time, eps=eps, verbos
 np.savez(join(savedir, "BigGAN_Hess_Adam_L2reg_optim_BO_tune300_dog.npz"), X=doggoBopt.X, Y=doggoBopt.Y, Y_best=doggoBopt.Y_best, domain=mixed_domain)
 scores_short_tab = pd.DataFrame(np.append(doggoBopt.X, doggoBopt.Y, 1), columns=["lr","beta1","beta2","reg_w1","reg_w2","scores"])
 scores_short_tab.to_csv(join(savedir, "BigGAN_Hess_Adam_L2reg_optim_BO_tune300_dog.csv"))
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #%% Try LBFGS on the problem not successful....
 #   It's super easy to explode in the middle
 #   Obsolete...... July. 30th
