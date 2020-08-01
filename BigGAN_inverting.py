@@ -402,7 +402,8 @@ scores_short_tab = pd.DataFrame(np.append(doggoBopt.X, doggoBopt.Y, 1), columns=
 scores_short_tab.to_csv(join(savedir, "BigGAN_Hess_Adam_L2reg_optim_BO_tune300_dog.csv"))
 #%% Try LBFGS on the problem not successful....
 #   It's super easy to explode in the middle
-#   Obsolete......
+#   Obsolete...... July. 30th
+
 from torch.optim import LBFGS
 alpha = 5
 reg_w1 = 10**-2.5
@@ -446,3 +447,4 @@ plt.plot(scores_all)
 # plt.title("lr %.E beta1 %.3f beta2 %.3f wd_nos %.E wd_cls %.E "%(lr,beta1,beta2,reg_w1,reg_w2))
 plt.savefig(join(savedir, "traj_Halllbfgs%06d_%.3f.jpg" % (np.random.randint(1000000), dsim.item())))
 # return dsim.item() if not torch.isnan(dsim) else 1E6
+#%%
