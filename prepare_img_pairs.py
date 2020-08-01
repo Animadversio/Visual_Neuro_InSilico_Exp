@@ -148,6 +148,8 @@ def img_backproj_L2PL(target_img, lossfun, nsteps1=150, nsteps2=150, return_stat
         return feat.detach(), img.detach()
 
 def resize_center_crop(curimg, final_L=256):
+    """Useful handy function to crop image net images to center square and resize it to
+        desired resolution (final_L)"""
     if len(curimg.shape) == 2:
         curimg = np.repeat(curimg[:, :, np.newaxis], 3, 2)
     H, W, _ = curimg.shape
