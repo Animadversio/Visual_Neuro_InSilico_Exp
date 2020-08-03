@@ -23,6 +23,7 @@ idx = 0
 data = np.load(join(savedir, "%s_%03d_%s.npz" % (space, idx, labstr)))
 
 #%%
+figdir = r"E:\Cluster_Backup\FC6GAN\summary"
 savedir = r"E:\Cluster_Backup\FC6GAN"
 method = "BP"
 labstr = labeldict[method]
@@ -33,12 +34,8 @@ for idx in range(284): # Note load it altogether is very slow, not recommended
     fn = "%s_%03d_%s.npz" % (space, idx, labstr)
     data = np.load(join(savedir, fn))
     eigvals = data['eigvals']
-    # eigvects = data['eigvects']
     code = data['code']
-    # H = eigvects @ np.diag(eigvals) @ eigvects.T # data["H_clas"]
-    # H_col.append(H.copy())
     eigvals_col.append(eigvals.copy())
-    # eigvects_col.append(eigvects.copy())
     code_all.append(code.copy())
 #%
 eigval_arr = np.array(eigvals_col)
@@ -47,6 +44,24 @@ eigmean = eigval_arr[:, ::-1].mean(axis=0)
 eigstd = eigval_arr[:, ::-1].std(axis=0)
 eiglim = np.percentile(eigval_arr[:, ::-1], [5, 95], axis=0)
 #%%
+savedir = r"E:\Cluster_Backup\fc6_shfl_fixGAN"
+figdir = r"E:\Cluster_Backup\fc6_shfl_fixGAN\summary"
+H_col = []
+eigvals_col = []
+eigvects_col = []
+code_all = []
+for idx in range(284): # Note load it altogether is very slow, not recommended
+    fn = "%s_%03d_%s.npz" % (space, idx, labstr)
+    data = np.load(join(savedir, fn))
+    eigvals = data['eigvals']
+    eigvals_col.append(eigvals.copy())
+    # eigvects = data['eigvects']
+eigval_arr_ctrl = np.array(eigvals_col)
+eigmean_ctrl = eigval_arr_ctrl[:, ::-1].mean(axis=0)
+eigstd_ctrl = eigval_arr_ctrl[:, ::-1].std(axis=0)
+eiglim_ctrl = np.percentile(eigval_arr_ctrl[:, ::-1], [5, 95], axis=0)
+
+#%%
 def plot_spectra(control=False, savename="spectrum_stat_4096.jpg", ):
     """A local function to compute these figures for different subspaces. """
     fig = plt.figure(figsize=[10, 5])
@@ -54,8 +69,8 @@ def plot_spectra(control=False, savename="spectrum_stat_4096.jpg", ):
     plt.plot(range(4096), eigmean, alpha=0.7)  #, eigval_arr.std(axis=0)
     plt.fill_between(range(4096), eiglim[0, :], eiglim[1, :], alpha=0.5, color="orange", label="all space")
     if control:
-        plt.plot(range(800), eigmean_ctrl, alpha=0.7)  # , eigval_arr.std(axis=0)
-        plt.fill_between(range(800), eiglim_ctrl[0, :], eiglim_ctrl[1, :], alpha=0.5,
+        plt.plot(range(len(eigmean_ctrl)), eigmean_ctrl, alpha=0.7, color="green")  # , eigval_arr.std(axis=0)
+        plt.fill_between(range(len(eigmean_ctrl)), eiglim_ctrl[0, :], eiglim_ctrl[1, :], alpha=0.5,
                          color="purple", label="control")
     plt.ylabel("eigenvalue")
     plt.xlabel("eig id")
@@ -65,8 +80,8 @@ def plot_spectra(control=False, savename="spectrum_stat_4096.jpg", ):
     plt.plot(range(4096), np.log10(eigmean), alpha=0.7)  #, eigval_arr.std(axis=0)
     plt.fill_between(range(4096), np.log10(eiglim[0, :]), np.log10(eiglim[1, :]), alpha=0.5, color="orange", label="all space")
     if control:
-        plt.plot(range(800), np.log10(eigmean_ctrl), alpha=0.7)  # , eigval_arr.std(axis=0)
-        plt.fill_between(range(800), np.log10(eiglim_ctrl[0, :]), np.log10(eiglim_ctrl[1, :]), alpha=0.5,
+        plt.plot(range(len(eigmean_ctrl)), np.log10(eigmean_ctrl), alpha=0.7, color="green")  # , eigval_arr.std(axis=0)
+        plt.fill_between(range(len(eigmean_ctrl)), np.log10(eiglim_ctrl[0, :]), np.log10(eiglim_ctrl[1, :]), alpha=0.5,
                          color="purple", label="control")
 
     plt.ylabel("eigenvalue(log)")
@@ -77,6 +92,8 @@ def plot_spectra(control=False, savename="spectrum_stat_4096.jpg", ):
                       "classes)")
     plt.savefig(join(figdir, savename), bbox_extra_artists=[st]) # this is working.
     plt.show()
+
+figdir = r"E:\Cluster_Backup\FC6GAN\summary"
 plot_spectra(control=False, savename="spectrum_stat_4096_org.jpg", )
 plot_spectra(control=True, savename="spectrum_stat_ctrl_cmp.jpg", )
 #%%

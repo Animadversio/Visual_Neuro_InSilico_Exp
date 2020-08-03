@@ -1,6 +1,6 @@
 """
-This script summarize and the Hessian computation for FC6 GAN. at the inverted codes of Pasupathy patches or Evolved
-codes.
+This script summarize and the Hessian computation for FC6 GAN.
+at the inverted codes of Pasupathy patches or Evolved codes from monkey experiments.
 Analyze the geometry of the FC6 manifold. How the metric tensor relates to the coordinate.
 """
 #%%
@@ -23,12 +23,19 @@ space = "evol"
 labstr = labeldict[method]
 idx = 0
 data = np.load(join(savedir, "%s_%03d_%s.npz" % (space, idx, labstr)))
-
 #%%
 savedir = r"E:\Cluster_Backup\fc6_shflGAN"
 space = "evol"
 method = "BackwardIter"
+#%%
+savedir = r"E:\Cluster_Backup\fc6_shfl_fixGAN"
+figdir = r"E:\Cluster_Backup\fc6_shfl_fixGAN\summary"
+os.makedirs(figdir,exist_ok=True)
+labeldict = {"BP": "bpfull", "BackwardIter": "bkwlancz", "ForwardIter": "frwlancz"}
+space = "evol"
+method = "BP"
 labstr = labeldict[method]
+#%%
 H_col = []
 eigvals_col = []
 eigvects_col = []
@@ -45,7 +52,7 @@ eigmean_ctrl = eigval_arr_ctrl[:, ::-1].mean(axis=0)
 eigstd_ctrl = eigval_arr_ctrl[:, ::-1].std(axis=0)
 eiglim_ctrl = np.percentile(eigval_arr_ctrl[:, ::-1], [5, 95], axis=0)
 
-#%%
+#%
 def plot_spectra(savename="spectrum_stat_4096.jpg", ):
     """A local function to compute these figures for different subspaces. """
     fig = plt.figure(figsize=[10, 5])
