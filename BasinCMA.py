@@ -223,10 +223,10 @@ def visualize_optim(Record, titlestr="", savestr=""):
     plt.show()
     return fig
 #%%
-from imageio import imread
-target = imread("block042_thread000_gen_gen041_001030.bmp")
-target_tsr = torch.from_numpy(target / 255.0).permute([2, 0, 1]).unsqueeze(0)
-target_tsr = target_tsr.float().cuda()
+# from imageio import imread
+# target = imread("block042_thread000_gen_gen041_001030.bmp")
+# target_tsr = torch.from_numpy(target / 255.0).permute([2, 0, 1]).unsqueeze(0)
+# target_tsr = target_tsr.float().cuda()
 #%%
 # savedir = r"E:\OneDrive - Washington University in St. Louis\BigGAN_invert\BasinCMA\ImageNet"
 # imgfolder = r"E:\Datasets\ImageNet\resize"
