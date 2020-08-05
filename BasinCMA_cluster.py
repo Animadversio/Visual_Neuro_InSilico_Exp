@@ -48,7 +48,7 @@ parser.add_argument("--gradsteps", type=int, default=10, help="")
 parser.add_argument("--finalgradsteps", type=int, default=500, help="")
 parser.add_argument("--CMApostGrad", type=bool, default=True, help="")
 parser.add_argument("--basis", type=str, default="all", help="")
-args = parser.parse_args([])
+args = parser.parse_args()
 #%%
 import models  # from PerceptualSimilarity folder
 ImDist = models.PerceptualLoss(model='net-lin', net=args.ImDist, use_gpu=1, gpu_ids=[0])
