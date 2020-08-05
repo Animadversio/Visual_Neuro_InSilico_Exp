@@ -27,5 +27,5 @@ param_list='--imgidx 250 350 --CMApostGrad True --basis all
 export csr_lim="$(echo "$param_list" | head -n $PBS_ARRAYID | tail -1)"
 
 cd ~/Visual_Neuro_InSilico_Exp/
-python BigGAN_invert_cluster.py $csr_lim
+python BasinCMA_cluster.py $csr_lim
 
