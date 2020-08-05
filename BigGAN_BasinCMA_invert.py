@@ -79,13 +79,15 @@ ToPILImage()(fit_img[-1,:,:,:].cpu()).show()
 Here implements an illustrative version of Basin CMA algorithm. 
 A few technical decision
 
-* Separate CMA optimizer for noise and class space.
-* Initialize CMA from 0 in class space, on shell (truncnorm(-2,2)) in noise space
-*  
-* Use Hessian basis parametrization in Adam. Can switch on and off
-* 
+* Separate CMA optimizer for noise and class space, since there difference in scale
+* Initialize CMA from 0 vector in class space, on shell (truncnorm(-2,2)) in noise space. 
+* Use Hessian basis parametrization in Adam. Can switch on and off. 
 
-Currently the computational cost for 18 point is still quite high. (seems same for original algorithm)
+Currently the computational cost for 18 point is still quite high ~30-40mins. (seems same for original algorithm)
+
+* Major reason is without enough GPU memory, the 18 points have to be optimized in series, which makes the 
+  cost of Adam steps x5
+* 
 """
 savedir = r"E:\OneDrive - Washington University in St. Louis\BigGAN_invert\BasinCMA"
 import cma
@@ -195,3 +197,4 @@ L1score_final = L1dsim.detach().cpu().numpy()
 finalimg = ToPILImage()(make_grid(imgs[:,:,:,:].cpu()))
 finalimg.save(join(savedir, "refinefinal%06d.jpg"%RND))
 finalimg.show()
+#%%

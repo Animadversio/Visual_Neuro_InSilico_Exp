@@ -171,28 +171,39 @@ corr_mat_lin_ctrl = corr_mat_lin_ctrl.cpu().numpy()
 np.savez(join(figdir, "evol_hess_ctrl_corr_mat.npz"), corr_mat_log=corr_mat_log_ctrl,
          corr_mat_lin=corr_mat_lin_ctrl,code_all=code_all)
 #%%
+figdir = r"E:\Cluster_Backup\fc6_shfl_fixGAN\summary"
+data = np.load(join(figdir, "evol_hess_ctrl_corr_mat.npz"))
+corr_mat_log_ctrl = data["corr_mat_log"]
+corr_mat_lin_ctrl = data["corr_mat_lin"]
+#%%
+corr_mat_log_ctrl_nodiag = corr_mat_log_ctrl
+corr_mat_lin_ctrl_nodiag = corr_mat_lin_ctrl
+np.fill_diagonal(corr_mat_log_ctrl_nodiag, np.nan)
+np.fill_diagonal(corr_mat_lin_ctrl_nodiag, np.nan)
+log_nodiag_mean = np.nanmean(corr_mat_log_ctrl_nodiag)
+lin_nodiag_mean = np.nanmean(corr_mat_lin_ctrl_nodiag)
+print("Log scale mean corr value %.3f"%log_nodiag_mean)  # 0.984
+print("Linear scale mean corr value %.3f"%lin_nodiag_mean)  # 0.600
+
 Hlabel = "evol"
 plt.figure(figsize=[10, 8])
 plt.matshow(corr_mat_log_ctrl, fignum=0)
-plt.title("FC6GAN Hessian at evolved codes\nCorrelation Mat of log of vHv and eigenvalues", fontsize=16)
+plt.title("FC6GAN Hessian at evolved codes\nCorrelation Mat of log of vHv and eigenvalues"
+          "\nNon-Diagonal mean %.3f"%log_nodiag_mean, fontsize=15)
 plt.colorbar()
+plt.subplots_adjust(top=0.85)
 plt.savefig(join(figdir, "%s_Hess_ctrl_corrmat_log.jpg"%Hlabel))
 plt.show()
 #%
 fig = plt.figure(figsize=[10, 8])
 plt.matshow(corr_mat_lin_ctrl, fignum=0)
-plt.title("FC6GAN Hessian at evolved codes\nCorrelation Mat of vHv and eigenvalues", fontsize=16)
+plt.title("FC6GAN Hessian at evolved codes\nCorrelation Mat of vHv and eigenvalues"
+          "\nNon-Diagonal mean %.3f"%lin_nodiag_mean, fontsize=15)
 plt.colorbar()
+plt.subplots_adjust(top=0.85)
 plt.savefig(join(figdir, "%s_Hess_ctrl_corrmat_lin.jpg"%Hlabel))
 plt.show()
 #%
-corr_mat_log_ctrl_nodiag = corr_mat_log_ctrl
-corr_mat_lin_ctrl_nodiag = corr_mat_lin_ctrl
-np.fill_diagonal(corr_mat_log_ctrl_nodiag, np.nan)
-np.fill_diagonal(corr_mat_lin_ctrl_nodiag, np.nan)
-print("Log scale mean corr value %.3f"%np.nanmean(corr_mat_log_ctrl_nodiag))  # 0.984
-print("Linear scale mean corr value %.3f"%np.nanmean(corr_mat_lin_ctrl_nodiag))  # 0.600
-
 #%%
 code_corr = np.corrcoef(code_all)
 fig = plt.figure(figsize=[10, 8])

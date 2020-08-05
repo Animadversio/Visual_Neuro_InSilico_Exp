@@ -143,7 +143,7 @@ plt.show()
 innerprod = eigvect_i.T @ eigvect_j
 vHv_ij = np.diag((innerprod * eigval_j[np.newaxis, :]) @ innerprod.T) # 664 ms on cpu
 # vHv_ij2 = np.diag(eigvect_i.T @ eigvect_j @ np.diag(eigval_j) @ eigvect_j.T @ eigvect_i)
-#%%
+#%% Using CUDA to compute these matrix multiplication is more efficient
 %%time
 eigval_i, eigvect_i = load_eig(space, 1, labstr)
 eigval_j, eigvect_j = load_eig(space, 2, labstr)
@@ -165,7 +165,7 @@ def corr_nan_torch(V1, V2):
 
 corr_nan_torch(eva_i.log10(), vHv_ij.log10())
 
-#%%
+#%% Compute the Correlation of Hessian takes a lot of time
 T0 = time()
 corr_mat_log = torch.zeros((284,284)).cuda()
 corr_mat_lin = torch.zeros((284,284)).cuda()
@@ -190,27 +190,38 @@ print(time() - T0) # 18531.1444375515
 np.savez(join(figdir, "evol_hess_corr_mat.npz"), corr_mat_log=corr_mat_log.cpu().numpy(),
          corr_mat_lin=corr_mat_lin.cpu().numpy(),code_all=code_all)
 #%%
+figdir = r"E:\Cluster_Backup\FC6GAN\summary"
+data = np.load(join(figdir, "evol_hess_corr_mat.npz"))
+corr_mat_log = data["corr_mat_log"]
+corr_mat_lin = data["corr_mat_lin"]
+#%%
+corr_mat_log_nodiag = corr_mat_log.copy()
+corr_mat_lin_nodiag = corr_mat_lin.copy()
+np.fill_diagonal(corr_mat_log_nodiag, np.nan)
+np.fill_diagonal(corr_mat_lin_nodiag, np.nan)
+log_nodiag_mean = np.nanmean(corr_mat_log_nodiag)
+lin_nodiag_mean = np.nanmean(corr_mat_lin_nodiag)
+print("Log scale mean corr value %.3f"%log_nodiag_mean)  # 0.984
+print("Linear scale mean corr value %.3f"%lin_nodiag_mean)  # 0.600
+
 Hlabel = "evol"
 plt.figure(figsize=[10, 8])
-plt.matshow(corr_mat_log.cpu(), fignum=0)
-plt.title("FC6GAN Hessian at evolved codes\nCorrelation Mat of log of vHv and eigenvalues", fontsize=16)
+plt.matshow(corr_mat_log, fignum=0)
+plt.title("FC6GAN Hessian at evolved codes\nCorrelation Mat of log of vHv and eigenvalues"
+          "\nNon-Diagonal mean %.3f"%log_nodiag_mean, fontsize=15)
 plt.colorbar()
+plt.subplots_adjust(top=0.85)
 plt.savefig(join(figdir, "%s_Hess_corrmat_log.jpg"%Hlabel))
 plt.show()
 #%
 fig = plt.figure(figsize=[10, 8])
-plt.matshow(corr_mat_lin.cpu(), fignum=0)
-plt.title("FC6GAN Hessian at evolved codes\nCorrelation Mat of vHv and eigenvalues", fontsize=16)
+plt.matshow(corr_mat_lin, fignum=0)
+plt.title("FC6GAN Hessian at evolved codes\nCorrelation Mat of vHv and eigenvalues"
+          "\nNon-Diagonal mean %.3f"%lin_nodiag_mean, fontsize=15)
 plt.colorbar()
+plt.subplots_adjust(top=0.85)
 plt.savefig(join(figdir, "%s_Hess_corrmat_lin.jpg"%Hlabel))
 plt.show()
-#%
-corr_mat_log_nodiag = corr_mat_log.cpu().numpy().copy()
-corr_mat_lin_nodiag = corr_mat_lin.cpu().numpy().copy()
-np.fill_diagonal(corr_mat_log_nodiag, np.nan)
-np.fill_diagonal(corr_mat_lin_nodiag, np.nan)
-print("Log scale mean corr value %.3f"%np.nanmean(corr_mat_log_nodiag))  # 0.984
-print("Linear scale mean corr value %.3f"%np.nanmean(corr_mat_lin_nodiag))  # 0.600
 
 #%%
 code_corr = np.corrcoef(code_all)

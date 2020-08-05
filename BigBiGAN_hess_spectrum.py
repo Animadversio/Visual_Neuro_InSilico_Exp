@@ -313,7 +313,5 @@ ST = plt.suptitle("Consistency of Hessian Across Vectors\n"
                   "Cross scatter of EigenValues and vHv values for Hessian at 5 Random Vectors",
                   fontsize=18)
 plt.savefig(join(figdir, "Hess_consistency_example_rnd%03d.jpg"%np.random.randint(1000)), bbox_extra_artists=[ST]) #
-# this
-# is
-# working.
+# this is working.
 # plt.show()
