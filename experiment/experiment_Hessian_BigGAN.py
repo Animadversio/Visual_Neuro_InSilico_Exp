@@ -4,13 +4,13 @@ Created on Wed Jul 22 19:08:54 2020
 
 @author: Binxu Wang
 
-Find important Nuisanced transformations in Noise space for a Class evolved image. 
+Find important Nuisanced + Class transformations in Noise + Class space for a BigGAN evolved image. 
 """
 
 # backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_integrated\2020-06-01-09-46-37"
 # Put the backup folder and the thread to analyze here 
 #backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-07-22-10-14-22"
-backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-08-05-13-56-11"
+backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2020-08-06-10-18-55"
 threadid = 1
 #evolspace = "all"
 
@@ -50,6 +50,7 @@ ImDist = models.PerceptualLoss(model='net-lin', net='squeeze', use_gpu=1, gpu_id
 ImDist.cuda()
 for param in ImDist.parameters():
     param.requires_grad_(False)
+#%%
 BGAN = BigGAN.from_pretrained("biggan-deep-256")
 for param in BGAN.parameters():
     param.requires_grad_(False)
@@ -139,8 +140,9 @@ def load_codes_mat(backup_dir, threadnum=None, savefile=False):
 #%% Compute Image distance using the ImDist
 def Hess_img_distmat(ImDist, img_all, nrow=11):
     """
+    img_all: a torch 4D array of shape [N, 3, 256, 256] on cpu()
     nrow: specify how many images are generated in one axis.
-    It will arrange the images in a matrix and calculate the distance to the center image in each row.
+        It will arrange the images in `img_all` in a matrix and calculate the distance to the center image in each row.
     """
     distmat = torch.zeros(img_all.shape[0]).view(-1,nrow)
     nTot = distmat.shape[0]
@@ -189,15 +191,16 @@ else:
 
 PC1_vect = PC1_sign * PC_vectors[0,:] 
 #%% From the setting of the bhv2 files find the fixed noise vectors
+#   Use this vector as the reference vector (center) in the Hessian computation
 space_data = loadmat(join(backup_dir, "space_opts.mat"))["space_opts"]
 evolspace = space_data[0,threadid]["name"][0]
 print("Evolution happens in %s space, load the fixed code in `space_opts`" % evolspace)
 if evolspace == "BigGAN_class":
     ref_noise_vec = space_data[0,threadid]['fix_noise_vec']
     #% Choose a random final generation codes as our reference
-    ref_class_vec = final_gen_codes[0:1, :]
+    ref_class_vec = final_gen_codes.mean(axis=0,keepdims=True) # final_gen_codes[0:1, :]
 elif evolspace == "BigGAN":
-    ref_vec = final_gen_codes[0:1, :]
+    ref_vec = final_gen_codes.mean(axis=0,keepdims=True)# final_gen_codes[0:1, :] # this can be dangerous, sometimes one image will lose the feature that we want in the population.
     ref_noise_vec = ref_vec[:, :128]
     ref_class_vec = ref_vec[:, 128:]
 #%% If you want to regenerate the images here. 
@@ -210,7 +213,8 @@ if Demo:
     ToPILImage()(imgs[0,:,:,:].cpu()).show()
     ToPILImage()(make_grid(imgs.cpu())).show()
 #%% Compute Hessian decomposition and get the vectors
-Hess_method = "BP"  # "BackwardIter"
+Hess_method = "BP"  # "BackwardIter" "ForwardIter"
+Hess_all = False # Set to False to reduce computation time. 
 t0 = time()
 if Hess_method == "BP":
     print("Computing Hessian Decomposition Through auto-grad and full eigen decomposition.")
@@ -220,11 +224,12 @@ if Hess_method == "BP":
     mov_vect = ref_vect.detach().clone().requires_grad_(True)
     #%
     imgs1 = G.visualize(ref_vect)
-    imgs2 = G.visualize(mov_vect)
-    dsim = ImDist(imgs1, imgs2)
-    H = get_full_hessian(dsim, mov_vect)  # 77sec to compute a Hessian. # 114sec on ML2a
-    # ToPILImage()(imgs[0,:,:,:].cpu()).show()
-    eigvals, eigvects = np.linalg.eigh(H)  # 75 ms
+    if Hess_all:
+        imgs2 = G.visualize(mov_vect)
+        dsim = ImDist(imgs1, imgs2)
+        H = get_full_hessian(dsim, mov_vect)  # 77sec to compute a Hessian. # 114sec on ML2a
+        # ToPILImage()(imgs[0,:,:,:].cpu()).show()
+        eigvals, eigvects = np.linalg.eigh(H)  # 75 ms
     #%
     noisevec.requires_grad_(True)
     classvec.requires_grad_(False)
@@ -243,10 +248,10 @@ if Hess_method == "BP":
     eigvals_clas, eigvects_clas = np.linalg.eigh(H_clas)  # 75 ms
     classvec.requires_grad_(False)
 
-    np.savez(join(summary_dir, "Hess_mat.npz"), H=H, H_nois=H_nois, H_clas=H_clas, eigvals=eigvals,
-             eigvects=eigvects, eigvals_clas=eigvals_clas, eigvects_clas=eigvects_clas, eigvals_nois=eigvals_nois,
-             eigvects_nois=eigvects_nois, vect=ref_vect.cpu().numpy(),
-             noisevec=noisevec.cpu().numpy(), classvec=classvec.cpu().numpy())
+    np.savez(join(summary_dir, "Hess_mat.npz"), #H=H, eigvals=eigvals, eigvects=eigvects, 
+             H_clas=H_clas, eigvals_clas=eigvals_clas, eigvects_clas=eigvects_clas, 
+             H_nois=H_nois, eigvals_nois=eigvals_nois, eigvects_nois=eigvects_nois, 
+             vect=ref_vect.cpu().numpy(), noisevec=noisevec.cpu().numpy(), classvec=classvec.cpu().numpy())
 
 elif Hess_method == "BackwardIter":
     print("Computing Hessian Decomposition Through Lanczos decomposition on Backward HVP operator.")
@@ -264,12 +269,12 @@ print("%.2f sec"% (time() - t0))  # 31.75 secs for 300 eig, 87.52 secs for 800 e
 #%% Visualize spectrum
 plt.figure(figsize=[8,5])
 plt.subplot(1,2,1)
-plt.plot(eigvals[::-1], label="all")
+if Hess_all: plt.plot(eigvals[::-1], label="all")
 plt.plot(eigvals_clas[::-1], label="class")
 plt.plot(eigvals_nois[::-1], label="noise")
 plt.ylabel("eigval");plt.legend()
 plt.subplot(1,2,2)
-plt.plot(np.log10(eigvals[::-1]), label="all")
+if Hess_all: plt.plot(np.log10(eigvals[::-1]), label="all")
 plt.plot(np.log10(eigvals_clas[::-1]), label="class")
 plt.plot(np.log10(eigvals_nois[::-1]), label="noise")
 plt.ylabel("log(eigval)");plt.legend()
@@ -282,7 +287,10 @@ elif evolspace == "BigGAN_noise":
 elif evolspace == "BigGAN":
     innerprod2PC1 = PC1_vect @ eigvects.T
 print("Eigen vector: Innerproduct max %.3E min %.3E std %.3E"% (innerprod2PC1.max(), innerprod2PC1.min(), innerprod2PC1.std()))
-print("EigenDecomposition of Hessian of Image Similarity Metric\nEigen value: max %.3E min %.3E std %.3E"%
+print("EigenDecomposition of Hessian of Image Similarity Metric\nEigen value: Class space max %.3E min %.3E std %.3E; Noise space max %.3E min %.3E std %.3E"%
+      (eigvals_clas.max(), eigvals_clas.min(), eigvals_clas.std(), eigvals_nois.max(), eigvals_nois.min(), eigvals_nois.std(), )) 
+if Hess_all: 
+    print("EigenDecomposition of Hessian of Image Similarity Metric\nEigen value: All: max %.3E min %.3E std %.3E"%
       (eigvals.max(), eigvals.min(), eigvals.std(), )) 
 
 #%% Do interpolation
