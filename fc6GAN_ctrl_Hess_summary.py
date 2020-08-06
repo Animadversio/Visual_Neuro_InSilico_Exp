@@ -1,6 +1,6 @@
 """
-This script summarize and the Hessian computation for FC6 GAN. at the inverted codes of Pasupathy patches or Evolved
-codes.
+This script summarize and the Hessian computation for FC6 GAN.
+at the inverted codes of Pasupathy patches or Evolved codes from monkey experiments.
 Analyze the geometry of the FC6 manifold. How the metric tensor relates to the coordinate.
 """
 #%%
@@ -23,7 +23,18 @@ space = "evol"
 labstr = labeldict[method]
 idx = 0
 data = np.load(join(savedir, "%s_%03d_%s.npz" % (space, idx, labstr)))
-
+#%%
+savedir = r"E:\Cluster_Backup\fc6_shflGAN"
+space = "evol"
+method = "BackwardIter"
+#%%
+savedir = r"E:\Cluster_Backup\fc6_shfl_fixGAN"
+figdir = r"E:\Cluster_Backup\fc6_shfl_fixGAN\summary"
+os.makedirs(figdir,exist_ok=True)
+labeldict = {"BP": "bpfull", "BackwardIter": "bkwlancz", "ForwardIter": "frwlancz"}
+space = "evol"
+method = "BP"
+labstr = labeldict[method]
 #%%
 H_col = []
 eigvals_col = []
@@ -33,35 +44,29 @@ for idx in range(284): # Note load it altogether is very slow, not recommended
     fn = "%s_%03d_%s.npz" % (space, idx, labstr)
     data = np.load(join(savedir, fn))
     eigvals = data['eigvals']
-    # eigvects = data['eigvects']
-    code = data['code']
-    # H = eigvects @ np.diag(eigvals) @ eigvects.T # data["H_clas"]
-    # H_col.append(H.copy())
     eigvals_col.append(eigvals.copy())
-    # eigvects_col.append(eigvects.copy())
-    code_all.append(code.copy())
+    # eigvects = data['eigvects']
 #%
-eigval_arr = np.array(eigvals_col)
-code_all = np.array(code_all)
-eigmean = eigval_arr[:, ::-1].mean(axis=0)
-eigstd = eigval_arr[:, ::-1].std(axis=0)
-eiglim = np.percentile(eigval_arr[:, ::-1], [5, 95], axis=0)
+eigval_arr_ctrl = np.array(eigvals_col)
+eigmean_ctrl = eigval_arr_ctrl[:, ::-1].mean(axis=0)
+eigstd_ctrl = eigval_arr_ctrl[:, ::-1].std(axis=0)
+eiglim_ctrl = np.percentile(eigval_arr_ctrl[:, ::-1], [5, 95], axis=0)
 
-#%%
+#%
 def plot_spectra(savename="spectrum_stat_4096.jpg", ):
     """A local function to compute these figures for different subspaces. """
     fig = plt.figure(figsize=[10, 5])
-    cutoff = len(eigmean)
+    cutoff = len(eigmean_ctrl)
     plt.subplot(1,2,1)
-    plt.plot(range(cutoff), eigmean, alpha=0.7)  #, eigval_arr.std(axis=0)
-    plt.fill_between(range(cutoff), eiglim[0, :], eiglim[1, :], alpha=0.5, color="orange", label="5-95 percentile")
+    plt.plot(range(cutoff), eigmean_ctrl, alpha=0.7)  #, eigval_arr.std(axis=0)
+    plt.fill_between(range(cutoff), eiglim_ctrl[0, :], eiglim_ctrl[1, :], alpha=0.5, color="orange", label="5-95 percentile")
     plt.ylabel("eigenvalue")
     plt.xlabel("eig id")
     plt.xlim([-50, 4100])
     plt.legend()
     plt.subplot(1,2,2)
-    plt.plot(range(cutoff), np.log10(eigmean), alpha=0.7)  #, eigval_arr.std(axis=0)
-    plt.fill_between(range(cutoff), np.log10(eiglim[0, :]), np.log10(eiglim[1, :]), alpha=0.5, color="orange", label="5-95 percentile")
+    plt.plot(range(cutoff), np.log10(eigmean_ctrl), alpha=0.7)  #, eigval_arr.std(axis=0)
+    plt.fill_between(range(cutoff), np.log10(eiglim_ctrl[0, :]), np.log10(eiglim_ctrl[1, :]), alpha=0.5, color="orange", label="5-95 percentile")
     plt.ylabel("eigenvalue(log)")
     plt.xlabel("eig id")
     plt.xlim([-50, 4100])
@@ -166,28 +171,39 @@ corr_mat_lin_ctrl = corr_mat_lin_ctrl.cpu().numpy()
 np.savez(join(figdir, "evol_hess_ctrl_corr_mat.npz"), corr_mat_log=corr_mat_log_ctrl,
          corr_mat_lin=corr_mat_lin_ctrl,code_all=code_all)
 #%%
+figdir = r"E:\Cluster_Backup\fc6_shfl_fixGAN\summary"
+data = np.load(join(figdir, "evol_hess_ctrl_corr_mat.npz"))
+corr_mat_log_ctrl = data["corr_mat_log"]
+corr_mat_lin_ctrl = data["corr_mat_lin"]
+#%%
+corr_mat_log_ctrl_nodiag = corr_mat_log_ctrl
+corr_mat_lin_ctrl_nodiag = corr_mat_lin_ctrl
+np.fill_diagonal(corr_mat_log_ctrl_nodiag, np.nan)
+np.fill_diagonal(corr_mat_lin_ctrl_nodiag, np.nan)
+log_nodiag_mean = np.nanmean(corr_mat_log_ctrl_nodiag)
+lin_nodiag_mean = np.nanmean(corr_mat_lin_ctrl_nodiag)
+print("Log scale mean corr value %.3f"%log_nodiag_mean)  # 0.984
+print("Linear scale mean corr value %.3f"%lin_nodiag_mean)  # 0.600
+
 Hlabel = "evol"
 plt.figure(figsize=[10, 8])
 plt.matshow(corr_mat_log_ctrl, fignum=0)
-plt.title("FC6GAN Hessian at evolved codes\nCorrelation Mat of log of vHv and eigenvalues", fontsize=16)
+plt.title("FC6GAN Hessian at evolved codes\nCorrelation Mat of log of vHv and eigenvalues"
+          "\nNon-Diagonal mean %.3f"%log_nodiag_mean, fontsize=15)
 plt.colorbar()
+plt.subplots_adjust(top=0.85)
 plt.savefig(join(figdir, "%s_Hess_ctrl_corrmat_log.jpg"%Hlabel))
 plt.show()
 #%
 fig = plt.figure(figsize=[10, 8])
 plt.matshow(corr_mat_lin_ctrl, fignum=0)
-plt.title("FC6GAN Hessian at evolved codes\nCorrelation Mat of vHv and eigenvalues", fontsize=16)
+plt.title("FC6GAN Hessian at evolved codes\nCorrelation Mat of vHv and eigenvalues"
+          "\nNon-Diagonal mean %.3f"%lin_nodiag_mean, fontsize=15)
 plt.colorbar()
+plt.subplots_adjust(top=0.85)
 plt.savefig(join(figdir, "%s_Hess_ctrl_corrmat_lin.jpg"%Hlabel))
 plt.show()
 #%
-corr_mat_log_ctrl_nodiag = corr_mat_log_ctrl
-corr_mat_lin_ctrl_nodiag = corr_mat_lin_ctrl
-np.fill_diagonal(corr_mat_log_ctrl_nodiag, np.nan)
-np.fill_diagonal(corr_mat_lin_ctrl_nodiag, np.nan)
-print("Log scale mean corr value %.3f"%np.nanmean(corr_mat_log_ctrl_nodiag))  # 0.984
-print("Linear scale mean corr value %.3f"%np.nanmean(corr_mat_lin_ctrl_nodiag))  # 0.600
-
 #%%
 code_corr = np.corrcoef(code_all)
 fig = plt.figure(figsize=[10, 8])
@@ -252,3 +268,4 @@ print("Correlation between code correlation  and  log Hessian similarity (non-di
 # Correlation between code correlation  and  Hessian similarity (non-diagonal)  0.020121576393265176
 # Correlation between code correlation  and  log Hessian similarity (non-diagonal)  0.022462684881444483
 
+#%%
