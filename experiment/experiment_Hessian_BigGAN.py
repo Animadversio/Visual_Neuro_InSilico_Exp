@@ -10,9 +10,8 @@ Find important Nuisanced transformations in Noise space for a Class evolved imag
 # backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_integrated\2020-06-01-09-46-37"
 # Put the backup folder and the thread to analyze here 
 #backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-07-22-10-14-22"
-#backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2020-07-22-11-05-32"
-backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2020-07-23-09-34-47"
-threadid = 2
+backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-08-05-13-56-11"
+threadid = 1
 #evolspace = "all"
 
 
@@ -137,6 +136,22 @@ def load_codes_mat(backup_dir, threadnum=None, savefile=False):
         np.savez(join(backup_dir, "codes_all.npz"), codes_all=codes_all, generations=generations)
     return codes_all, generations
 
+#%% Compute Image distance using the ImDist
+def Hess_img_distmat(ImDist, img_all, nrow=11):
+    """
+    nrow: specify how many images are generated in one axis.
+    It will arrange the images in a matrix and calculate the distance to the center image in each row.
+    """
+    distmat = torch.zeros(img_all.shape[0]).view(-1,nrow)
+    nTot = distmat.shape[0]
+    for irow in range(nTot):
+        rstr = irow * nrow
+        rend = nrow + rstr
+        rmid = (nrow-1)//2 + rstr
+        with torch.no_grad():
+            dists = ImDist(img_all[rstr:rend,:],img_all[rmid,:]).squeeze()
+        distmat[irow, :]=dists.cpu()
+    return distmat
 #%% Load up the codes
 from sklearn.decomposition import PCA 
 import numpy as np
@@ -237,7 +252,7 @@ elif Hess_method == "BackwardIter":
     print("Computing Hessian Decomposition Through Lanczos decomposition on Backward HVP operator.")
     feat = torch.from_numpy(sphere_norm * PC1_vect).float().requires_grad_(False).cuda()
     eigenvals, eigenvecs = compute_hessian_eigenthings(G, feat, ImDist,
-        num_eigenthings=800, mode="lanczos", use_gpu=True)
+        num_eigenthings=128, mode="lanczos", use_gpu=True)
     eigenvals = eigenvals[::-1]
     eigenvecs = eigenvecs[::-1, :]
 
@@ -272,39 +287,99 @@ print("EigenDecomposition of Hessian of Image Similarity Metric\nEigen value: ma
 
 #%% Do interpolation
 
-#% Interpolation in the class space
+#%%
+#% Interpolation in the class space, but inversely scale the step size w.r.t. eigenvalue
 codes_all = []
 img_names = []
-for eigi in [0, 3, 6, 9, 11, 13, 15, 17, 19, 21, 25, 40, 60, 80]:#range(20):  # eigvects.shape[1]
-    interp_class = LExpMap(classvec.cpu().numpy(), eigvects_clas[:, -eigi-1], 11, (-2.5, 2.5))
+scale = 5
+expon = 2.5
+for eigi in [0, 3, 6, 9, 11, 13, 15, 17, 19, 21, 25, 40,]:#range(20):  # eigvects.shape[1] # 60, 80
+    interp_class = LExpMap(classvec.cpu().numpy(), eigvects_clas[:, -eigi-1], 11, (-scale * eigvals_clas[-eigi-1] ** (-1/expon), scale * eigvals_clas[-eigi-1] ** (-1/expon)))
     interp_codes = np.hstack((noisevec.cpu().numpy().repeat(11, axis=0), interp_class, ))
     codes_all.append(interp_codes.copy())
-    img_names.extend("class_eig%d_lin%.1f.jpg"%(eigi, dist) for dist in np.linspace(-2.5, 2.5, 11))
+    img_names.extend("class_eig%d_exp%.1f_lin%.1f.jpg"%(eigi, expon, dist) for dist in np.linspace(-scale, scale, 11))
+
 codes_all_arr = np.concatenate(tuple(codes_all), axis=0)
 img_all = G.visualize_batch_np(codes_all_arr, truncation=0.7, B=10)
 imggrid = make_grid(img_all, nrow=11)
 PILimg2 = ToPILImage()(imggrid)#.show()
-PILimg2.save(join(summary_dir, "eigvect_clas_interp.jpg"))
+PILimg2.save(join(summary_dir, "eigvect_clas_interp_exp%.1f_d%d.jpg"%(expon, scale)))
 npimgs = img_all.permute([2,3,1,0]).numpy()
 for imgi in range(npimgs.shape[-1]):  imwrite(join(newimg_dir, img_names[imgi]), np.uint8(npimgs[:,:,:,imgi]*255))
-
-#% Interpolation in the noise space
+#%
+nrow = 11
+distmat = Hess_img_distmat(ImDist, img_all, nrow=11)
+#%
+plt.figure(figsize=[6,6])
+plt.matshow(distmat, fignum=0)
+plt.colorbar()
+plt.title("Perceptual distance metric along each row\n exponent %.1f Scale%d "%(expon, scale, ))
+plt.savefig(join(summary_dir, "distmat_eigvect_clas_interp_exp%.1f_d%d.jpg"%(expon, scale)))
+plt.show()
+#%% Interpolation in the noise space
 codes_all = []
 img_names = []
+scale = 6
+expon = 3
 for eigi in [0, 1, 2, 3, 4, 6, 10, 15, 20, 40]:#range(20):#eigvects_nois.shape[1]
-    interp_noise = LExpMap(noisevec.cpu().numpy(), eigvects_nois[:, -eigi-1], 11, (-4.5, 4.5))
+#    interp_noise = LExpMap(noisevec.cpu().numpy(), eigvects_nois[:, -eigi-1], 11, (-4.5, 4.5))
+    interp_noise = LExpMap(noisevec.cpu().numpy(), eigvects_nois[:, -eigi-1], 11, (-scale * eigvals_nois[-eigi-1] ** (-1/expon), scale * eigvals_nois[-eigi-1] ** (-1/expon)))
     interp_codes = np.hstack((interp_noise, classvec.cpu().numpy().repeat(11, axis=0), ))
     codes_all.append(interp_codes.copy())
-    img_names.extend("noise_eig%d_lin%.1f.jpg"%(eigi, dist) for dist in np.linspace(-4.5, 4.5, 11))
+    img_names.extend("noise_eig%d_exp%.1f_lin%.1f.jpg"%(eigi, expon, dist) for dist in np.linspace(-scale, scale, 11))
 
 codes_all_arr = np.concatenate(tuple(codes_all), axis=0)
 img_all = G.visualize_batch_np(codes_all_arr, truncation=0.7, B=10)
 imggrid = make_grid(img_all, nrow=11)
 PILimg3 = ToPILImage()(imggrid)#.show()
-PILimg3.save(join(summary_dir, "eigvect_nois_interp.jpg"))
+PILimg3.save(join(summary_dir, "eigvect_nois_interp_exp%.1f_d%d.jpg"%(expon, scale)))
 npimgs = img_all.permute([2,3,1,0]).numpy()
 for imgi in range(npimgs.shape[-1]):  imwrite(join(newimg_dir, img_names[imgi]), np.uint8(npimgs[:,:,:,imgi]*255))
-print("Spent %.1f sec from start" % (time() - T00))
+#
+nrow = 11
+distmat = Hess_img_distmat(ImDist, img_all, nrow=11)
+#
+plt.figure(figsize=[6,6])
+plt.matshow(distmat, fignum=0)
+plt.colorbar()
+plt.title("Perceptual distance metric along each row\n Scale%d exponent %.1f"%(scale, expon))
+plt.savefig(join(summary_dir, "distmat_eigvect_nois_interp_exp%.1f_d%d.jpg"%(expon, scale)))
+plt.show()
+#%%
+
+##% Interpolation in the class space
+#codes_all = []
+#img_names = []
+#for eigi in [0, 3, 6, 9, 11, 13, 15, 17, 19, 21, 25, 40,]:#range(20):  # eigvects.shape[1] # 60, 80
+#    interp_class = LExpMap(classvec.cpu().numpy(), eigvects_clas[:, -eigi-1], 11, (-2.5, 2.5))
+#    interp_codes = np.hstack((noisevec.cpu().numpy().repeat(11, axis=0), interp_class, ))
+#    codes_all.append(interp_codes.copy())
+#    img_names.extend("class_eig%d_lin%.1f.jpg"%(eigi, dist) for dist in np.linspace(-2.5, 2.5, 11))
+#codes_all_arr = np.concatenate(tuple(codes_all), axis=0)
+#img_all = G.visualize_batch_np(codes_all_arr, truncation=0.7, B=10)
+#imggrid = make_grid(img_all, nrow=11)
+#PILimg2 = ToPILImage()(imggrid)#.show()
+#PILimg2.save(join(summary_dir, "eigvect_clas_interp.jpg"))
+#npimgs = img_all.permute([2,3,1,0]).numpy()
+#for imgi in range(npimgs.shape[-1]):  imwrite(join(newimg_dir, img_names[imgi]), np.uint8(npimgs[:,:,:,imgi]*255))
+##%%
+##% Interpolation in the noise space
+#codes_all = []
+#img_names = []
+#for eigi in [0, 1, 2, 3, 4, 6, 10, 15, 20, 40]:#range(20):#eigvects_nois.shape[1]
+#    interp_noise = LExpMap(noisevec.cpu().numpy(), eigvects_nois[:, -eigi-1], 11, (-4.5, 4.5))
+#    interp_codes = np.hstack((interp_noise, classvec.cpu().numpy().repeat(11, axis=0), ))
+#    codes_all.append(interp_codes.copy())
+#    img_names.extend("noise_eig%d_lin%.1f.jpg"%(eigi, dist) for dist in np.linspace(-4.5, 4.5, 11))
+#
+#codes_all_arr = np.concatenate(tuple(codes_all), axis=0)
+#img_all = G.visualize_batch_np(codes_all_arr, truncation=0.7, B=10)
+#imggrid = make_grid(img_all, nrow=11)
+#PILimg3 = ToPILImage()(imggrid)#.show()
+#PILimg3.save(join(summary_dir, "eigvect_nois_interp.jpg"))
+#npimgs = img_all.permute([2,3,1,0]).numpy()
+#for imgi in range(npimgs.shape[-1]):  imwrite(join(newimg_dir, img_names[imgi]), np.uint8(npimgs[:,:,:,imgi]*255))
+#print("Spent %.1f sec from start" % (time() - T00))
 #%% Interpolation in the noise space
 #codes_all = []
 #img_names = []
