@@ -10,8 +10,12 @@ Find important Nuisanced + Class transformations in Noise + Class space for a Bi
 # backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_integrated\2020-06-01-09-46-37"
 # Put the backup folder and the thread to analyze here 
 #backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-07-22-10-14-22"
-backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2020-08-06-10-18-55"
+backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2020-08-06-10-18-55"#2020-08-04-09-54-25"#
 threadid = 1
+
+score_rank_avg = False  # If True, it will try to read "scores_record.mat", from the backup folder and read "scores_record"
+                        # Else, it will use the unweighted mean code of the last generation as the center vector. 
+
 #evolspace = "all"
 
 
@@ -136,7 +140,15 @@ def load_codes_mat(backup_dir, threadnum=None, savefile=False):
     if savefile:
         np.savez(join(backup_dir, "codes_all.npz"), codes_all=codes_all, generations=generations)
     return codes_all, generations
-
+#%% Use Rank weight like CMAES
+def rankweight(popsize):
+    weights_pad =np.zeros(popsize)
+    mu = popsize/2
+    weights = np.log(mu + 1 / 2) - (np.log(np.arange(1, 1 + np.floor(mu))))
+    weights = weights / sum(weights)
+    mu = int(mu)
+    weights_pad[:mu] = weights
+    return weights_pad
 #%% Compute Image distance using the ImDist
 def Hess_img_distmat(ImDist, img_all, nrow=11):
     """
@@ -166,21 +178,38 @@ os.makedirs(newimg_dir,exist_ok=True)
 os.makedirs(summary_dir,exist_ok=True)
 
 print("Loading the codes from experiment folder %s", backup_dir)
-codes_all, generations = load_codes_mat(backup_dir, threadnum=threadid) 
+evo_codes_all, generations = load_codes_mat(backup_dir, threadnum=threadid) 
 generations = np.array(generations) 
-print("Shape of codes", codes_all.shape) 
-
-#%% PCA of the Existing code (adopted from Manifold experiment)
-final_gen_codes = codes_all[generations==max(generations), :]
+print("Shape of codes", evo_codes_all.shape) 
+# Use penultimate generation to generate the center
+final_gen_codes = evo_codes_all[generations==max(generations)-1, :]
 final_gen_norms = np.linalg.norm(final_gen_codes, axis=1)
 final_gen_norm = final_gen_norms.mean()
 print("Average norm of the last generation samples %.2f" % final_gen_norm)
+#%% If there is score of images, load them up here. 
+if score_rank_avg:
+    try:
+        scores_record = loadmat(join(backup_dir, "scores_record.mat"))["scores_record"]
+        scores_thread = scores_record[:,threadid]
+        assert len(scores_thread)==max(generations)-min(generations) # block of scores is the number of block of codes -1  
+        final_gen_scores = scores_thread[-1].squeeze()
+        assert len(final_gen_scores)==final_gen_codes.shape[0]
+        print("Loading scores successful, use the Score Rank Weighted mean as center code.")
+        sort_idx = np.argsort( - final_gen_scores)
+        weights = rankweight(len(final_gen_scores))
+        w_avg_code = weights[np.newaxis,:] @ final_gen_codes
+    except Exception as e:
+        score_rank_avg = False
+        print(e)
+        print("Loading scores not successful, use the unweighted mean instead.")
+
+#%% PCA of the Existing code (adopted from Manifold experiment)
 sphere_norm = final_gen_norm
 print("Set sphere norm to the last generations norm!")
 #% Do PCA and find the major trend of evolution
 print("Computing PCs")
 code_pca = PCA(n_components=50)
-PC_Proj_codes = code_pca.fit_transform(codes_all)
+PC_Proj_codes = code_pca.fit_transform(evo_codes_all)
 PC_vectors = code_pca.components_
 if PC_Proj_codes[-1, 0] < 0:  # decide which is the positive direction for PC1
     inv_PC1 = True
@@ -190,28 +219,39 @@ else:
     PC1_sign = 1
 
 PC1_vect = PC1_sign * PC_vectors[0,:] 
-#%% From the setting of the bhv2 files find the fixed noise vectors
+#%% Prepare the center vector to use in Hessian computation. 
 #   Use this vector as the reference vector (center) in the Hessian computation
+#   Before Aug. 6th, it's designed to use one code / image from the last generation and explore around it. 
+#       this can be dangerous, sometimes one image will lose the major feature that we want in the population. (lose the 2 balls)
+#   From Aug. 6th on, we decided to use the mean code from the last generation, which has a higher probability of 
+#% From the setting of the bhv2 files find the fixed noise vectors
 space_data = loadmat(join(backup_dir, "space_opts.mat"))["space_opts"]
 evolspace = space_data[0,threadid]["name"][0]
 print("Evolution happens in %s space, load the fixed code in `space_opts`" % evolspace)
 if evolspace == "BigGAN_class":
     ref_noise_vec = space_data[0,threadid]['fix_noise_vec']
     #% Choose a random final generation codes as our reference
-    ref_class_vec = final_gen_codes.mean(axis=0,keepdims=True) # final_gen_codes[0:1, :]
+    ref_class_vec = final_gen_codes.mean(axis=0, keepdims=True) # final_gen_codes[0:1, :]
+    if score_rank_avg:
+        ref_class_vec = w_avg_code
 elif evolspace == "BigGAN":
-    ref_vec = final_gen_codes.mean(axis=0,keepdims=True)# final_gen_codes[0:1, :] # this can be dangerous, sometimes one image will lose the feature that we want in the population.
+    ref_vec = final_gen_codes.mean(axis=0, keepdims=True) # final_gen_codes[0:1, :] 
+    if score_rank_avg:
+        ref_vec = w_avg_code
     ref_noise_vec = ref_vec[:, :128]
     ref_class_vec = ref_vec[:, 128:]
-#%% If you want to regenerate the images here. 
-Demo = False
-if Demo:
-    imgs = G.visualize(torch.from_numpy(np.concatenate((ref_noise_vec, ref_class_vec), axis=1)).float().cuda()).cpu()
-    ToPILImage()(imgs[0,:,:,:].cpu()).show()
-    #%% If you want to regenerate the images here. 
-    imgs = G.visualize(torch.from_numpy(np.concatenate((ref_noise_vec.repeat(5,axis=0), final_gen_codes[:5,:]), axis=1)).float().cuda()).cpu()
-    ToPILImage()(imgs[0,:,:,:].cpu()).show()
-    ToPILImage()(make_grid(imgs.cpu())).show()
+## View image correspond to the reference code 
+imgs = G.visualize(torch.from_numpy(np.concatenate((ref_noise_vec, ref_class_vec), axis=1)).float().cuda()).cpu()
+centimg = ToPILImage()(imgs[0,:,:,:].cpu())
+centimg.show(title="Center Reference Image")
+#%% Visualize the Final Generation  together  with the center reference image. 
+VisFinalGen = True
+if VisFinalGen:
+    #% If you want to regenerate the images from last generation here. 
+    imgs_final = G.visualize_batch_np(np.concatenate((ref_noise_vec.repeat(25,axis=0), final_gen_codes[:,:]), axis=1))
+    ToPILImage()(make_grid(imgs_final,nrow=5)).show()
+    #G.visualize(torch.from_numpy(np.concatenate((ref_noise_vec.repeat(5,axis=0), final_gen_codes[:5,:]), axis=1)).float().cuda()).cpu()
+    #ToPILImage()(make_grid(imgs.cpu())).show()
 #%% Compute Hessian decomposition and get the vectors
 Hess_method = "BP"  # "BackwardIter" "ForwardIter"
 Hess_all = False # Set to False to reduce computation time. 
@@ -247,8 +287,13 @@ if Hess_method == "BP":
     H_clas = get_full_hessian(dsim, classvec)  # 39.3 sec to compute a Hessian.
     eigvals_clas, eigvects_clas = np.linalg.eigh(H_clas)  # 75 ms
     classvec.requires_grad_(False)
-
-    np.savez(join(summary_dir, "Hess_mat.npz"), #H=H, eigvals=eigvals, eigvects=eigvects, 
+    if Hess_all:
+        np.savez(join(summary_dir, "Hess_mat.npz"), H=H, eigvals=eigvals, eigvects=eigvects, 
+             H_clas=H_clas, eigvals_clas=eigvals_clas, eigvects_clas=eigvects_clas, 
+             H_nois=H_nois, eigvals_nois=eigvals_nois, eigvects_nois=eigvects_nois, 
+             vect=ref_vect.cpu().numpy(), noisevec=noisevec.cpu().numpy(), classvec=classvec.cpu().numpy())
+    else:
+        np.savez(join(summary_dir, "Hess_mat.npz"), #H=H, eigvals=eigvals, eigvects=eigvects, 
              H_clas=H_clas, eigvals_clas=eigvals_clas, eigvects_clas=eigvects_clas, 
              H_nois=H_nois, eigvals_nois=eigvals_nois, eigvects_nois=eigvects_nois, 
              vect=ref_vect.cpu().numpy(), noisevec=noisevec.cpu().numpy(), classvec=classvec.cpu().numpy())
@@ -317,11 +362,11 @@ for imgi in range(npimgs.shape[-1]):  imwrite(join(newimg_dir, img_names[imgi]),
 #%
 nrow = 11
 distmat = Hess_img_distmat(ImDist, img_all, nrow=11)
-#%
+#% 
 plt.figure(figsize=[6,6])
 plt.matshow(distmat, fignum=0)
 plt.colorbar()
-plt.title("Perceptual distance metric along each row\n exponent %.1f Scale%d "%(expon, scale, ))
+plt.title("Perceptual distance metric along each row\nclass space exponent %.1f Scale%d "%(expon, scale, ))
 plt.savefig(join(summary_dir, "distmat_eigvect_clas_interp_exp%.1f_d%d.jpg"%(expon, scale)))
 plt.show()
 #%% Interpolation in the noise space
@@ -346,11 +391,11 @@ for imgi in range(npimgs.shape[-1]):  imwrite(join(newimg_dir, img_names[imgi]),
 #
 nrow = 11
 distmat = Hess_img_distmat(ImDist, img_all, nrow=11)
-#
+# Show the image distance from center reference to each image around it. 
 plt.figure(figsize=[6,6])
 plt.matshow(distmat, fignum=0)
 plt.colorbar()
-plt.title("Perceptual distance metric along each row\n Scale%d exponent %.1f"%(scale, expon))
+plt.title("Perceptual distance metric along each row\nnoise space  Scale%d exponent %.1f"%(scale, expon))
 plt.savefig(join(summary_dir, "distmat_eigvect_nois_interp_exp%.1f_d%d.jpg"%(expon, scale)))
 plt.show()
 #%%
@@ -427,3 +472,4 @@ plt.show()
 #mtg1 = build_montages(img_list, [256, 256], [11, 1])[0]
 ##imwrite(join(backup_dir, "norm%d_eig%d.jpg"%(vec_norm, eig_id)),mtg1)
 #imwrite(join(newimg_dir, "norm%d_eig%d.jpg"%(vec_norm, eig_id)),mtg1)
+#%%
