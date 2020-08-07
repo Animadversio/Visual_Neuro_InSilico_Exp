@@ -71,7 +71,7 @@ xmean_tsr = torch.from_numpy(optimizer.mean).unsqueeze(0).float()
 final_latent = torch.cat((noise_vec, xmean_tsr), dim=1).cuda()
 fit_img = BGAN.generator(final_latent, 0.7)
 fit_img = (fit_img + 1) / 2.0
-ToPILImage()(fit_img[-1,:,:,:].cpu()).show()
+ToPILImage()(fit_img[-1, :, :, :].cpu()).show()
 
 #%%
 #%%  CMAES Basin on Noise + Class space

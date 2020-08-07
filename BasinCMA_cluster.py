@@ -21,22 +21,6 @@ def get_BigGAN(version="biggan-deep-256"):
     BGAN = BigGAN(cfg)
     BGAN.load_state_dict(torch.load(join(cache_path, "%s-pytorch_model.bin" % version)))
     return BGAN
-
-if sys.platform == "linux":
-    BGAN = get_BigGAN()
-    sys.path.append(r"/home/binxu/PerceptualSimilarity")
-    Hpath = r"/scratch/binxu/GAN_hessian/BigGAN/summary/H_avg_1000cls.npz"
-    imgfolder = r"/scratch/binxu/Datasets/ImageTranslation/GAN_real/B/train"
-    savedir = r"/scratch/binxu/GAN_invert/BasinCMA/ImageNet"
-else:
-    BGAN = BigGAN.from_pretrained("biggan-deep-256")
-    sys.path.append(r"D:\Github\PerceptualSimilarity")
-    sys.path.append(r"E:\Github_Projects\PerceptualSimilarity")
-    Hpath = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\BigGAN\H_avg_1000cls.npz"
-    imgfolder = r"E:\Cluster_Backup\Datasets\ImageTranslation\GAN_real\B\train"
-    # savedir = r"E:\Cluster_Backup\BigGAN_invert\ImageNet"
-    savedir = r"E:\OneDrive - Washington University in St. Louis\BigGAN_invert\BasinCMA\ImageNet"
-#%%
 from argparse import ArgumentParser
 parser = ArgumentParser()
 parser.add_argument("--ImDist", type=str, default="squeeze", help="Network model to use for Image distance computation")
@@ -49,6 +33,30 @@ parser.add_argument("--finalgradsteps", type=int, default=500, help="")
 parser.add_argument("--CMApostGrad", type=bool, default=True, help="")
 parser.add_argument("--basis", type=str, default="all", help="")
 args = parser.parse_args()
+#%%
+if sys.platform == "linux":
+    BGAN = get_BigGAN()
+    sys.path.append(r"/home/binxu/PerceptualSimilarity")
+    Hpath = r"/scratch/binxu/GAN_hessian/BigGAN/summary/H_avg_1000cls.npz"
+    if args.dataset == "BigGAN_rnd":
+        imgfolder = r"/scratch/binxu/Datasets/BigGAN_rnd"
+        savedir = r"/scratch/binxu/GAN_invert/BasinCMA/BigGAN_rnd"
+    elif args.dataset == "ImageNet":
+        imgfolder = r"/scratch/binxu/Datasets/ImageTranslation/GAN_real/B/train"
+        savedir = r"/scratch/binxu/GAN_invert/BasinCMA/ImageNet"
+else:
+    BGAN = BigGAN.from_pretrained("biggan-deep-256")
+    sys.path.append(r"D:\Github\PerceptualSimilarity")
+    sys.path.append(r"E:\Github_Projects\PerceptualSimilarity")
+    Hpath = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\BigGAN\H_avg_1000cls.npz"
+    if args.dataset == "BigGAN_rnd":
+        imgfolder = r"E:\Cluster_Backup\Datasets\BigGAN_rnd"
+        savedir = r"E:\OneDrive - Washington University in St. Louis\BigGAN_invert\BasinCMA\BigGAN_rnd"
+    elif args.dataset == "ImageNet":
+        imgfolder = r"E:\Cluster_Backup\Datasets\ImageTranslation\GAN_real\B\train"
+        savedir = r"E:\OneDrive - Washington University in St. Louis\BigGAN_invert\BasinCMA\ImageNet"
+    # savedir = r"E:\Cluster_Backup\BigGAN_invert\ImageNet"
+
 #%%
 import models  # from PerceptualSimilarity folder
 ImDist = models.PerceptualLoss(model='net-lin', net=args.ImDist, use_gpu=1, gpu_ids=[0])
@@ -237,8 +245,12 @@ os.makedirs(expdir, exist_ok=True)
 idmin, idmax = args.imgidx
 for imgid in tqdm.trange(idmin, idmax):
     print("Processing image %d" %imgid)
-    imgnm = "val_crop_%08d"%imgid
-    img = imread(join(imgfolder, "val_crop_%08d.JPEG"%imgid))
+    if args.dataset == "ImageNet":
+        imgnm = "val_crop_%08d"%imgid
+        img = imread(join(imgfolder, "val_crop_%08d.JPEG"%imgid))
+    elif args.dataset == "BigGAN_rnd":
+        imgnm = "BigGAN_rnd_%04d" % imgid
+        img = imread(join(imgfolder, "rnd_%04d.jpg" % imgid))
     target_tsr = torch.from_numpy(img / 255.0).permute([2, 0, 1]).unsqueeze(0)
     target_tsr = target_tsr.float().cuda()
     imgs_np, codes_np, dsims, L1dsims, Record = BasinCMA(target_tsr, cmasteps=args.cmasteps, gradsteps=args.gradsteps, finalgrad=args.finalgradsteps,
@@ -248,8 +260,21 @@ for imgid in tqdm.trange(idmin, idmax):
     #                                                      batch_size=4, basis="all", CMApostAdam=True)
 
 #%%
-
-
+# imgfolder = r"E:\Cluster_Backup\Datasets\BigGAN_rnd"
+# G = BigGAN_wrapper(BGAN)
+# #%%
+# from imageio import imwrite
+# imgnum = 200
+# noise_samps = truncated_noise_sample(250, 128)
+# class_samps = np.concatenate((0.05 * np.random.randn(50, 128),  0.1 * np.random.randn(50, 128),
+#                 0.15 * np.random.randn(50, 128),  0.2 * np.random.randn(50, 128),  0.25 * np.random.randn(50, 128)),
+#                              axis=0)
+# codes_all_arr = np.hstack((noise_samps, class_samps))
+# #%%
+# img_all = G.visualize_batch_np(codes_all_arr, truncation=0.7, B=15)
+# npimgs = img_all.permute([2,3,1,0]).numpy()
+# for imgi in range(npimgs.shape[-1]):  imwrite(join(imgfolder, "rnd_%04d.jpg"%imgi), np.uint8(npimgs[:,:,:,imgi]*255))
+# np.savez(join(imgfolder, "codes_all.npz"), codes_all=codes_all_arr)
 #%%
 # L1_cma_tr = np.array(Record["L1cma"])
 # dsim_cma_tr = np.array(Record["dsimcma"])
