@@ -223,6 +223,35 @@ def visualize_np(G, code, layout=None, show=True):
                 mtg = build_montages(img_list, (256, 256), layout)[0]
                 Image.fromarray(np.uint8(mtg*255.0)).show()
     return imgs
+
+#%% BigGAN wrapper for ease of usage
+from IPython.display import clear_output
+from hessian_eigenthings.utils import progress_bar
+class BigGAN_wrapper():#nn.Module
+    def __init__(self, BigGAN, space="class"):
+        self.BigGAN = BigGAN
+        self.space = space
+
+    def visualize(self, code, scale=1.0, truncation=0.7):
+        imgs = self.BigGAN.generator(code, truncation) # Matlab version default to 0.7
+        return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
+
+    def visualize_batch_np(self, codes_all_arr, truncation=0.7, B=5):
+        csr = 0
+        img_all = None
+        imgn = codes_all_arr.shape[0]
+        with torch.no_grad():
+            while csr < imgn:
+                csr_end = min(csr + B, imgn)
+                img_list = self.visualize(torch.from_numpy(codes_all_arr[csr:csr_end, :]).float().cuda(),
+                                           truncation=truncation, ).cpu()
+                img_all = img_list if img_all is None else torch.cat((img_all, img_list), dim=0)
+                csr = csr_end
+                clear_output(wait=True)
+                progress_bar(csr_end, imgn, "ploting row of page: %d of %d" % (csr_end, imgn))
+        return img_all
+
+# G = BigGAN_wrapper(BGAN)
 # # layer name translation
 # # "defc7.weight", "defc7.bias", "defc6.weight", "defc6.bias", "defc5.weight", "defc5.bias".
 # # "defc7.1.weight", "defc7.1.bias", "defc6.1.weight", "defc6.1.bias", "defc5.1.weight", "defc5.1.bias".
