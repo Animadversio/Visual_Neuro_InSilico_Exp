@@ -11,14 +11,14 @@ Find important Nuisanced + Class transformations in Noise + Class space for a Bi
 # Put the backup folder and the thread to analyze here 
 #backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-07-22-10-14-22"
 # backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2020-08-06-10-18-55"#2020-08-04-09-54-25"#
-backup_dir = r"N:\Stimuli\2020-BigGAN\2020-08-06-Alfa-02\2020-08-06-11-41-51"
+backup_dir = r"N:\Stimuli\2020-BigGAN\2020-08-04-Alfa-02\2020-08-04-10-54-57"
 threadid = 1
 
 score_rank_avg = False  # If True, it will try to read "scores_record.mat", from the backup folder and read "scores_record"
                         # Else, it will use the unweighted mean code of the last generation as the center vector. 
 exact_distance = True   # Control if exact distance search is used or approximate heuristic rule is used.
-target_distance = [0.1, 0.2, 0.3, 0.4, 0.5]  # if exact_distance is True it will search for images with these
-                                             # distance to reference image along each eigenvector.
+target_distance = [0.09, 0.18, 0.27, 0.36, 0.45]  # if exact_distance is True it will search for images with these
+                                                  # distance to reference image along each eigenvector.
 #%% Prepare the generator model and perceptual loss networks
 from time import time
 import os
@@ -435,7 +435,7 @@ else:  # exact_distance by line search
         imgrow = torch.cat((torch.flip(stepimgs_neg, (0,)), refimg, stepimgs_pos)).cpu()
         xticks_row = xtar_neg[::-1] + [0.0] + xtar_pos
         dsim_row = list(ytar_neg[::-1]) + [0.0] + list(ytar_pos)
-        vecs_row = torch.tensor(xticks_row).cuda().view(-1, 1) @ tan_vec + ref_vect
+        vecs_row = torch.tensor(xticks_row).float().cuda().view(-1, 1) @ tan_vec + ref_vect
 
         xtick_col.append(xticks_row)
         dsim_col.append(dsim_row)

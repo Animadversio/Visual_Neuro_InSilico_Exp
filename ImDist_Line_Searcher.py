@@ -15,18 +15,20 @@ def dist_step2(BGAN, ImDist, ticks, refvec, tanvec, refimg):
         dist_steps = ImDist(step_imgs, refimg).squeeze()
     return dist_steps.squeeze().cpu().numpy(), step_imgs
 
-def find_level_step(BGAN, ImDist, targ_val, reftsr, tan_vec, refimg, iter=2, pos=True, maxdist=20):
+def find_level_step(BGAN, ImDist, targ_val, reftsr, tan_vec, refimg, iter=2, pos=True, maxdist=20, abstol=.5E-3):
     """Find how far you need to travel along tan_vec from reftsr to have an ImDist in `targ_val`"""
+    if not pos:
+        tan_vec = - tan_vec
     xval = [0]
     yval = [0]
     sign = 1 if pos else -1
     ntarget = len(targ_val)
-    xnext = sign * np.array([0.01, 0.02, 0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 1, 2, 3])
+    xnext = np.array([0.01, 0.02, 0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 1, 2, 3])
     for step in range(1 + iter):
         xcur = xnext
         ycur, imgs = dist_step2(BGAN, ImDist, xcur, reftsr, tan_vec, refimg) #
         fit_val = ycur[-ntarget:]  # target values are appended in the computation
-        if np.max(np.abs(targ_val - fit_val)) < 1E-5 and step > 0:
+        if np.max(np.abs(targ_val - fit_val)) < abstol and step > 0:
             break
         xval.extend(list(xcur))
         yval.extend(list(ycur))
@@ -39,7 +41,8 @@ def find_level_step(BGAN, ImDist, targ_val, reftsr, tan_vec, refimg, iter=2, pos
         xnext = []
         sol = []
         converge_flag = True
-        inbound_mask = (uniq_x >= 0) * (maxdist > uniq_x) if pos else (uniq_x <= 0) * (uniq_x > -maxdist)# * (uniq_x >= 0 if pos else uniq_x <= 0)
+        inbound_mask = (uniq_x >= 0) * (maxdist > uniq_x)# if pos else (uniq_x <= 0) * (uniq_x > -maxdist)# * (uniq_x
+        # >= 0 if pos else uniq_x <= 0)
         for fval in targ_val:
             lowidx = np.where((uniq_y < fval) * inbound_mask)[0]
             highidx = np.where((uniq_y > fval) * inbound_mask)[0]
@@ -56,17 +59,18 @@ def find_level_step(BGAN, ImDist, targ_val, reftsr, tan_vec, refimg, iter=2, pos
             try:
                 if unbound:
                     interp_fn2 = lambda x: np.abs(interp_fn(x) - fval)
-                    result = minimize_scalar(interp_fn2, bounds=[lowbnd_x, maxdist] if pos else [-maxdist, lowbnd_x],
+                    result = minimize_scalar(interp_fn2, bounds=[lowbnd_x, maxdist],# if pos else [-maxdist, lowbnd_x],
                                              method='bounded', )
                     xhat = result.x
                     converge_flag = converge_flag and result.success
                     # If un bound add exploration points to the data
-                    if pos:
-                        basis = min(maxdist, max(uniq_x))
-                        xnext.extend([basis+1, basis+2, basis+4])
-                    else:
-                        basis = max(-maxdist, min(uniq_x))
-                        xnext.extend([basis-1, basis-2, basis-4])
+                    # if pos:
+                    basis = min(maxdist, max(uniq_x))
+                    if basis < maxdist:
+                        xnext.extend([basis * 1.1, basis * 1.5, basis * 2])
+                    # else:
+                    #     basis = max(-maxdist, min(uniq_x))
+                    #     xnext.extend([basis * 1.1, basis * 1.5, basis * 2])
                     # xhat = root_scalar(interp_fn2, x0=lowbnd_x, x1=lowbnd_x2, )
                 else:
                     interp_fn2 = lambda x: interp_fn(x) - fval
@@ -76,15 +80,16 @@ def find_level_step(BGAN, ImDist, targ_val, reftsr, tan_vec, refimg, iter=2, pos
                 sol.append(xhat)
             except RuntimeError as e:
                 print(e.args)
-                xfiller = min(maxdist, max(xval)) + 1 if pos else max(-maxdist, min(xval)) - 1
+                xfiller = min(maxdist, max(xval)) + 1  # if pos else max(-maxdist, min(xval)) - 1
                 sol.append(xfiller)
         xnext = list(set(xnext))  # avoid duplicate computation  np.unique
         xnext.extend(sol)  # solutions are appended in the end for the next batch of evaluations
         if step == iter and not converge_flag:
             print("Line Seaarch doesn't converge even at last generation %d."%step)
     ycur, imgs = dist_step2(BGAN, ImDist, sol, reftsr, tan_vec, refimg)
-    print(["%.1E " % residue for residue in np.abs(targ_val - ycur)])
-    return sol, ycur, imgs
+    print("step %d residue: " % step, ["%.e" % residue for residue in np.abs(targ_val - ycur)])
+    sol_sign = list(np.array(sol) * sign)
+    return sol_sign, ycur, imgs
 
 if __name__ == "__main__":
     """Demo of the line search code"""
@@ -147,7 +152,7 @@ if __name__ == "__main__":
         xtar_neg, ytar_neg, stepimgs_neg = find_level_step(BGAN, ImDist, targ_val, reftsr, tan_vec, refimg, iter=20,
                                                            pos=False)
         imgrow = torch.cat((torch.flip(stepimgs_neg, (0,)), refimg, stepimgs_pos)).cpu()
-        xticks_row = xtar_neg[::-1] + [0.0] + xtar_pos
+        xticks_row = list(xtar_neg[::-1]) + [0.0] + list(xtar_pos)
         dsim_row = list(ytar_neg[::-1]) + [0.0] + list(ytar_pos)
         vecs_row = torch.tensor(xticks_row).cuda().view(-1, 1) @ tan_vec + reftsr
 
