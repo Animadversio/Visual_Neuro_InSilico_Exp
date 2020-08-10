@@ -6,6 +6,8 @@ from scipy.interpolate import interp1d, InterpolatedUnivariateSpline, PchipInter
 from scipy.optimize import newton, root_scalar, minimize_scalar
 
 def dist_step2(BGAN, ImDist, ticks, refvec, tanvec, refimg):
+    """Compute the Image distance when travel `ticks` distance along `tanvec` from `refvec`
+    refimg is provided to save computation."""
     step_latents = torch.tensor(ticks).float().cuda().view(-1, 1) @ tanvec + refvec
     with torch.no_grad():
         step_imgs = BGAN.generator(step_latents, 0.7)
@@ -14,6 +16,7 @@ def dist_step2(BGAN, ImDist, ticks, refvec, tanvec, refimg):
     return dist_steps.squeeze().cpu().numpy(), step_imgs
 
 def find_level_step(BGAN, ImDist, targ_val, reftsr, tan_vec, refimg, iter=2, pos=True, maxdist=20):
+    """Find how far you need to travel along tan_vec from reftsr to have an ImDist in `targ_val`"""
     xval = [0]
     yval = [0]
     sign = 1 if pos else -1
@@ -21,30 +24,33 @@ def find_level_step(BGAN, ImDist, targ_val, reftsr, tan_vec, refimg, iter=2, pos
     xnext = sign * np.array([0.01, 0.02, 0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 1, 2, 3])
     for step in range(1 + iter):
         xcur = xnext
-        ycur, imgs = dist_step2(BGAN, ImDist, xcur, reftsr, tan_vec, refimg)
-        fit_val = ycur[-ntarget:] # target values are suffixed in the computation
+        ycur, imgs = dist_step2(BGAN, ImDist, xcur, reftsr, tan_vec, refimg) #
+        fit_val = ycur[-ntarget:]  # target values are appended in the computation
+        if np.max(np.abs(targ_val - fit_val)) < 1E-5 and step > 0:
+            break
         xval.extend(list(xcur))
         yval.extend(list(ycur))
         uniq_x, uniq_idx = np.unique(xval, return_index=True)  # sort and unique x data
-        uniq_y = np.array(yval)[uniq_idx]
-        interp_fn = PchipInterpolator(uniq_x, uniq_y, extrapolate=True)
+        uniq_y = np.array(yval)[uniq_idx]  # sort y by x. should be monotonic
+        interp_fn = PchipInterpolator(uniq_x, uniq_y, extrapolate=True)  # substitute function to do root finding on.
         # interp_fn = InterpolatedUnivariateSpline(uniq_x, uniq_y,  k=3, ext=0)#bbox=bbox,
         # idx = np.argsort(xval)
         # interp_fn = interp1d(np.array(xval)[idx], np.array(yval)[idx], 'quadratic')
         xnext = []
         sol = []
         converge_flag = True
+        inbound_mask = (uniq_x >= 0) * (maxdist > uniq_x) if pos else (uniq_x <= 0) * (uniq_x > -maxdist)# * (uniq_x >= 0 if pos else uniq_x <= 0)
         for fval in targ_val:
-            lowidx = np.where((uniq_y < fval))[0]  # * (uniq_x >= 0 if pos else uniq_x <= 0)
-            highidx = np.where((uniq_y > fval))[0]  # * (uniq_x >= 0 if pos else uniq_x <= 0)
+            lowidx = np.where((uniq_y < fval) * inbound_mask)[0]
+            highidx = np.where((uniq_y > fval) * inbound_mask)[0]
             # lowidx should NEVER be empty. 0 should bound it
-            lowrelidx = np.abs(uniq_y[lowidx] - fval).argmin()
+            lowrelidx = np.abs(uniq_y[lowidx] - fval).argmin()  # nearest y value on the lower side
             lowbnd_x = uniq_x[lowidx[lowrelidx]]  # this should be closer to 0.
             if len(highidx) == 0:  # no point reach such distance, have to choose points with lower distances
                 # lowbnd_x2 = uniq_x[lowidx[lowrelidx] - 1] if pos else uniq_x[lowidx[lowrelidx] + 1]
                 unbound = True
             else:  # some point reaches higher distance, so you can bound your search in a bracket.
-                highrelidx = np.abs(uniq_y[highidx] - fval).argmin()
+                highrelidx = np.abs(uniq_y[highidx] - fval).argmin()  # nearest y value on the higher side
                 highbnd_x = uniq_x[highidx[highrelidx]]
                 unbound = False
             try:
@@ -54,7 +60,7 @@ def find_level_step(BGAN, ImDist, targ_val, reftsr, tan_vec, refimg, iter=2, pos
                                              method='bounded', )
                     xhat = result.x
                     converge_flag = converge_flag and result.success
-                    # If un bound add exploration points to the set for better fit
+                    # If un bound add exploration points to the data
                     if pos:
                         basis = min(maxdist, max(uniq_x))
                         xnext.extend([basis+1, basis+2, basis+4])
@@ -72,18 +78,16 @@ def find_level_step(BGAN, ImDist, targ_val, reftsr, tan_vec, refimg, iter=2, pos
                 print(e.args)
                 xfiller = min(maxdist, max(xval)) + 1 if pos else max(-maxdist, min(xval)) - 1
                 sol.append(xfiller)
-        xnext = list(np.unique(xnext))
-        xnext.extend(sol) # solutions are suffixed in the next batch of evaluations
-        if step > 0:
-            if np.max(np.abs(targ_val - fit_val)) < 1E-5:
-                break
+        xnext = list(set(xnext))  # avoid duplicate computation  np.unique
+        xnext.extend(sol)  # solutions are appended in the end for the next batch of evaluations
         if step == iter and not converge_flag:
             print("Line Seaarch doesn't converge even at last generation %d."%step)
     ycur, imgs = dist_step2(BGAN, ImDist, sol, reftsr, tan_vec, refimg)
-    print(np.abs(targ_val - ycur))
+    print(["%.1E " % residue for residue in np.abs(targ_val - ycur)])
     return sol, ycur, imgs
 
 if __name__ == "__main__":
+    """Demo of the line search code"""
     import os
     newimg_dir = r"N:\Hess_imgs_large_dif"
     summary_dir = r"N:\Hess_imgs_large_dif\summary"
@@ -131,7 +135,7 @@ if __name__ == "__main__":
     dsim_col = []
     vecs_col = []
     img_names = []
-    img_labels = list(-targ_val[::-1]) + [0] + list(targ_val)  # -0.5, -0.4 ...  0.4, 0.5
+    tick_labels = list(-targ_val[::-1]) + [0] + list(targ_val)  # -0.5, -0.4 ...  0.4, 0.5
     t0 = time()
     for eigid in [0,1,2,3,4,5,6,7,8,10,20,30,40, 50, 60, 70, 80]:#range(128):  # #
         if space == "class":
@@ -150,7 +154,7 @@ if __name__ == "__main__":
         xtick_col.append(xticks_row)
         dsim_col.append(dsim_row)
         vecs_col.append(vecs_row.cpu().numpy())
-        img_names.extend("noise_eig%d_lin%.2f.jpg" % (eigid, dist) for dist in img_labels)  # dsim_row)
+        img_names.extend("noise_eig%d_lin%.2f.jpg" % (eigid, dist) for dist in tick_labels)  # dsim_row)
         imgall = imgrow if imgall is None else torch.cat((imgall, imgrow))
         print(time() - t0)
 
@@ -197,7 +201,7 @@ if __name__ == "__main__":
     dsim_col = []
     vecs_col = []
     img_names = []
-    img_labels = list(-targ_val[::-1]) + [0] + list(targ_val)
+    tick_labels = list(-targ_val[::-1]) + [0] + list(targ_val)
     t0 = time()
     for eigid in [0, 1, 2, 3, 6, 9, 11, 13, 15, 17, 19, 21, 25, 40, 50, 60, 70, 80]:  # [0,1,2,3,4,5,6,7,8,10,20,30,
         # 40]:#
@@ -216,7 +220,7 @@ if __name__ == "__main__":
         xtick_col.append(xticks_row)
         dsim_col.append(dsim_row)
         vecs_col.append(vecs_row.cpu().numpy())
-        img_names.extend("class_eig%d_lin%.2f.jpg" % (eigid, dist) for dist in img_labels) #np.linspace(-0.4, 0.4,11))
+        img_names.extend("class_eig%d_lin%.2f.jpg" % (eigid, dist) for dist in tick_labels) #np.linspace(-0.4, 0.4,11))
         #
         imgall = imgrow if imgall is None else torch.cat((imgall, imgrow))
         print(time() - t0)
