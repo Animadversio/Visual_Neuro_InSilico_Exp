@@ -202,7 +202,7 @@ def find_level_step(targ_val, reftsr, tan_vec, refimg, iter=2, pos=True):
     sign = 1 if pos else -1
     bbox = [0, 4] if pos else [-4, 0]
     xnext = sign * np.array([0.01, 0.02, 0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 1, 2, 3])
-    for step in range(1 + 5):
+    for step in range(1 + iter):
         xcur = xnext
         ycur, imgs = dist_step2(xcur, reftsr, tan_vec, refimg)
         xval.extend(list(xcur))
@@ -260,7 +260,7 @@ def find_level_step(targ_val, reftsr, tan_vec, refimg, iter=2, pos=True):
     return sol, ycur, imgs
 #%%
 newimg_dir = r"N:\Hess_imgs_new_new"
-summary_dir = r"N:\Hess_imgs_new\summary"
+summary_dir = r"N:\Hess_imgs_new_new\summary"
 from imageio import imwrite
 targ_val = np.array([0.08, 0.16, 0.24, 0.32, 0.4])
 space = "noise"
@@ -290,15 +290,40 @@ for eigid in range(128): # [0,1,2,3,4,5,6,7,8,10,20,30,40]:#
     imgall = imgrow if imgall is None else torch.cat((imgall, imgrow))
     print(time() - t0)
 #%%
-mtg1 = ToPILImage()(make_grid(imgall,nrow=11).cpu())  # 20sec for 13 rows not bad
+mtg1 = ToPILImage()(make_grid(imgall, nrow=11).cpu())  # 20sec for 13 rows not bad
 mtg1.show()
+mtg1.save(join(summary_dir, "noise_space_all_var.jpg"))
 npimgs = imgall.permute([2,3,1,0]).numpy()
 for imgi in range(npimgs.shape[-1]):  imwrite(join(newimg_dir, img_names[imgi]), np.uint8(npimgs[:,:,:,imgi]*255))
 #%%
+xtick_arr = np.array(xtick_col)
 dsim_arr = np.array(dsim_col)
-plt.figure(figsize=[4,20])
+vecs_arr = np.array(vecs_col)
+np.savez(join(summary_dir, "ImDist_root_data.npz"), xtick_arr=xtick_arr, dsim_arr=dsim_arr, vecs_arr=vecs_arr,
+         targ_val=targ_val)
+#%%
+plt.figure(figsize=[10, 7])
+plt.plot(xtick_arr)
+plt.xlabel("Eigenvalue index")
+plt.ylabel("L2 deviation from center")
+plt.legend(["Neg%.2f"%d for d in targ_val[::-1]]+["orig"]+["Pos%.2f"%d for d in targ_val])
+plt.title("Distance Travel Along Given Eigen vector to achieve certain Image Distance")
+plt.savefig(join(summary_dir, "noise_code_deviation.jpg"))
+plt.show()
+#%%
+plt.figure(figsize=[10, 7])
+plt.plot(dsim_arr)
+plt.xlabel("Eigenvalue index")
+plt.ylabel("Image Distance")
+plt.legend(["Neg%.2f"%d for d in targ_val[::-1]]+["orig"]+["Pos%.2f"%d for d in targ_val])
+plt.title("Achieved Image Distance Along Each Axis")
+plt.savefig(join(summary_dir, "noise_space_dist_curv.jpg"))
+plt.show()
+#%%
+plt.figure(figsize=[4, 20])
 plt.matshow(dsim_arr, fignum=0)
 plt.colorbar()
+plt.savefig(join(summary_dir, "noise_space_distmat.jpg"))
 plt.show()
 #%%
 space = "class"

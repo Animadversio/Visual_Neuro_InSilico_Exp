@@ -246,7 +246,7 @@ idmin, idmax = args.imgidx
 for imgid in tqdm.trange(idmin, idmax):
     print("Processing image %d" %imgid)
     if args.dataset == "ImageNet":
-        imgnm = "val_crop_%08d"%imgid
+        imgnm = "val_crop_%08d" % imgid
         img = imread(join(imgfolder, "val_crop_%08d.JPEG"%imgid))
     elif args.dataset == "BigGAN_rnd":
         imgnm = "BigGAN_rnd_%04d" % imgid
