@@ -66,14 +66,15 @@ preprocess = Compose([lambda img: (F.interpolate(img, (224, 224), mode='bilinear
 preprocess_resize = Compose([lambda img: F.interpolate(img, (224, 224), mode='bilinear', align_corners=True) ])
 #%%
 import torch.nn as nn
-class BigGAN_wrapper():#nn.Module
-    def __init__(self, BigGAN, space="class"):
-        self.BigGAN = BigGAN
-        self.space = space
-
-    def visualize(self, code, scale=1.0):
-        imgs = self.BigGAN.generator(code, 0.6) # Matlab version default to 0.7
-        return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
+from GAN_utils import BigGAN_wrapper
+# class BigGAN_wrapper():#nn.Module
+#     def __init__(self, BigGAN, space="class"):
+#         self.BigGAN = BigGAN
+#         self.space = space
+#
+#     def visualize(self, code, scale=1.0):
+#         imgs = self.BigGAN.generator(code, 0.6) # Matlab version default to 0.7
+#         return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
 
 G = BigGAN_wrapper(BGAN)
 # H = get_full_hessian()
