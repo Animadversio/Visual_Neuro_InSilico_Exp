@@ -140,8 +140,6 @@ class CholeskyCMAES:
             # Clever way to generate multivariate gaussian!!
             # Stretch the guassian hyperspher with D and transform the
             # ellipsoid by B mat linear transform between coordinates
-            # FIXME A little inconsistent with the naming at line 173/175/305/307 esp. for gen000 code
-            # assign id to newly generated images. These will be used as file names at 2nd round
             self.counteval += 1
         self.sigma, self.A, self.Ainv, self.ps, self.pc = sigma, A, Ainv, ps, pc,
         self._istep += 1

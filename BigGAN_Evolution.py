@@ -90,10 +90,10 @@ def BigGAN_embed_render(embed_vecs, noise_vecs=None, truncation=0.7, scale=255.0
     while csr_end < sample_n:
         csr_end = min(csr + batch, sample_n)
         with torch.no_grad():
-            output = model.generator(input_vecs[csr:csr_end, :].float().cuda(), truncation)
+            output = model.generator(input_vecs[csr:csr_end, :].float().cuda(), truncation).cpu()
             # imgs = convert_to_images(output.cpu())
             # imgs = [np.array(img).astype(np.float64) / 255 * scale for img in imgs]
-            imgs = convert_to_images_np(output.cpu(), scale)
+            imgs = convert_to_images_np(output, scale)
             imgs_all.extend(imgs)
         csr = csr_end
     return imgs_all
