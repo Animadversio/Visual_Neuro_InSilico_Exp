@@ -17,7 +17,7 @@ def dist_step2(BGAN, ImDist, ticks, refvec, tanvec, refimg):
 
 def find_level_step(BGAN, ImDist, targ_val, reftsr, tan_vec, refimg, iter=2, pos=True, maxdist=20, abstol=.5E-3):
     """Find how far you need to travel along tan_vec from reftsr to have an ImDist in `targ_val`"""
-    if not pos:
+    if not pos: # handling negative deviation by using the negative vector direction
         tan_vec = - tan_vec
     xval = [0]
     yval = [0]
@@ -90,7 +90,7 @@ def find_level_step(BGAN, ImDist, targ_val, reftsr, tan_vec, refimg, iter=2, pos
     print("step %d residue: " % step, ["%.e" % residue for residue in np.abs(targ_val - ycur)])
     sol_sign = list(np.array(sol) * sign)
     return sol_sign, ycur, imgs
-
+#%%
 if __name__ == "__main__":
     """Demo of the line search code"""
     import os

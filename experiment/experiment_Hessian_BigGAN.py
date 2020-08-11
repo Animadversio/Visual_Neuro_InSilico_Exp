@@ -11,14 +11,18 @@ Find important Nuisanced + Class transformations in Noise + Class space for a Bi
 # Put the backup folder and the thread to analyze here 
 #backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-07-22-10-14-22"
 # backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2020-08-06-10-18-55"#2020-08-04-09-54-25"#
-backup_dir = r"N:\Stimuli\2020-BigGAN\2020-08-04-Alfa-02\2020-08-04-10-54-57"
+backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2020-08-10-09-59-48"
 threadid = 1
 
 score_rank_avg = False  # If True, it will try to read "scores_record.mat", from the backup folder and read "scores_record"
                         # Else, it will use the unweighted mean code of the last generation as the center vector. 
+                        # Need to run the BigGAN postHoc Analysis to save the `scores_record` mat and use this flag
+
 exact_distance = True   # Control if exact distance search is used or approximate heuristic rule is used.
-target_distance = [0.09, 0.18, 0.27, 0.36, 0.45]  # if exact_distance is True it will search for images with these
+target_distance = [0.08, 0.16, 0.24, 0.32, 0.40]
+#target_distance = [0.09, 0.18, 0.27, 0.36, 0.45]  # if exact_distance is True it will search for images with these
                                                   # distance to reference image along each eigenvector.
+                                                  
 #%% Prepare the generator model and perceptual loss networks
 from time import time
 import os
@@ -376,7 +380,7 @@ if not exact_distance:
     plt.title("Perceptual distance metric along each row\nclass space exponent %.1f Scale%d "%(expon, scale, ))
     plt.savefig(join(summary_dir, "distmat_eigvect_clas_interp_exp%.1f_d%d.jpg"%(expon, scale)))
     plt.show()
-    #%% Interpolation in the noise space
+    #% Interpolation in the noise space
     codes_all = []
     img_names = []
     scale = 6
@@ -425,9 +429,9 @@ else:  # exact_distance by line search
     eiglist = [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 20, 30, 40, 50, 60, 70, 80]
     for eigid in tqdm(eiglist):  # range(128):  # #
         if space == "class":
-            tan_vec = torch.cat((torch.zeros(1, 128).cuda(), evc_clas_tsr[:, eigid:eigid + 1].T), dim=1)
+            tan_vec = torch.cat((torch.zeros(1, 128).cuda(), evc_clas_tsr[:, eigid:eigid + 1].t()), dim=1)
         elif space == "noise":
-            tan_vec = torch.cat((evc_nois_tsr[:, eigid:eigid + 1].T, torch.zeros(1, 128).cuda()), dim=1)
+            tan_vec = torch.cat((evc_nois_tsr[:, eigid:eigid + 1].t(), torch.zeros(1, 128).cuda()), dim=1)
         xtar_pos, ytar_pos, stepimgs_pos = find_level_step(BGAN, ImDist, targ_val, ref_vect, tan_vec, refimg, iter=20,
                                                            pos=True, maxdist=30)
         xtar_neg, ytar_neg, stepimgs_neg = find_level_step(BGAN, ImDist, targ_val, ref_vect, tan_vec, refimg, iter=20,
@@ -481,7 +485,7 @@ else:  # exact_distance by line search
     plt.title("Perceptual distance metric along each row\nnoise space")
     plt.savefig(join(summary_dir, "noise_space_distmat.jpg"))
     plt.show()
-    #%%
+    #%
     space = "class"
     imgall = None
     xtick_col = []
@@ -494,9 +498,9 @@ else:  # exact_distance by line search
     for eigid in tqdm(eiglist):  # [0,1,2,3,4,5,6,7,8,10,20,30,
         # 40]:#
         if space == "class":
-            tan_vec = torch.cat((torch.zeros(1, 128).cuda(), evc_clas_tsr[:, eigid:eigid + 1].T), dim=1)
+            tan_vec = torch.cat((torch.zeros(1, 128).cuda(), evc_clas_tsr[:, eigid:eigid + 1].t()), dim=1)
         elif space == "noise":
-            tan_vec = torch.cat((evc_nois_tsr[:, eigid:eigid + 1].T, torch.zeros(1, 128).cuda()), dim=1)
+            tan_vec = torch.cat((evc_nois_tsr[:, eigid:eigid + 1].t(), torch.zeros(1, 128).cuda()), dim=1)
         xtar_pos, ytar_pos, stepimgs_pos = find_level_step(BGAN, ImDist, targ_val, ref_vect, tan_vec, refimg, iter=20,
                                                            pos=True, maxdist=30)
         xtar_neg, ytar_neg, stepimgs_neg = find_level_step(BGAN, ImDist, targ_val, ref_vect, tan_vec, refimg, iter=20,
