@@ -243,8 +243,8 @@ class BigGAN_wrapper():#nn.Module
         with torch.no_grad():
             while csr < imgn:
                 csr_end = min(csr + B, imgn)
-                img_list = self.visualize(torch.from_numpy(codes_all_arr[csr:csr_end, :]).float().cuda(),
-                                           truncation=truncation, ).cpu()
+                code_batch = torch.from_numpy(codes_all_arr[csr:csr_end, :]).float().cuda()
+                img_list = self.visualize(code_batch, truncation=truncation, ).cpu()
                 img_all = img_list if img_all is None else torch.cat((img_all, img_list), dim=0)
                 csr = csr_end
                 clear_output(wait=True)

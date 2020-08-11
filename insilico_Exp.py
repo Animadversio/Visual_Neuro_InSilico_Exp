@@ -219,6 +219,8 @@ class TorchScorer:
             self.layers = list(self.model.features) + [self.model.classifier]
             self.layername = layername_dict[model_name]
             self.model.cuda().eval()
+        for param in self.model.parameters():
+            param.requires_grad_(False)
         # self.preprocess = transforms.Compose([transforms.ToPILImage(),
         #                                       transforms.Resize(size=(224, 224)),
         #                                       transforms.ToTensor(),
@@ -235,6 +237,11 @@ class TorchScorer:
         if type(img) is list: # the following lines have been optimized for speed locally.
             img_tsr = torch.stack(tuple(torch.from_numpy(im) for im in img)).cuda().float().permute(0, 3, 1, 2) / input_scale
             img_tsr = (img_tsr - self.RGBmean) / self.RGBstd
+            resz_out_tsr = F.interpolate(img_tsr, (227, 227), mode='bilinear',
+                                         align_corners=True)
+            return resz_out_tsr
+        elif type(img) is torch.Tensor:
+            img_tsr = (img.cuda() / input_scale - self.RGBmean) / self.RGBstd
             resz_out_tsr = F.interpolate(img_tsr, (227, 227), mode='bilinear',
                                          align_corners=True)
             return resz_out_tsr
@@ -279,6 +286,33 @@ class TorchScorer:
         while csr < imgn:
             csr_end = min(csr + B, imgn)
             img_batch = self.preprocess(images[csr:csr_end], input_scale=255.0)
+            # img_batch.append(resz_out_img)
+            with torch.no_grad():
+                # self.model(torch.cat(img_batch).cuda())
+                self.model(img_batch)
+            scores[csr:csr_end] = activation["score"].squeeze().cpu().numpy().squeeze()
+            csr = csr_end
+            if self.artiphys:  # record the whole layer's activation
+                for layer in self.record_layers:
+                    score_full = activation[layer]
+                    # self._pattern_array.append(score_full)
+                    self.recordings[layer].append(score_full.cpu().numpy())
+            # , input_scale=255 # shape=(3, 227, 227) # assuming input scale is 0,1 output will be 0,255
+
+        if self.artiphys:
+            return scores, self.recordings
+        else:
+            return scores
+
+    def score_tsr(self, img_tsr, with_grad=False, B=42):
+        """Score in batch will accelerate processing greatly! """
+        # assume image is using 255 range
+        scores = np.zeros(img_tsr.shape[0])
+        csr = 0  # if really want efficiency, we should use minibatch processing.
+        imgn = img_tsr.shape[0]
+        while csr < imgn:
+            csr_end = min(csr + B, imgn)
+            img_batch = self.preprocess(img_tsr[csr:csr_end,:,:,:], input_scale=1.0)
             # img_batch.append(resz_out_img)
             with torch.no_grad():
                 # self.model(torch.cat(img_batch).cuda())
