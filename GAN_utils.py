@@ -196,6 +196,18 @@ class upconvGAN(nn.Module):
             img_all.extend([imgs[:, :, :, imgi] for imgi in range(imgs.shape[3])])
             csr = csr_end
         return img_all
+
+    def visualize_batch_np(self, codes_all_arr, scale=1.0, B=42):
+        coden = codes_all_arr.shape[0]
+        img_all = None
+        csr = 0  # if really want efficiency, we should use minibatch processing.
+        with torch.no_grad():
+            while csr < coden:
+                csr_end = min(csr + B, coden)
+                imgs = self.visualize(torch.from_numpy(codes_all_arr[csr:csr_end, :]).float().cuda(), scale).cpu()
+                img_all = imgs if img_all is None else torch.cat((img_all, imgs), dim=0)
+                csr = csr_end
+        return img_all
 #%% Very useful function
 import numpy as np
 from build_montages import build_montages, color_framed_montages
@@ -236,15 +248,15 @@ class BigGAN_wrapper():#nn.Module
         imgs = self.BigGAN.generator(code, truncation) # Matlab version default to 0.7
         return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
 
-    def visualize_batch_np(self, codes_all_arr, truncation=0.7, B=5):
+    def visualize_batch_np(self, codes_all_arr, truncation=0.7, B=15):
         csr = 0
         img_all = None
         imgn = codes_all_arr.shape[0]
         with torch.no_grad():
             while csr < imgn:
                 csr_end = min(csr + B, imgn)
-                img_list = self.visualize(torch.from_numpy(codes_all_arr[csr:csr_end, :]).float().cuda(),
-                                           truncation=truncation, ).cpu()
+                code_batch = torch.from_numpy(codes_all_arr[csr:csr_end, :]).float().cuda()
+                img_list = self.visualize(code_batch, truncation=truncation, ).cpu()
                 img_all = img_list if img_all is None else torch.cat((img_all, img_list), dim=0)
                 csr = csr_end
                 clear_output(wait=True)
