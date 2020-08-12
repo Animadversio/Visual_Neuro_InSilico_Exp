@@ -11,7 +11,7 @@ Find important Nuisanced + Class transformations in Noise + Class space for a Bi
 # Put the backup folder and the thread to analyze here 
 #backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-07-22-10-14-22"
 # backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2020-08-06-10-18-55"#2020-08-04-09-54-25"#
-backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2020-08-10-09-59-48"
+backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-08-11-10-22-40"
 threadid = 1
 
 score_rank_avg = False  # If True, it will try to read "scores_record.mat", from the backup folder and read "scores_record"
@@ -19,7 +19,7 @@ score_rank_avg = False  # If True, it will try to read "scores_record.mat", from
                         # Need to run the BigGAN postHoc Analysis to save the `scores_record` mat and use this flag
 
 exact_distance = True   # Control if exact distance search is used or approximate heuristic rule is used.
-target_distance = [0.08, 0.16, 0.24, 0.32, 0.40]
+target_distance = [0.16, 0.24, 0.32, 0.40] # 0.08, 
 #target_distance = [0.09, 0.18, 0.27, 0.36, 0.45]  # if exact_distance is True it will search for images with these
                                                   # distance to reference image along each eigenvector.
                                                   
