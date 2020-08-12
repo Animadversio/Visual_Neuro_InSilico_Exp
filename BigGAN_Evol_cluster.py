@@ -203,3 +203,65 @@ for unit_id in range(30):
                  codes_fin=latent_code.cpu().numpy())
         visualize_trajectory(scores_all, generations, title_str=methodlab).savefig(
             join(savedir, "traj%s_%05d_score%.1f.jpg" % (methodlab, RND, scores.mean())))
+#%%
+from GAN_utils import upconvGAN
+G = upconvGAN("fc6")
+# net = tv.alexnet(pretrained=True)
+from insilico_Exp import TorchScorer, ExperimentEvolve
+scorer = TorchScorer("alexnet")
+scorer.select_unit(("alexnet", "fc6", 2))
+
+methodlab = "CholCMA_noA_fc6"
+init_code = np.zeros((1, 4096))
+optim_cust = CholeskyCMAES(space_dimen=4096, init_code=init_code, init_sigma=3, Aupdate_freq=102)
+new_codes = init_code + np.random.randn(30, 256)*3
+scores_all = []
+generations = []
+for i in tqdm.trange(cmasteps, desc="CMA steps"):
+    imgs = G.visualize_batch_np(new_codes, B=10)
+    latent_code = torch.from_numpy(np.array(new_codes)).float()
+    scores = scorer.score_tsr(imgs)
+    print("step %d dsim %.3f (%.3f) (norm %.2f noise norm %.2f)" % (
+        i, scores.mean(), scores.std(), latent_code[:, 128:].norm(dim=1).mean(),  latent_code[:, :128].norm(dim=1).mean()))
+    new_codes = optim_cust.step_simple(scores, new_codes, )
+    scores_all.extend(list(scores))
+    generations.extend([i] * len(scores))
+
+scores_all = np.array(scores_all)
+generations = np.array(generations)
+mtg = ToPILImage()(make_grid(imgs, nrow=7))
+mtg.save(join(savedir, "lastgen%s_%05d_score%.1f.jpg" % (methodlab, RND, scores.mean())))
+np.savez(join(savedir, "scores%s_%05d.npz" % (methodlab, RND)), generations=generations, scores_all=scores_all,
+         codes_fin=latent_code.cpu().numpy())
+visualize_trajectory(scores_all, generations, title_str=methodlab).savefig(
+    join(savedir, "traj%s_%05d_score%.1f.jpg" % (methodlab, RND, scores.mean())))
+
+
+
+
+#%%
+def BigGAN_evol_exp(scorer, optimizer, G, steps=100, RND=None, label="", init_code=None, batchsize=20):
+    init_code = np.concatenate((fixnoise, np.zeros((1, 128))), axis=1)
+    # optim_cust = CholeskyCMAES(space_dimen=256, init_code=init_code, init_sigma=0.2)
+    new_codes = init_code + np.random.randn(25, 256) * 0.06
+    scores_all = []
+    generations = []
+    for i in tqdm.trange(steps, desc="CMA steps"):
+        imgs = G.visualize_batch_np(new_codes, B=batchsize)
+        latent_code = torch.from_numpy(np.array(new_codes)).float()
+        scores = scorer.score_tsr(imgs)
+        print("step %d dsim %.3f (%.3f) (norm %.2f noise norm %.2f)" % (
+            i, scores.mean(), scores.std(), latent_code[:, 128:].norm(dim=1).mean(),
+            latent_code[:, :128].norm(dim=1).mean()))
+        new_codes = optimizer.step_simple(scores, new_codes, )
+        scores_all.extend(list(scores))
+        generations.extend([i] * len(scores))
+
+    scores_all = np.array(scores_all)
+    generations = np.array(generations)
+    mtg = ToPILImage()(make_grid(imgs, nrow=7))
+    mtg.save(join(savedir, "lastgen%s_%05d_score%.1f.jpg" % (methodlab, RND, scores.mean())))
+    np.savez(join(savedir, "scores%s_%05d.npz" % (methodlab, RND)), generations=generations, scores_all=scores_all,
+             codes_fin=latent_code.cpu().numpy())
+    visualize_trajectory(scores_all, generations, title_str=methodlab).savefig(
+        join(savedir, "traj%s_%05d_score%.1f.jpg" % (methodlab, RND, scores.mean())))
