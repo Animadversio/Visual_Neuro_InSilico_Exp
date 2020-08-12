@@ -12,12 +12,12 @@
 # export PATH=/act/Anaconda3-2.3.0/bin:${PATH}
 # source activate conda_env
 export TORCH_HOME="/scratch/binxu/torch"
-param_list='--layer fc6 --chans 30 40 --method HessCMA HessCMA_class HessCMA_noA CholCMA CholCMA_prod CholCMA_class --steps 100 --reps 5
---layer fc7 --chans 30 40 --method HessCMA HessCMA_class HessCMA_noA CholCMA CholCMA_prod CholCMA_class --steps 100 --reps 5
---layer fc8 --chans 30 40 --method HessCMA HessCMA_class HessCMA_noA CholCMA CholCMA_prod CholCMA_class --steps 100 --reps 5
---layer fc6 --chans 40 50 --method HessCMA HessCMA_class HessCMA_noA CholCMA CholCMA_prod CholCMA_class --steps 100 --reps 5
---layer fc7 --chans 40 50 --method HessCMA HessCMA_class HessCMA_noA CholCMA CholCMA_prod CholCMA_class --steps 100 --reps 5
---layer fc8 --chans 40 50 --method HessCMA HessCMA_class HessCMA_noA CholCMA CholCMA_prod CholCMA_class --steps 100 --reps 5
+param_list='--layer fc6 --chans 30 40 --optim HessCMA HessCMA_class HessCMA_noA CholCMA CholCMA_prod CholCMA_class --steps 100 --reps 5
+--layer fc7 --chans 30 40 --optim HessCMA HessCMA_class HessCMA_noA CholCMA CholCMA_prod CholCMA_class --steps 100 --reps 5
+--layer fc8 --chans 30 40 --optim HessCMA HessCMA_class HessCMA_noA CholCMA CholCMA_prod CholCMA_class --steps 100 --reps 5
+--layer fc6 --chans 40 50 --optim HessCMA HessCMA_class HessCMA_noA CholCMA CholCMA_prod CholCMA_class --steps 100 --reps 5
+--layer fc7 --chans 40 50 --optim HessCMA HessCMA_class HessCMA_noA CholCMA CholCMA_prod CholCMA_class --steps 100 --reps 5
+--layer fc8 --chans 40 50 --optim HessCMA HessCMA_class HessCMA_noA CholCMA CholCMA_prod CholCMA_class --steps 100 --reps 5
 '
 export csr_lim="$(echo "$param_list" | head -n $PBS_ARRAYID | tail -1)"
 
