@@ -88,7 +88,10 @@ args = parser.parse_args() # ???["--reps", '1',"--chans",'0','1',"--steps",'2']
 from GAN_utils import BigGAN_wrapper, upconvGAN
 from insilico_Exp import TorchScorer, ExperimentEvolve
 if args.G == "BigGAN":
-    BGAN = BigGAN.from_pretrained("biggan-deep-256")
+    if sys.platform == "linux":
+        BGAN = get_BigGAN(version="biggan-deep-256")
+    else:
+        BGAN = BigGAN.from_pretrained("biggan-deep-256")
     BGAN.eval().cuda()
     for param in BGAN.parameters():
         param.requires_grad_(False)
