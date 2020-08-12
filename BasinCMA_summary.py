@@ -15,6 +15,7 @@ import matplotlib.pylab as plt
 from os.path import join
 from imageio import imread
 from scipy.linalg import block_diag
+from scipy.stats import ttest_rel,ttest_ind
 #%%
 rootdir = r"E:\Cluster_Backup\BasinCMA"
 summarydir = r"E:\Cluster_Backup\BasinCMA\summary"
@@ -44,7 +45,6 @@ _, subsp_mask = np.unique(tables[0].Img, return_index=True)
 tables[0] = tables[0].iloc[subsp_mask, :]
 tables[1] = tables[1].iloc[subsp_mask, :]
 #%%
-from scipy.stats import ttest_rel,ttest_ind
 ttest_rel(tables[4].dsim, tables[5].dsim)
 ttest_ind(tables[4].dsim, tables[5].dsim)
 ttest_rel(tables[0].dsim, tables[1].dsim)
@@ -315,3 +315,12 @@ plt.title("Comparing BasinCMA performance on different basis of BigGAN space wit
             BigGAN_imgnet_Hnone_cmp_t.pvalue ))
 plt.savefig(join(summarydir, "ImageNet_BigGAN_rand_L1_cmp.jpg")) # _noleg
 plt.show()
+#%%
+"""Try using index to color the scatter. Seems no obvious difference between different norms"""
+plt.figure()
+jitter = 0.1*np.random.randn(tables[0].shape[0])
+plt.scatter(jitter, tables[0].dsim, c=tables[0].index)
+plt.show()
+ttest_ind(tables[0].iloc[50:100].dsim,tables[0].iloc[0:50].dsim) # p=0.41
+ttest_ind(tables[0].iloc[150:200].dsim,tables[0].iloc[0:50].dsim) # p=0.38
+# seems the successfulness is irrelevant to the norm of the code.
