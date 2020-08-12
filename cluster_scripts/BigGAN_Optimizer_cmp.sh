@@ -6,18 +6,18 @@
 # Specify the default queue for the fastest nodes
 #PBS -m be
 #PBS -q dque
-#PBS -t 1-8
+#PBS -t 1-6
 
 # Prepare the virtual env for python
 # export PATH=/act/Anaconda3-2.3.0/bin:${PATH}
 # source activate conda_env
 export TORCH_HOME="/scratch/binxu/torch"
-
-param_list='--method CholCMA CholCMA_class HessCMA HessCMA_class HessCMA_noA_class --steps 100
-250 300
-300 350
-350 400
-400 450
+param_list='--layer fc6 --chans 30 40 --method HessCMA HessCMA_class HessCMA_noA CholCMA CholCMA_prod CholCMA_class --steps 100 --reps 5
+--layer fc7 --chans 30 40 --method HessCMA HessCMA_class HessCMA_noA CholCMA CholCMA_prod CholCMA_class --steps 100 --reps 5
+--layer fc8 --chans 30 40 --method HessCMA HessCMA_class HessCMA_noA CholCMA CholCMA_prod CholCMA_class --steps 100 --reps 5
+--layer fc6 --chans 40 50 --method HessCMA HessCMA_class HessCMA_noA CholCMA CholCMA_prod CholCMA_class --steps 100 --reps 5
+--layer fc7 --chans 40 50 --method HessCMA HessCMA_class HessCMA_noA CholCMA CholCMA_prod CholCMA_class --steps 100 --reps 5
+--layer fc8 --chans 40 50 --method HessCMA HessCMA_class HessCMA_noA CholCMA CholCMA_prod CholCMA_class --steps 100 --reps 5
 '
 export csr_lim="$(echo "$param_list" | head -n $PBS_ARRAYID | tail -1)"
 

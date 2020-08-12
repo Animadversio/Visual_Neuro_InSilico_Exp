@@ -154,6 +154,11 @@ def label2optimizer(methodlabel, init_code, GAN="BigGAN", ): # TODO add default 
             evc = Hdata['eigvects_avg'][:, ::-1]
             optim_cust = HessCMAES(space_dimen=256, init_code=init_code, init_sigma=0.2, )
             optim_cust.set_Hessian(eigvals=eva, eigvects=evc, expon=1 / 2.5)
+        elif methodlabel == "HessCMA_noA":
+            eva = Hdata['eigvals_avg'][::-1]
+            evc = Hdata['eigvects_avg'][:, ::-1]
+            optim_cust = HessCMAES(space_dimen=256, init_code=init_code, init_sigma=0.2, Aupdate_freq=102)
+            optim_cust.set_Hessian(eigvals=eva, eigvects=evc, expon=1 / 2.5)
         elif methodlabel == "HessCMA_class":
             eva = Hdata['eigvals_clas_avg'][::-1]
             evc = Hdata['eigvects_clas_avg'][:, ::-1]
@@ -182,6 +187,7 @@ for unit_id in range(args.chans[0], args.chans[1]):
         elif args.G == "fc6":
             init_code = np.random.randn(1, 4096)
         RND = np.random.randint(1E5)
+        np.save(join(savedir,"init_code_%05d.npy"), init_code)
         optimizer_col = [label2optimizer(methodlabel, init_code, args.G) for methodlabel in method_col]
         for methodlab, optimizer in zip(method_col, optimizer_col):
             new_codes = init_code
