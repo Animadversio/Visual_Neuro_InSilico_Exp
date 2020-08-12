@@ -196,6 +196,18 @@ class upconvGAN(nn.Module):
             img_all.extend([imgs[:, :, :, imgi] for imgi in range(imgs.shape[3])])
             csr = csr_end
         return img_all
+
+    def visualize_batch_np(self, codes_all_arr, scale=1.0, B=42):
+        coden = codes_all_arr.shape[0]
+        img_all = None
+        csr = 0  # if really want efficiency, we should use minibatch processing.
+        with torch.no_grad():
+            while csr < coden:
+                csr_end = min(csr + B, coden)
+                imgs = self.visualize(torch.from_numpy(codes_all_arr[csr:csr_end, :]).float().cuda(), scale).cpu()
+                img_all = imgs if img_all is None else torch.cat((img_all, imgs), dim=0)
+                csr = csr_end
+        return img_all
 #%% Very useful function
 import numpy as np
 from build_montages import build_montages, color_framed_montages
