@@ -66,11 +66,12 @@ def visualize_trajectory(scores_all, generations, codes_arr=None, show=False, ti
     return figh
 #%%
 if sys.platform == "linux":
-    rootdir = r"/scratch/binxu/BigGAN_Optim_Tune_new"
+    rootdir = r"/scratch/binxu/BigGAN_Optim_Tune_new" # _new
     Hdir_BigGAN = r"/scratch/binxu/GAN_hessian/BigGAN/summary/H_avg_1000cls.npz"
     Hdir_fc6 = r"/scratch/binxu/GAN_hessian/FC6GAN/summary/Evolution_Avg_Hess.npz"
 else:
-    rootdir = r"E:\OneDrive - Washington University in St. Louis\BigGAN_Optim_Tune_tmp"
+    # rootdir = r"E:\OneDrive - Washington University in St. Louis\BigGAN_Optim_Tune_tmp"
+    rootdir = r"E:\Monkey_Data\BigGAN_Optim_Tune_tmp"
     Hdir_BigGAN = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\BigGAN\H_avg_1000cls.npz"
     Hdir_fc6 = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\fc6GAN\Evolution_Avg_Hess.npz"
 
