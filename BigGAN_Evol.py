@@ -25,6 +25,7 @@ import os
 import tqdm
 from cma import CMAEvolutionStrategy
 from ZO_HessAware_Optimizers import CholeskyCMAES
+from GAN_utils import BigGAN_wrapper, upconvGAN
 def get_BigGAN(version="biggan-deep-256"):
     cache_path = "/scratch/binxu/torch/"
     cfg = BigGANConfig.from_json_file(join(cache_path, "%s-config.json" % version))
@@ -33,7 +34,7 @@ def get_BigGAN(version="biggan-deep-256"):
     return BGAN
 
 #%
-def visualize_trajectory(scores_all, generations, show=False, title_str=""):
+def visualize_trajectory(scores_all, generations, codes_arr=None, show=False, title_str=""):
     """ Visualize the Score Trajectory """
     gen_slice = np.arange(min(generations), max(generations) + 1)
     AvgScore = np.zeros_like(gen_slice)
@@ -41,24 +42,41 @@ def visualize_trajectory(scores_all, generations, show=False, title_str=""):
     for i, geni in enumerate(gen_slice):
         AvgScore[i] = np.mean(scores_all[generations == geni])
         MaxScore[i] = np.max(scores_all[generations == geni])
-    figh = plt.figure()
-    plt.scatter(generations, scores_all, s=16, alpha=0.6, label="all score")
-    plt.plot(gen_slice, AvgScore, color='black', label="Average score")
-    plt.plot(gen_slice, MaxScore, color='red', label="Max score")
-    plt.xlabel("generation #")
-    plt.ylabel("CNN unit score")
+    figh, ax1 = plt.subplots()
+    ax1.scatter(generations, scores_all, s=16, alpha=0.6, label="all score")
+    ax1.plot(gen_slice, AvgScore, color='black', label="Average score")
+    ax1.plot(gen_slice, MaxScore, color='red', label="Max score")
+    ax1.set_xlabel("generation #")
+    ax1.set_ylabel("CNN unit score")
+    plt.legend()
+    if codes_arr is not None:
+        ax2 = ax1.twinx()
+        if codes_arr.shape[1] == 256: # BigGAN
+            nos_norm = np.linalg.norm(codes_arr[:, :128], axis=1)
+            cls_norm = np.linalg.norm(codes_arr[:, 128:], axis=1)
+            ax2.scatter(generations, nos_norm, s=5, color="orange", label="noise", alpha=0.2)
+            ax2.scatter(generations, cls_norm, s=5, color="magenta", label="class", alpha=0.2)
+        elif codes_arr.shape[1] == 4096: # FC6GAN
+            norms_all = np.linalg.norm(codes_arr[:, :], axis=1)
+            ax2.scatter(generations, norms_all, s=5, color="magenta", label="all", alpha=0.2)
+        ax2.set_ylabel("L2 Norm", color="red", fontsize=14)
+        plt.legend()
     plt.title("Optimization Trajectory of Score\n" + title_str)
     plt.legend()
     if show:
         plt.show()
     return figh
 #%% Select GAN
-from GAN_utils import BigGAN_wrapper
 BGAN = BigGAN.from_pretrained("biggan-deep-256")
 BGAN.eval().cuda()
 for param in BGAN.parameters():
     param.requires_grad_(False)
 G = BigGAN_wrapper(BGAN)
+#%%
+G = upconvGAN("fc6")
+G.eval().cuda()
+for param in G.parameters():
+    param.requires_grad_(False)
 #%%
 # net = tv.alexnet(pretrained=True)
 from insilico_Exp import TorchScorer, ExperimentEvolve
@@ -218,24 +236,34 @@ for param in G.parameters():
 G.eval().cuda()
 # net = tv.alexnet(pretrained=True)
 from insilico_Exp import TorchScorer, ExperimentEvolve
-scorer = TorchScorer("alexnet")
-scorer.select_unit(("alexnet", "fc6", 2))
-from ZO_HessAware_Optimizers import CholeskyCMAES
-#%% FC6 Evolution.
+from ZO_HessAware_Optimizers import CholeskyCMAES,HessCMAES
 import os
+#%%
+Hdata = np.load(r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\fc6GAN\Evolution_Avg_Hess.npz")
+eva = Hdata['eigv_avg'][::-1]
+evc = Hdata['eigvect_avg'][:, ::-1]
+#%% FC6 Evolution.
 unit = ("alexnet", "fc6", 2)
 scorer.select_unit(unit)
-savedir = r"E:\OneDrive - Washington University in St. Louis\BigGAN_Optim_Tune\%s_%s_%d"%unit
+savedir = r"E:\OneDrive - Washington University in St. Louis\BigGAN_Optim_Tune_tmp\%s_%s_%d"%unit
 os.makedirs(savedir, exist_ok=True)
 cmasteps= 100
-methodlab = "CholCMA_noA_fc6"
+methodlab = "CholCMA" #"HessCMA_noA_fc6"
 init_code = np.zeros((1, 4096))
 RND = np.random.randint(1E5)
 optim_cust = CholeskyCMAES(space_dimen=4096, init_code=init_code, init_sigma=3, Aupdate_freq=102)
+eva = Hdata['eigv_avg'][::-1]
+evc = Hdata['eigvect_avg'][:, ::-1]
+optim_cust = HessCMAES(space_dimen=4096, cutoff=500, init_code=init_code, init_sigma=0.4, )
+optim_cust.set_Hessian(eigvals=eva, eigvects=evc, cutoff=500, expon=1 / 4)
 new_codes = init_code + np.random.randn(30, 4096) * 3
+#%%
+codes_all = []
+best_imgs = []
 scores_all = []
 generations = []
 for i in tqdm.trange(cmasteps, desc="CMA steps"):
+    codes_all.append(new_codes.copy())
     imgs = G.visualize_batch_np(new_codes, B=42)
     latent_code = torch.from_numpy(np.array(new_codes)).float()
     scores = scorer.score_tsr(imgs)
@@ -244,9 +272,13 @@ for i in tqdm.trange(cmasteps, desc="CMA steps"):
     new_codes = optim_cust.step_simple(scores, new_codes, )
     scores_all.extend(list(scores))
     generations.extend([i] * len(scores))
+    best_imgs.append(imgs[scores.argmax(), :, :, :])
 
+codes_all = np.concatenate(tuple(codes_all), axis=0)
 scores_all = np.array(scores_all)
 generations = np.array(generations)
+mtg_exp = ToPILImage()(make_grid(best_imgs, nrow=10))
+mtg_exp.save(join(savedir, "besteachgen%s_%05d_score%.1f.jpg" % (methodlab, RND, scores.mean())))
 mtg = ToPILImage()(make_grid(imgs, nrow=7))
 mtg.save(join(savedir, "lastgen%s_%05d_score%.1f.jpg" % (methodlab, RND, scores.mean())))
 np.savez(join(savedir, "scores%s_%05d.npz" % (methodlab, RND)), generations=generations, scores_all=scores_all,
