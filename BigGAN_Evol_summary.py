@@ -2,6 +2,7 @@ import os
 import re
 import numpy as np
 import matplotlib.pylab as plt
+import seaborn
 from time import time
 from os.path import join
 import pandas as pd
@@ -31,7 +32,7 @@ for ui, unit_str in enumerate(unit_strs):
 
 exprec_tab = pd.DataFrame(rec_col, columns=["unitstr", 'net', 'layer', 'unit', "optimizer", "RND", "score"])
 #%%
-exprec_tab.to_csv(join(rootdir, "optim_raw_score_tab.csv"))
+exprec_tab.to_csv(join(summarydir, "optim_raw_score_tab.csv"))
 #%% Align the experiments with same initialization
 align_col = []
 methods = exprec_tab.optimizer.unique()
@@ -52,7 +53,7 @@ for ui, unit_str in enumerate(unit_strs):
         align_col.append(tuple(entry))
 align_tab = pd.DataFrame(align_col, columns=["unitstr", "net", "layer", "unit", "RND"]+list(methods))
 #%%
-align_tab.to_csv(join(rootdir, "optim_aligned_score_tab.csv"))
+align_tab.to_csv(join(summarydir, "optim_aligned_score_tab.csv"))
 #%%
 ttest_rel(exprec_tab[exprec_tab.optimizer=="CMA_class"].score,
     exprec_tab[exprec_tab.optimizer=="CMA_prod"].score)
@@ -87,3 +88,95 @@ plt.title("Comparing Performance of Optimizers in Activation Maximizing Alexnet 
 plt.axis('auto')
 plt.savefig(join(summarydir, "fc6_optimizer_scores_cmp.jpg"))
 plt.show()
+#%%
+#%% Load the cluster result
+rootdir = r"E:\Cluster_Backup\BigGAN_Optim_Tune_new"
+summarydir = join(rootdir, "summary")
+os.makedirs(summarydir, exist_ok=True)
+# savedir = r"E:\OneDrive - Washington University in St. Louis\BigGAN_Optim_Tune\%s_%s_%d"
+#%% Do a survey of all the exp done
+unit_strs = os.listdir(rootdir)
+unit_strs = [unit_str for unit_str in unit_strs if "alexnet" in unit_str]
+unit_pat = re.compile("(.*)_(.*)_(\d*)")
+unit_tups = [unit_pat.findall(unit_str)[0] for unit_str in unit_strs]
+unit_tups = [(tup[0],tup[1],int(tup[2])) for tup in unit_tups]
+rec_col = []
+for ui, unit_str in enumerate(unit_strs):
+    unit_tup = unit_tups[ui]
+    fns = os.listdir(join(rootdir, unit_str))
+    assert unit_str == "%s_%s_%d"%unit_tup
+    trajfns = [fn for fn in fns if "traj" in fn]
+    traj_fn_pat = re.compile("traj(.*)_(\d*)_score([\d.-]*).jpg")
+    for trajfn in trajfns:
+        parts = traj_fn_pat.findall(trajfn)[0]
+        entry = (unit_str, *unit_tup, parts[0], int(parts[1]), float(parts[2]))
+        rec_col.append(entry)
+
+exprec_tab = pd.DataFrame(rec_col, columns=["unitstr", 'net', 'layer', 'unit', "optimizer", "RND", "score"])
+#%%
+exprec_tab.to_csv(join(summarydir, "optim_raw_score_tab.csv"))
+#%% Align the experiments with same initialization
+align_col = []
+methods_all = exprec_tab.optimizer.unique()
+methods_BigGAN = [method for method in methods_all if not "_fc6" in method]
+for ui, unit_str in enumerate(unit_strs):
+    unit_tup = unit_tups[ui]
+    mask = exprec_tab.unitstr == unit_str
+    RNDs = exprec_tab[mask].RND.unique()
+    for RND in RNDs:
+        entry = [unit_str, *unit_tup, RND, ]
+        for method in methods_BigGAN:
+            maskprm = mask & (exprec_tab.RND==RND) & (exprec_tab.optimizer==method)
+            try:
+                score = exprec_tab[maskprm].score.item()
+            except ValueError:
+                print("Imcomplete Entry %s (RND %d, unit %s)" % (method, RND, unit_str))
+                score = np.nan
+            entry.append(score)
+        align_col.append(tuple(entry))
+align_tab = pd.DataFrame(align_col, columns=["unitstr", "net", "layer", "unit", "RND"]+list(methods_BigGAN))
+#%%
+align_tab.to_csv(join(summarydir, "optim_aligned_score_tab_BigGAN.csv"))
+#%%
+import seaborn as sns
+sns.set()
+#%%
+plt.figure(figsize=[14,6])
+ax = sns.stripplot(x='optimizer', y='score', hue="layer", jitter=0.3,
+                   order=['CholCMA', 'CholCMA_prod', 'CholCMA_class', 'HessCMA', 'HessCMA_class',
+                    'HessCMA_noA', 'CholCMA_fc6', 'HessCMA500_1_fc6', 'HessCMA800_fc6',],
+                   data=exprec_tab, alpha=0.4)
+ax.set_title("Comparison of Optimizer and GAN space over Units of AlexNet")
+ax.figure.show()
+ax.figure.savefig(join(summarydir, "method_cmp_strip_layer_all.jpg"))
+#%%
+plt.figure(figsize=[14,6])
+ax = sns.swarmplot(x='optimizer', y='score', hue="layer",
+                   order=['CholCMA', 'CholCMA_prod', 'CholCMA_class', 'HessCMA', 'HessCMA_class',
+                    'HessCMA_noA', 'CholCMA_fc6', 'HessCMA500_1_fc6', 'HessCMA800_fc6',],
+                   data=exprec_tab, alpha=0.4)
+ax.set_title("Comparison of Optimizer and GAN space over Units of AlexNet")
+ax.figure.show()
+ax.figure.savefig(join(summarydir, "method_cmp_swarm_layer_all_cat.jpg"))
+#%%
+plt.figure(figsize=[14,6])
+ax = sns.violinplot(x="optimizer", y="score", hue="layer",
+                order=['CholCMA', 'CholCMA_prod', 'CholCMA_class', 'HessCMA', 'HessCMA_class',
+                    'HessCMA_noA', 'CholCMA_fc6', 'HessCMA500_1_fc6', 'HessCMA800_fc6',],
+                    data=exprec_tab, palette="muted")
+ax.set_title("Comparison of Optimizer and GAN space over Units of AlexNet")
+ax.figure.show()
+ax.figure.savefig(join(summarydir, "method_cmp_violin_layer_all.jpg"))
+#%%
+plt.figure(figsize=[14,6])
+ax = sns.violinplot(x="layer", y="score", hue="optimizer", linewidth=0.2,
+                hue_order=['CholCMA', 'CholCMA_prod', 'CholCMA_class', 'HessCMA', 'HessCMA_class',
+                    'HessCMA_noA', 'CholCMA_fc6', 'HessCMA500_1_fc6', 'HessCMA800_fc6',],
+                    data=exprec_tab, palette="muted", bw=0.1, width=0.9)
+ax.set_title("Comparison of Optimizer and GAN space over Units of AlexNet")
+ax.figure.show()
+ax.figure.savefig(join(summarydir, "method_cmp_violin_method_all.jpg"))
+#%%
+ttest_rel(align_tab.HessCMA, align_tab.CholCMA, nan_policy='omit')
+ttest_rel(align_tab.HessCMA, align_tab.HessCMA_class, nan_policy='omit')
+ttest_rel(align_tab.HessCMA, align_tab.HessCMA_noA, nan_policy='omit')
