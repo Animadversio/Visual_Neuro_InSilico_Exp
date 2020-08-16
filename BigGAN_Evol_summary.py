@@ -113,15 +113,16 @@ for ui, unit_str in enumerate(unit_strs):
         rec_col.append(entry)
 
 exprec_tab = pd.DataFrame(rec_col, columns=["unitstr", 'net', 'layer', 'unit', "optimizer", "RND", "score"])
-#%%
+#%% Formulate a experiment record
 exprec_tab.to_csv(join(summarydir, "optim_raw_score_tab.csv"))
 #%% Align the experiments with same initialization
 align_col = []
 methods_all = exprec_tab.optimizer.unique()
 methods_BigGAN = [method for method in methods_all if not "_fc6" in method]
+BigGAN_msk = ~exprec_tab.optimizer.str.contains("_fc6")
 for ui, unit_str in enumerate(unit_strs):
     unit_tup = unit_tups[ui]
-    mask = exprec_tab.unitstr == unit_str
+    mask = (exprec_tab.unitstr == unit_str) & BigGAN_msk
     RNDs = exprec_tab[mask].RND.unique()
     for RND in RNDs:
         entry = [unit_str, *unit_tup, RND, ]
@@ -137,11 +138,11 @@ for ui, unit_str in enumerate(unit_strs):
 align_tab = pd.DataFrame(align_col, columns=["unitstr", "net", "layer", "unit", "RND"]+list(methods_BigGAN))
 #%%
 align_tab.to_csv(join(summarydir, "optim_aligned_score_tab_BigGAN.csv"))
-#%%
+#%% Visualization
 import seaborn as sns
 sns.set()
 #%%
-plt.figure(figsize=[14,6])
+plt.figure(figsize=[14, 6])
 ax = sns.stripplot(x='optimizer', y='score', hue="layer", jitter=0.3,
                    order=['CholCMA', 'CholCMA_prod', 'CholCMA_class', 'HessCMA', 'HessCMA_class',
                     'HessCMA_noA', 'CholCMA_fc6', 'HessCMA500_1_fc6', 'HessCMA800_fc6',],
@@ -163,10 +164,28 @@ plt.figure(figsize=[14,6])
 ax = sns.violinplot(x="optimizer", y="score", hue="layer",
                 order=['CholCMA', 'CholCMA_prod', 'CholCMA_class', 'HessCMA', 'HessCMA_class',
                     'HessCMA_noA', 'CholCMA_fc6', 'HessCMA500_1_fc6', 'HessCMA800_fc6',],
-                    data=exprec_tab, palette="muted")
+                    data=exprec_tab, palette="muted", linewidth=0.2, width=0.9)
 ax.set_title("Comparison of Optimizer and GAN space over Units of AlexNet")
 ax.figure.show()
 ax.figure.savefig(join(summarydir, "method_cmp_violin_layer_all.jpg"))
+#%% M
+plt.figure(figsize=[14,6])
+ax = sns.violinplot(x="optimizer", y="score",
+                order=['CholCMA', 'CholCMA_prod', 'CholCMA_class', 'HessCMA', 'HessCMA_class',
+                    'HessCMA_noA', 'CholCMA_fc6', 'HessCMA500_1_fc6', 'HessCMA800_fc6',],
+                    data=exprec_tab, palette="muted", linewidth=0.2, width=0.9, bw=0.1)
+ax.set_title("Comparison of Optimizer and GAN space over Units of AlexNet (Pool all units in all layers)")
+ax.figure.show()
+ax.figure.savefig(join(summarydir, "method_cmp_violin_layer_all_merged.jpg"))
+#%%
+plt.figure(figsize=[14,6])
+ax = sns.violinplot(x="optimizer", y="score", hue="layer",
+                order=['CholCMA', 'CholCMA_prod', 'CholCMA_class', 'HessCMA', 'HessCMA_class',
+                    'HessCMA_noA', 'CholCMA_fc6', 'HessCMA500_1_fc6', 'HessCMA800_fc6',],
+                    data=exprec_tab, palette="muted", linewidth=0.2, width=0.9, bw=0.1)
+ax.set_title("Comparison of Optimizer and GAN space over Units of AlexNet (Layer by Layer)")
+ax.figure.show()
+ax.figure.savefig(join(summarydir, "method_cmp_violin_layer_all_sbw.jpg"))
 #%%
 plt.figure(figsize=[14,6])
 ax = sns.violinplot(x="layer", y="score", hue="optimizer", linewidth=0.2,
@@ -182,5 +201,37 @@ ttest_rel(align_tab.HessCMA, align_tab.HessCMA_class, nan_policy='omit')
 ttest_rel(align_tab.HessCMA, align_tab.HessCMA_noA, nan_policy='omit')
 #%% Get sample images for each method! and montage them together.
 
+unit = ("fc6", 35)
+RND = ;
+method
 
 #%% Sample trajectory for each method!
+from imageio import imread
+from PIL import Image
+rectmp = exprec_tab.iloc[1000]
+imgid = 0
+img = imread(join(rootdir, rectmp.unitstr, "lastgen%s_%05d_score%.1f.jpg"%(rectmp.optimizer, rectmp.RND, rectmp.score)))
+nrow, ncol = img.shape[0]//258, img.shape[1]//258
+ri, ci = np.unravel_index(imgid, (nrow,ncol))
+img_crop = img[2+258*ri:258+258*ri,2+258*ci:258+258*ci,:]
+Image.fromarray(img_crop).show()
+
+def read_lastgen(rec, imgid):
+    img = imread(
+        join(rootdir, rectmp.unitstr, "lastgen%s_%05d_score%.1f.jpg" % (rec.optimizer, rec.RND, rec.score)))
+    nrow, ncol = img.shape[0] // 258, img.shape[1] // 258
+    ri, ci = np.unravel_index(imgid, (nrow, ncol))
+    img_crop = img[2 + 258 * ri:258 + 258 * ri, 2 + 258 * ci:258 + 258 * ci, :]
+    Image.fromarray(img_crop).show()
+
+def read_bestimg_in_gen(rec, geni=100):
+    try:
+        img = imread(join(rootdir, rec.unitstr, "besteachgen%s_%05d.jpg"%(rec.optimizer, rec.RND, )))
+    except FileNotFoundError:
+        img = imread(join(rootdir, rec.unitstr, "besteachgen%s_%05d.jpg" % (rec.optimizer, rec.RND, rec.score)))
+
+
+    nrow, ncol = img.shape[0] // 258, img.shape[1] // 258  # 10, 10
+    ri, ci = np.unravel_index(geni, (nrow, ncol))
+    img_crop = img[2 + 258 * ri:258 + 258 * ri, 2 + 258 * ci:258 + 258 * ci, :]
+    return img_crop
