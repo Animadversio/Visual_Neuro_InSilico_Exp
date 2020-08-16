@@ -180,3 +180,7 @@ ax.figure.savefig(join(summarydir, "method_cmp_violin_method_all.jpg"))
 ttest_rel(align_tab.HessCMA, align_tab.CholCMA, nan_policy='omit')
 ttest_rel(align_tab.HessCMA, align_tab.HessCMA_class, nan_policy='omit')
 ttest_rel(align_tab.HessCMA, align_tab.HessCMA_noA, nan_policy='omit')
+#%% Get sample images for each method! and montage them together.
+
+
+#%% Sample trajectory for each method!
