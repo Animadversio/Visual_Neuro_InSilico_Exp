@@ -252,7 +252,10 @@ for unit_id in range(args.chans[0], args.chans[1]):
             mtg_exp.save(join(savedir, "besteachgen%s_%05d.jpg" % (methodlab, RND,)))
             mtg = ToPILImage()(make_grid(imgs, nrow=7))
             mtg.save(join(savedir, "lastgen%s_%05d_score%.1f.jpg" % (methodlab, RND, scores.mean())))
-            np.savez(join(savedir, "scores%s_%05d.npz" % (methodlab, RND)), generations=generations, scores_all=scores_all, codes_all=codes_all)
+            if args.G == "fc6":
+                np.savez(join(savedir, "scores%s_%05d.npz" % (methodlab, RND)), generations=generations, scores_all=scores_all, codes_fin=codes_all[-80:,:])
+            else:
+                np.savez(join(savedir, "scores%s_%05d.npz" % (methodlab, RND)), generations=generations, scores_all=scores_all, codes_all=codes_all)
             visualize_trajectory(scores_all, generations, codes_arr=codes_all, title_str=methodlab).savefig(
                 join(savedir, "traj%s_%05d_score%.1f.jpg" % (methodlab, RND, scores.mean())))
 
