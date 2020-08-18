@@ -11,7 +11,7 @@ Find important Nuisanced + Class transformations in Noise + Class space for a Bi
 # Put the backup folder and the thread to analyze here 
 #backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-07-22-10-14-22"
 # backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2020-08-06-10-18-55"#2020-08-04-09-54-25"#
-backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-08-17-09-51-16"
+backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2020-08-14-11-06-59"
 threadid = 1
 
 score_rank_avg = False  # If True, it will try to read "scores_record.mat", from the backup folder and read "scores_record"
@@ -467,6 +467,7 @@ else:  # exact_distance by line search
     plt.plot(xtick_arr)
     plt.xlabel("Eigenvalue index")
     plt.ylabel("L2 deviation from center")
+    plt.xticks(range(len(eiglist_noise)), eiglist_noise)
     plt.legend(["Neg%.2f" % d for d in targ_val[::-1]] + ["orig"] + ["Pos%.2f" % d for d in targ_val])
     plt.title("Distance Travel Along Given Eigen vector to achieve certain Image Distance")
     plt.savefig(join(summary_dir, "noise_code_deviation.jpg"))
@@ -476,6 +477,7 @@ else:  # exact_distance by line search
     plt.plot(dsim_arr)
     plt.xlabel("Eigenvalue index")
     plt.ylabel("Image Distance")
+    plt.xticks(range(len(eiglist_noise)), eiglist_noise)
     plt.legend(["Neg%.2f" % d for d in targ_val[::-1]] + ["orig"] + ["Pos%.2f" % d for d in targ_val])
     plt.title("Achieved Image Distance Along Each Axis")
     plt.savefig(join(summary_dir, "noise_space_dist_curv.jpg"))
@@ -483,6 +485,8 @@ else:  # exact_distance by line search
     # %
     plt.figure()
     plt.matshow(dsim_arr, fignum=0)
+    plt.xticks(range(len(tick_labels)), tick_labels)
+    plt.yticks(range(len(eiglist_noise)), eiglist_noise)
     plt.colorbar()
     plt.title("Perceptual distance metric along each row\nnoise space")
     plt.savefig(join(summary_dir, "noise_space_distmat.jpg"))
@@ -537,6 +541,7 @@ else:  # exact_distance by line search
     plt.plot(xtick_arr)
     plt.xlabel("Eigenvalue index")
     plt.ylabel("L2 deviation from center")
+    plt.xticks(range(len(eiglist_class)), eiglist_class)
     plt.legend(["Neg%.2f" % d for d in targ_val[::-1]] + ["orig"] + ["Pos%.2f" % d for d in targ_val])
     plt.title("Distance Travel Along Given Eigen vector to achieve certain Image Distance")
     plt.savefig(join(summary_dir, "class_code_deviation.jpg"))
@@ -546,6 +551,7 @@ else:  # exact_distance by line search
     plt.plot(dsim_arr)
     plt.xlabel("Eigenvalue index")
     plt.ylabel("Image Distance")
+    plt.xticks(range(len(eiglist_class)), eiglist_class)
     plt.legend(["Neg%.2f" % d for d in targ_val[::-1]] + ["orig"] + ["Pos%.2f" % d for d in targ_val])
     plt.title("Achieved Image Distance Along Each Axis")
     plt.savefig(join(summary_dir, "class_space_dist_curv.jpg"))
@@ -553,7 +559,10 @@ else:  # exact_distance by line search
     # %
     plt.figure()
     plt.matshow(dsim_arr, fignum=0)
+    plt.xticks(range(len(tick_labels)), tick_labels)
+    plt.yticks(range(len(eiglist_class)), eiglist_class)
     plt.colorbar()
+    plt.title("Perceptual distance metric along each row\nnoise space")
     plt.savefig(join(summary_dir, "class_space_distmat.jpg"))
     plt.show()
 #%%
