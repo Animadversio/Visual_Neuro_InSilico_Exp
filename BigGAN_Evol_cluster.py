@@ -84,6 +84,7 @@ parser.add_argument("--G", type=str, default="BigGAN", help="")
 parser.add_argument("--optim", type=str, nargs='+', default=["HessCMA", "HessCMA_class", "CholCMA", "CholCMA_prod", "CholCMA_class"], help="")
 parser.add_argument("--steps", type=int, default=100, help="")
 parser.add_argument("--reps", type=int, default=5, help="")
+parser.add_argument("--RFresize", type=bool, default=False, help="")
 args = parser.parse_args() # ["--G", "BigGAN", "--optim", "HessCMA", "CholCMA","--chans",'1','2','--steps','100',"--reps",'2']
 if args.G == "BigGAN":
     Hdata = np.load(Hdir_BigGAN)
@@ -111,6 +112,11 @@ elif args.G == "fc6":
 #%%
 # net = tv.alexnet(pretrained=True)
 scorer = TorchScorer(args.net)
+if args.RFresize:
+    from torch_net_utils import receptive_field, receptive_field_for_unit, layername_dict
+    rf_dict = receptive_field(scorer.model.features, (3, 227, 227), device="cuda")
+    layername = layername_dict[args.net]
+    layer_name_map = {layer: str(i+1) for i, layer in enumerate(layername)}
 # scorer.select_unit(("alexnet", "fc6", 2))
 # imgs = G.visualize(torch.randn(3, 256).cuda()).cpu()
 # scores = scorer.score_tsr(imgs)
@@ -198,6 +204,14 @@ def label2optimizer(methodlabel, init_code, GAN="BigGAN", ): # TODO add default 
     return optim_cust
 #%%
 method_col = args.optim
+
+#%%
+def resize_and_pad(imgs, corner, size):
+    pad_img = torch.ones_like(imgs) * 0.5
+    rsz_img = F.interpolate(imgs, size=size, align_corners=True, mode="bilinear")
+    pad_img[:,:,corner[0]:corner[0]+size[0],corner[1]:corner[1]+size[1]] = rsz_img
+    return pad_img
+
 # optimizer_col = [label2optimizer(methodlabel, np.random.randn(1, 256), GAN=args.G) for methodlabel in method_col]
 #%%
 pos_dict = {"conv5": (7, 7), "conv4": (7, 7), "conv3": (7, 7), "conv2": (14, 14), "conv1": (28, 28)}
@@ -208,7 +222,17 @@ for unit_id in range(args.chans[0], args.chans[1]):
     else:
         unit = (args.net, args.layer, unit_id, *pos_dict[args.layer])
     scorer.select_unit(unit)
-    savedir = join(rootdir, r"%s_%s_%d" % unit[:3])
+    if args.RFresize:
+        if "fc" in args.layer:
+            imgsize = (256, 256)
+            corner = (0, 0)
+        else:
+            rf_pos = receptive_field_for_unit(rf_dict, (3, 227, 227), layer_name_map[args.layer], pos_dict[args.layer])
+            imgsize = (int((rf_pos[0][1] - rf_pos[0][0]) / 227 * 256 + 1), int((rf_pos[1][1] - rf_pos[1][0]) / 227 * 256 + 1))
+            corner = (int(rf_pos[0][0] / 227 * 256 - 1), int(rf_pos[1][0] / 227 * 256 - 1))
+    # Save directory named after the unit. Add RFrsz as suffix if resized
+    savedir = join(rootdir, r"%s_%s_%d" % unit[:3]) 
+    if args.RFresize: savedir+="_RFrsz"
     os.makedirs(savedir, exist_ok=True)
     for triali in range(args.reps):
         if args.G == "BigGAN":
@@ -221,7 +245,7 @@ for unit_id in range(args.chans[0], args.chans[1]):
         optimizer_col = [label2optimizer(methodlabel, init_code, args.G) for methodlabel in method_col]
         for methodlab, optimizer in zip(method_col, optimizer_col):
             if args.G == "fc6":  methodlab += "_fc6"  # add space notation as suffix to optimizer
-
+            # One single evolution! 
             new_codes = init_code
             # new_codes = init_code + np.random.randn(25, 256) * 0.06
             scores_all = []
@@ -232,6 +256,7 @@ for unit_id in range(args.chans[0], args.chans[1]):
                 codes_all.append(new_codes.copy())
                 imgs = G.visualize_batch_np(new_codes) # B=1
                 latent_code = torch.from_numpy(np.array(new_codes)).float()
+                if args.RFresize: imgs = resize_and_pad(imgs, corner, imgsize)
                 scores = scorer.score_tsr(imgs)
                 if args.G == "BigGAN":
                     print("step %d score %.3f (%.3f) (norm %.2f noise norm %.2f)" % (
