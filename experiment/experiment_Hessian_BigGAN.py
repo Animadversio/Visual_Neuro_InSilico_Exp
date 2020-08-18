@@ -11,7 +11,7 @@ Find important Nuisanced + Class transformations in Noise + Class space for a Bi
 # Put the backup folder and the thread to analyze here 
 #backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-07-22-10-14-22"
 # backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2020-08-06-10-18-55"#2020-08-04-09-54-25"#
-backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-08-11-10-22-40"
+backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-08-17-09-51-16"
 threadid = 1
 
 score_rank_avg = False  # If True, it will try to read "scores_record.mat", from the backup folder and read "scores_record"
@@ -358,7 +358,8 @@ if not exact_distance:
     img_names = []
     scale = 5
     expon = 2.5
-    for eigi in [0, 3, 6, 9, 11, 13, 15, 17, 19, 21, 25, 40,]:#range(20):  # eigvects.shape[1] # 60, 80
+    eiglist_class = [0, 3, 6, 9, 11, 13, 15, 17, 19, 21, 25, 40,]
+    for eigi in eiglist_class:#range(20):  # eigvects.shape[1] # 60, 80
         interp_class = LExpMap(classvec.cpu().numpy(), eigvects_clas[:, -eigi-1], 11, (-scale * eigvals_clas[-eigi-1] ** (-1/expon), scale * eigvals_clas[-eigi-1] ** (-1/expon)))
         interp_codes = np.hstack((noisevec.cpu().numpy().repeat(11, axis=0), interp_class, ))
         codes_all.append(interp_codes.copy())
@@ -385,7 +386,8 @@ if not exact_distance:
     img_names = []
     scale = 6
     expon = 3
-    for eigi in [0, 1, 2, 3, 4, 6, 10, 15, 20, 40]:#range(20):#eigvects_nois.shape[1]
+    eiglist_noise = [0, 1, 2, 3, 4, 6, 10, 15, 20, 40]
+    for eigi in eiglist_noise:#range(20):#eigvects_nois.shape[1]
     #    interp_noise = LExpMap(noisevec.cpu().numpy(), eigvects_nois[:, -eigi-1], 11, (-4.5, 4.5))
         interp_noise = LExpMap(noisevec.cpu().numpy(), eigvects_nois[:, -eigi-1], 11, (-scale * eigvals_nois[-eigi-1] ** (-1/expon), scale * eigvals_nois[-eigi-1] ** (-1/expon)))
         interp_codes = np.hstack((interp_noise, classvec.cpu().numpy().repeat(11, axis=0), ))
@@ -426,8 +428,8 @@ else:  # exact_distance by line search
     img_names = []
     tick_labels = list(-targ_val[::-1]) + [0] + list(targ_val)  # -0.5, -0.4 ...  0.4, 0.5
     t0 = time()
-    eiglist = [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 20, 30, 40, 50, 60, 70, 80]
-    for eigid in tqdm(eiglist):  # range(128):  # #
+    eiglist_noise = [0, 1, 2, 3, 4, 5, 6, 8, 10, 20, 30, 40, ]#[0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 20, 30, 40, 50, 60, 70, 80]
+    for eigid in tqdm(eiglist_noise):  # range(128):  # #
         if space == "class":
             tan_vec = torch.cat((torch.zeros(1, 128).cuda(), evc_clas_tsr[:, eigid:eigid + 1].t()), dim=1)
         elif space == "noise":
@@ -447,7 +449,7 @@ else:  # exact_distance by line search
         img_names.extend("noise_eig%d_lin%.2f.jpg" % (eigid, dist) for dist in tick_labels)  # dsim_row)
         imgall = imgrow if imgall is None else torch.cat((imgall, imgrow))
 
-    mtg1 = ToPILImage()(make_grid(imgall, nrow=11).cpu())  # 20sec for 13 rows not bad
+    mtg1 = ToPILImage()(make_grid(imgall, nrow=2*len(target_distance)+1).cpu())  # 20sec for 13 rows not bad
     mtg1.show()
     mtg1.save(join(summary_dir, "noise_space_all_var.jpg"))
     npimgs = imgall.permute([2, 3, 1, 0]).numpy()
@@ -459,7 +461,7 @@ else:  # exact_distance by line search
     dsim_arr = np.array(dsim_col)
     vecs_arr = np.array(vecs_col)
     np.savez(join(summary_dir, "noise_ImDist_root_data.npz"), xtick_arr=xtick_arr, dsim_arr=dsim_arr, vecs_arr=vecs_arr,
-             targ_val=targ_val, eiglist=eiglist)
+             targ_val=targ_val, eiglist=eiglist_noise)
     # %
     plt.figure(figsize=[10, 7])
     plt.plot(xtick_arr)
@@ -494,8 +496,8 @@ else:  # exact_distance by line search
     img_names = []
     tick_labels = list(-targ_val[::-1]) + [0] + list(targ_val)
     t0 = time()
-    eiglist = [0, 1, 2, 3, 6, 9, 11, 13, 15, 17, 19, 21, 25, 40, 50, 60, 70, 80]
-    for eigid in tqdm(eiglist):  # [0,1,2,3,4,5,6,7,8,10,20,30,
+    eiglist_class = [0, 1, 2, 3, 6, 9, 13, 17, 21, 25, 30, 40, 60, ] #[0, 1, 2, 3, 6, 9, 11, 13, 15, 17, 19, 21, 25, 40, 50, 60, 70, 80]
+    for eigid in tqdm(eiglist_class):  # [0,1,2,3,4,5,6,7,8,10,20,30,
         # 40]:#
         if space == "class":
             tan_vec = torch.cat((torch.zeros(1, 128).cuda(), evc_clas_tsr[:, eigid:eigid + 1].t()), dim=1)
@@ -517,7 +519,7 @@ else:  # exact_distance by line search
         #
         imgall = imgrow if imgall is None else torch.cat((imgall, imgrow))
 
-    mtg2 = ToPILImage()(make_grid(imgall, nrow=11).cpu())  # 20sec for 13 rows not bad
+    mtg2 = ToPILImage()(make_grid(imgall, nrow=2*len(target_distance)+1).cpu())  # 20sec for 13 rows not bad
     mtg2.show()
     mtg2.save(join(summary_dir, "class_space_all_var.jpg"))
     npimgs = imgall.permute([2, 3, 1, 0]).numpy()
@@ -529,7 +531,7 @@ else:  # exact_distance by line search
     dsim_arr = np.array(dsim_col)
     vecs_arr = np.array(vecs_col)
     np.savez(join(summary_dir, "class_ImDist_root_data.npz"), xtick_arr=xtick_arr, dsim_arr=dsim_arr, vecs_arr=vecs_arr,
-             targ_val=targ_val)
+             targ_val=targ_val, eiglist=eiglist_class)
     # %
     plt.figure(figsize=[10, 7])
     plt.plot(xtick_arr)
