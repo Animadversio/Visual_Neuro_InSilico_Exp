@@ -109,8 +109,8 @@ def build_montages(image_list, image_shape, montage_shape):
     cursor_pos = [0, 0]
     start_new_img = False
     for img in image_list:
-        if type(img).__module__ != np.__name__:
-            raise Exception('input of type {} is not a valid numpy array'.format(type(img)))
+        # if type(img).__module__ != np.__name__:
+        #     raise Exception('input of type {} is not a valid numpy array'.format(type(img)))
         start_new_img = False
         img = resize(img, image_shape)
         if img.dtype in (np.uint8, np.int) and img.max() > 1.0:  # float 0,1 image
@@ -130,6 +130,22 @@ def build_montages(image_list, image_shape, montage_shape):
     if start_new_img is False:
         image_montages.append(montage_image)  # add unfinished montage
     return image_montages
+#%% Inspired from MakeGrid in torchvision.utils
+def make_grid_np(img_arr, nrow=8, padding=2, pad_value=0):
+    nmaps = img_arr.shape[3]
+    xmaps = min(nrow, nmaps)
+    ymaps = int(np.ceil(float(nmaps) / xmaps))
+    height, width = int(img_arr.shape[0] + padding), int(img_arr.shape[1] + padding)
+    grid = np.zeros((height * ymaps + padding, width * xmaps + padding, 3), dtype=img_arr.dtype)
+    grid.fill(pad_value)
+    k = 0
+    for y in range(ymaps):
+        for x in range(xmaps):
+            if k >= nmaps:
+                break
+            grid[y * height + padding: (y + 1) * height, x * width + padding: (x + 1) * width, :] = img_arr[:,:,:,k]
+            k = k + 1
+    return grid
 
 #%%
 def color_frame(img, color, pad=10):

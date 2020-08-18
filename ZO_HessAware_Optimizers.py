@@ -127,7 +127,7 @@ class CholeskyCMAES:
                 normv = v @ v.T
                 # Directly update the A Ainv instead of C itself
                 A = sqrt(1 - c1) * A + sqrt(1 - c1) / normv * (
-                            sqrt(1 + normv * c1 / (1 - c1)) - 1) * v @ pc.T  # FIXME, dimension error
+                            sqrt(1 + normv * c1 / (1 - c1)) - 1) * v.T @ pc  # FIXME, dimension error, # FIXED aug.13th
                 Ainv = 1 / sqrt(1 - c1) * Ainv - 1 / sqrt(1 - c1) / normv * (
                             1 - 1 / sqrt(1 + normv * c1 / (1 - c1))) * Ainv @ v.T @ v
                 t2 = time.time()
@@ -147,9 +147,11 @@ class CholeskyCMAES:
 #%% Optimizers that use pre-computed Hessian information
 class HessCMAES:
     """ Note this is a variant of CMAES Cholesky suitable for high dimensional optimization"""
-    def __init__(self, space_dimen, population_size=None, init_sigma=3.0, init_code=None, Aupdate_freq=10, maximize=True, random_seed=None, optim_params={}):
-        N = space_dimen
-        self.space_dimen = space_dimen # Overall control parameter
+    def __init__(self, space_dimen, population_size=None, cutoff=None, init_sigma=3.0, init_code=None, Aupdate_freq=10, maximize=True, random_seed=None, optim_params={}):
+        if cutoff is None: cutoff = space_dimen
+        N = cutoff
+        self.code_len = space_dimen
+        self.space_dimen = cutoff # Overall control parameter
         self.maximize = maximize  # if the program is to maximize or to minimize
         # Strategy parameter setting: Selection
         if population_size is None:
@@ -181,17 +183,22 @@ class HessCMAES:
         self.damps = 1 + self.cs + 2 * max(0, sqrt((mueff - 1) / (N + 1)) - 1)  # damping for sigma usually  close to 1
         print("cc=%.3f, cs=%.3f, c1=%.3f damps=%.3f" % (self.cc, self.cs, self.c1, self.damps))
         if init_code is not None:
-            self.init_x = np.asarray(init_code)
-            self.init_x.shape = (1, N)
+            self.init_x = np.asarray(init_code).reshape(1,-1)
+            # if self.init_x.shape[1] == space_dimen:
+            #     self.projection = True
+            # elif self.init_x.shape[1] == cutoff:
+            #     self.projection = False
+            # else:
+            #     raise ValueError
         else:
             self.init_x = None  # FIXED Nov. 1st
         self.xmean = zeros((1, N))
         self.xold = zeros((1, N))
         # Initialize dynamic (internal) strategy parameters and constants
-        self.pc = zeros((1, N))
+        self.pc = zeros((1, space_dimen))
         self.ps = zeros((1, N))  # evolution paths for C and sigma
-        self.A = eye(N, N)  # covariant matrix is represent by the factors A * A '=C
-        self.Ainv = eye(N, N)
+        self.A = eye(N, space_dimen, )  # covariant matrix is represent by the factors A * A '=C
+        self.Ainv = eye(space_dimen, N, )
 
         self.eigeneval = 0  # track update of B and D
         self.counteval = 0
@@ -204,12 +211,14 @@ class HessCMAES:
         self._istep = 0
 
     def set_Hessian(self, eigvals, eigvects, cutoff=None, expon=1/2.5):
-        self.cutoff = cutoff
+        cutoff = self.space_dimen
         self.eigvals = eigvals[:cutoff]
         self.eigvects = eigvects[:, :cutoff]
-        self.scaling = eigvals ** (-expon)
-        self.A = self.scaling[:,np.newaxis] * self.eigvects
-        self.Ainv = (1 / self.scaling[:,np.newaxis]) * self.eigvects
+        self.scaling = self.eigvals ** (-expon)
+        self.A = self.scaling[:,np.newaxis] * self.eigvects.T # cutoff by spacedimen
+        self.Ainv = (1 / self.scaling[np.newaxis,:]) * self.eigvects # spacedimen by cutoff
+        # if self.projection:
+        #     self.init_x = self.init_x @ self.Ainv
 
     def step_simple(self, scores, codes):
         """ Taking scores and codes to return new codes, without generating images
@@ -251,11 +260,11 @@ class HessCMAES:
             if self.counteval - self.eigeneval > self.update_crit:  # to achieve O(N ^ 2) do decomposition less frequently
                 self.eigeneval = self.counteval
                 t1 = time.time()
-                v = pc @ Ainv
+                v = pc @ Ainv # (1, spacedimen) * (spacedimen, N) -> (1,N)
                 normv = v @ v.T
                 # Directly update the A Ainv instead of C itself
                 A = sqrt(1 - c1) * A + sqrt(1 - c1) / normv * (
-                            sqrt(1 + normv * c1 / (1 - c1)) - 1) * v @ pc.T  # FIXME, dimension error
+                            sqrt(1 + normv * c1 / (1 - c1)) - 1) * v.T @ pc  # FIXME, dimension error
                 Ainv = 1 / sqrt(1 - c1) * Ainv - 1 / sqrt(1 - c1) / normv * (
                             1 - 1 / sqrt(1 + normv * c1 / (1 - c1))) * Ainv @ v.T @ v
                 t2 = time.time()
@@ -263,12 +272,11 @@ class HessCMAES:
         # Generate new sample by sampling from Gaussian distribution
         new_samples = zeros((self.lambda_, N))
         self.randz = randn(self.lambda_, N)  # save the random number for generating the code.
-        for k in range(self.lambda_):
-            new_samples[k:k + 1, :] = self.xmean + sigma * (self.randz[k, :] @ A)  # m + sig * Normal(0,C)
-            # Clever way to generate multivariate gaussian!!
-            # Stretch the guassian hyperspher with D and transform the
-            # ellipsoid by B mat linear transform between coordinates
-            self.counteval += 1
+        new_samples = self.xmean + sigma * self.randz @ A
+        self.counteval += self.lambda_
+        # Clever way to generate multivariate gaussian!!
+        # Stretch the guassian hyperspher with D and transform the
+        # ellipsoid by B mat linear transform between coordinates
         self.sigma, self.A, self.Ainv, self.ps, self.pc = sigma, A, Ainv, ps, pc,
         self._istep += 1
         return new_samples

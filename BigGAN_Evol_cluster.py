@@ -56,7 +56,7 @@ def visualize_trajectory(scores_all, generations, codes_arr=None, show=False, ti
             ax2.scatter(generations, cls_norm, s=5, color="magenta", label="class", alpha=0.2)
         elif codes_arr.shape[1] == 4096: # FC6GAN
             norms_all = np.linalg.norm(codes_arr[:, :], axis=1)
-            ax2.plot(generations, norms_all, s=5, color="magenta", label="all", alpha=0.2)
+            ax2.scatter(generations, norms_all, s=5, color="magenta", label="all", alpha=0.2)
         ax2.set_ylabel("L2 Norm", color="red", fontsize=14)
         plt.legend()
     plt.title("Optimization Trajectory of Score\n" + title_str)
@@ -66,12 +66,14 @@ def visualize_trajectory(scores_all, generations, codes_arr=None, show=False, ti
     return figh
 #%%
 if sys.platform == "linux":
-    rootdir = r"/scratch/binxu/BigGAN_Optim_Tune"
-    Hdir = r"/scratch/binxu/GAN_hessian/BigGAN/summary/H_avg_1000cls.npz"
+    rootdir = r"/scratch/binxu/BigGAN_Optim_Tune_new" # _new
+    Hdir_BigGAN = r"/scratch/binxu/GAN_hessian/BigGAN/summary/H_avg_1000cls.npz"
+    Hdir_fc6 = r"/scratch/binxu/GAN_hessian/FC6GAN/summary/Evolution_Avg_Hess.npz"
 else:
-    rootdir = r"E:\OneDrive - Washington University in St. Louis\BigGAN_Optim_Tune_tmp"
-    Hdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\BigGAN\H_avg_1000cls.npz"
-Hdata = np.load(Hdir)
+    # rootdir = r"E:\OneDrive - Washington University in St. Louis\BigGAN_Optim_Tune_tmp"
+    rootdir = r"E:\Monkey_Data\BigGAN_Optim_Tune_tmp"
+    Hdir_BigGAN = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\BigGAN\H_avg_1000cls.npz"
+    Hdir_fc6 = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\fc6GAN\Evolution_Avg_Hess.npz"
 
 from argparse import ArgumentParser
 parser = ArgumentParser()
@@ -82,8 +84,13 @@ parser.add_argument("--G", type=str, default="BigGAN", help="")
 parser.add_argument("--optim", type=str, nargs='+', default=["HessCMA", "HessCMA_class", "CholCMA", "CholCMA_prod", "CholCMA_class"], help="")
 parser.add_argument("--steps", type=int, default=100, help="")
 parser.add_argument("--reps", type=int, default=5, help="")
-args = parser.parse_args() # ???["--reps", '1',"--chans",'0','1',"--steps",'2']
-
+args = parser.parse_args() # ["--G", "BigGAN", "--optim", "HessCMA", "CholCMA","--chans",'1','2','--steps','100',"--reps",'2']
+if args.G == "BigGAN":
+    Hdata = np.load(Hdir_BigGAN)
+elif args.G == "fc6":
+    Hdata = np.load(Hdir_fc6)
+#%%
+"""with a correct cmaes or initialization, BigGAN can match FC6 activation."""
 #%% Select GAN
 from GAN_utils import BigGAN_wrapper, upconvGAN
 from insilico_Exp import TorchScorer, ExperimentEvolve
@@ -107,7 +114,7 @@ scorer = TorchScorer(args.net)
 # scorer.select_unit(("alexnet", "fc6", 2))
 # imgs = G.visualize(torch.randn(3, 256).cuda()).cpu()
 # scores = scorer.score_tsr(imgs)
-#%%
+#%% Wrap the optimizers, like concatenate 2 or concatenate one with a fixed code
 class concat_wrapper:
     def __init__(self, optim1, optim2):
         self.optim1 = optim1
@@ -135,7 +142,7 @@ class fix_param_wrapper:
             new_codes1 = self.optim.step_simple(scores, codes[:, :-self.sep])
             return np.concatenate((new_codes1, np.repeat(self.fix_code, new_codes1.shape[0], axis=0)), axis=1)
 
-#%% Optimizer from label
+#%% Optimizer from label, Use this to translate string labels to optimizer
 def label2optimizer(methodlabel, init_code, GAN="BigGAN", ): # TODO add default init_code
     if GAN == "BigGAN":
         if methodlabel == "CholCMA":
@@ -173,15 +180,35 @@ def label2optimizer(methodlabel, init_code, GAN="BigGAN", ): # TODO add default 
             optim_cust = CholeskyCMAES(space_dimen=4096, init_code=init_code, init_sigma=3,)
         elif methodlabel == "CholCMA_noA":
             optim_cust = CholeskyCMAES(space_dimen=4096, init_code=init_code, init_sigma=3, Aupdate_freq=102)
+        elif methodlabel == "HessCMA800":
+            eva = Hdata['eigv_avg'][::-1]
+            evc = Hdata['eigvect_avg'][:, ::-1]
+            optim_cust = HessCMAES(space_dimen=4096, cutoff=800, init_code=init_code, init_sigma=0.8, )
+            optim_cust.set_Hessian(eigvals=eva, eigvects=evc, cutoff=800, expon=1 / 5)
+        elif methodlabel == "HessCMA500":
+            eva = Hdata['eigv_avg'][::-1]
+            evc = Hdata['eigvect_avg'][:, ::-1]
+            optim_cust = HessCMAES(space_dimen=4096, cutoff=500, init_code=init_code, init_sigma=0.8, )
+            optim_cust.set_Hessian(eigvals=eva, eigvects=evc, cutoff=500, expon=1 / 5)
+        elif methodlabel == "HessCMA500_1":
+            eva = Hdata['eigv_avg'][::-1]
+            evc = Hdata['eigvect_avg'][:, ::-1]
+            optim_cust = HessCMAES(space_dimen=4096, cutoff=500, init_code=init_code, init_sigma=0.4, )
+            optim_cust.set_Hessian(eigvals=eva, eigvects=evc, cutoff=500, expon=1 / 4)
     return optim_cust
 #%%
 method_col = args.optim
 # optimizer_col = [label2optimizer(methodlabel, np.random.randn(1, 256), GAN=args.G) for methodlabel in method_col]
 #%%
+pos_dict = {"conv5": (7, 7), "conv4": (7, 7), "conv3": (7, 7), "conv2": (14, 14), "conv1": (28, 28)}
+
 for unit_id in range(args.chans[0], args.chans[1]):
-    unit = (args.net, args.layer, unit_id)
+    if "fc" in args.layer:
+        unit = (args.net, args.layer, unit_id)
+    else:
+        unit = (args.net, args.layer, unit_id, *pos_dict[args.layer])
     scorer.select_unit(unit)
-    savedir = join(rootdir, r"%s_%s_%d"%unit[:3])
+    savedir = join(rootdir, r"%s_%s_%d" % unit[:3])
     os.makedirs(savedir, exist_ok=True)
     for triali in range(args.reps):
         if args.G == "BigGAN":
@@ -190,9 +217,11 @@ for unit_id in range(args.chans[0], args.chans[1]):
         elif args.G == "fc6":
             init_code = np.random.randn(1, 4096)
         RND = np.random.randint(1E5)
-        np.save(join(savedir,"init_code_%05d.npy"), init_code)
+        np.save(join(savedir, "init_code_%05d.npy"%RND), init_code)
         optimizer_col = [label2optimizer(methodlabel, init_code, args.G) for methodlabel in method_col]
         for methodlab, optimizer in zip(method_col, optimizer_col):
+            if args.G == "fc6":  methodlab += "_fc6"  # add space notation as suffix to optimizer
+
             new_codes = init_code
             # new_codes = init_code + np.random.randn(25, 256) * 0.06
             scores_all = []
@@ -223,7 +252,10 @@ for unit_id in range(args.chans[0], args.chans[1]):
             mtg_exp.save(join(savedir, "besteachgen%s_%05d.jpg" % (methodlab, RND,)))
             mtg = ToPILImage()(make_grid(imgs, nrow=7))
             mtg.save(join(savedir, "lastgen%s_%05d_score%.1f.jpg" % (methodlab, RND, scores.mean())))
-            np.savez(join(savedir, "scores%s_%05d.npz" % (methodlab, RND)), generations=generations, scores_all=scores_all, codes_all=codes_all)
+            if args.G == "fc6":
+                np.savez(join(savedir, "scores%s_%05d.npz" % (methodlab, RND)), generations=generations, scores_all=scores_all, codes_fin=codes_all[-80:,:])
+            else:
+                np.savez(join(savedir, "scores%s_%05d.npz" % (methodlab, RND)), generations=generations, scores_all=scores_all, codes_all=codes_all)
             visualize_trajectory(scores_all, generations, codes_arr=codes_all, title_str=methodlab).savefig(
                 join(savedir, "traj%s_%05d_score%.1f.jpg" % (methodlab, RND, scores.mean())))
 
