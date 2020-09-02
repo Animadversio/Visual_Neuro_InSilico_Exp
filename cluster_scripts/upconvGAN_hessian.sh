@@ -38,7 +38,8 @@ param_list='--dataset pasu --method BP --idx_rg 0 100
 --dataset pasu --method BP --idx_rg 100 200  --GAN fc6_shfl_fix
 --dataset evol --method BP --idx_rg 0 100  --GAN fc6_shfl_fix
 --dataset evol --method BP --idx_rg 100 200  --GAN fc6_shfl_fix
---dataset evol --method BP --idx_rg 200 300  --GAN fc6_shfl_fix'
+--dataset evol --method BP --idx_rg 200 300  --GAN fc6_shfl_fix
+--dataset text --method BP --idx_rg 0 30  --GAN fc6'
 export csr_lim="$(echo "$param_list" | head -n $PBS_ARRAYID | tail -1)"
 
 cd ~/Visual_Neuro_InSilico_Exp/

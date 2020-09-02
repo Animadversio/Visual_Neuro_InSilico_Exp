@@ -1,3 +1,8 @@
+"""
+Python code deployable on cluster that compute the Hessian matrix around some latent codes in a given file.
+Can distribute around
+"""
+
 import sys
 sys.path.append(r"/home/binxu/PerceptualSimilarity")
 sys.path.append(r"/home/binxu/Visual_Neuro_InSilico_Exp")
@@ -21,7 +26,7 @@ from build_montages import build_montages, color_framed_montages
 from argparse import ArgumentParser
 parser = ArgumentParser(description='Computing Hessian at different part of the code space in FC6 GAN')
 parser.add_argument('--GAN', type=str, default="fc6", help='GAN model can be fc6, fc7, fc8, fc6_shuf')
-parser.add_argument('--dataset', type=str, default="pasu", help='dataset name `pasu` or `evol`')
+parser.add_argument('--dataset', type=str, default="pasu", help='dataset name `pasu` or `evol`, `text`')
 parser.add_argument('--method', type=str, default="BP", help='Method of computing Hessian can be `BP` or '
                                                              '`ForwardIter` `BackwardIter` ')
 parser.add_argument('--idx_rg', type=int, default=[0, 50], nargs="+", help='range of index of vectors to use')
@@ -69,6 +74,10 @@ elif args.dataset == 'evol':
     code_path = r"/home/binxu/evol_codes_all.npz"
     data = np.load(code_path)
     codes_all = data["code_arr"]
+elif args.dataset == 'text':
+    code_path = r"/home/binxu/texture_init_code.npz"
+    data = np.load(code_path)
+    codes_all = data["codes"]
 #%%
 hessian_method = args.method
 labeldict = {"BP": "bpfull", "BackwardIter": "bkwlancz", "ForwardIter": "frwlancz"}
