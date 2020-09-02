@@ -22,6 +22,12 @@ def LERP(code1, code2, steps, lim=(0,1)):
     slerp_code = (1 - ticks) @ code1 + ticks @ code2
     return slerp_code
 
+def LExpMap(refcode, tan_vec, steps, lim=(0,1)):
+    """ Linear Interpolation for numpy arrays"""
+    refcode, tan_vec = refcode.reshape(1,-1), tan_vec.reshape(1,-1)
+    ticks = np.linspace(lim[0], lim[1], steps, endpoint=True)[:, np.newaxis]
+    exp_code = refcode + ticks @ tan_vec
+    return exp_code
 #%% Geometric Utility Function
 def ExpMap(x, tang_vec, EPS = 1E-4):
     angle_dist = sqrt((tang_vec ** 2).sum(axis=1))  # vectorized
