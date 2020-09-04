@@ -10,6 +10,7 @@ from scipy.stats import ttest_rel, ttest_ind
 import matplotlib as mpl
 mpl.rcParams['pdf.fonttype'] = 42
 #%% Summarize difference between methods when applying to fc6
+"""Obsoltete!!"""
 rootdir = r"E:\OneDrive - Washington University in St. Louis\BigGAN_Optim_Tune"
 summarydir = join(rootdir, "summary")
 os.makedirs(summarydir, exist_ok=True)

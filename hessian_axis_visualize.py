@@ -65,11 +65,11 @@ with np.load(join(out_dir, "Texture_Avg_Hess.npz")) as data:
     # H_avg = data["H_avg"]
     eigvect_avg = data["eigvect_avg"]
     eigv_avg = data["eigval_avg"]
-
+#%%
 code_path = r"D:\Generator_DB_Windows\init_population\texture_init_code.npz"
 with np.load(code_path) as data:
     codes_all = data["codes"]
-ref_code = codes_all.mean(axis=0,keepdims=True)
+ref_code = codes_all.mean(axis=0, keepdims=True)
 #%%
 figdir = r"E:\OneDrive - Washington University in St. Louis\HessTune\HessEigVec_Text"
 vis_eigen_frame(eigvect_avg, eigv_avg, figdir=figdir, ref_code=ref_code,

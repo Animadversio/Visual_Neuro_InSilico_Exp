@@ -328,10 +328,10 @@ for eigvals, eigvecs in zip(eigvals_col, eigvecs_col):
     H_avg += eigvecs @ np.diag(eigvals) @ eigvecs.T
 H_avg /= len(eigvals_col)
 #%%
-eigval_avg, eigvect_avg = np.linalg.eigh(H_avg)
+eigv_avg, eigvect_avg = np.linalg.eigh(H_avg)
 #%%
 np.savez(join(r"E:\OneDrive - Washington University in St. Louis\HessTune\NullSpace",
-            "Texture_Avg_Hess.npz"),eigval_avg=eigval_avg, eigvect_avg=eigvect_avg, H_avg=H_avg)
+            "Texture_Avg_Hess.npz"),eigv_avg=eigv_avg, eigvect_avg=eigvect_avg, H_avg=H_avg)
 #%%
 # avg_data = np.load(join(r"E:\OneDrive - Washington University in St. Louis\HessTune\NullSpace",
 #                         "Evolution_Avg_Hess.npz"))
@@ -339,5 +339,9 @@ np.savez(join(r"E:\OneDrive - Washington University in St. Louis\HessTune\NullSp
 # eigval_avg = avg_data["eigv_avg"]
 #%%
 eigvect_avg = eigvect_avg[:,::-1]
-eigval_avg = eigval_avg[::-1]
+eigv_avg = eigv_avg[::-1]
 #%%
+# np.savez(join(r"E:\OneDrive - Washington University in St. Louis\HessTune\NullSpace",
+#             "Texture_Avg_Hess.npz"),eigv_avg=eigv_avg, eigvect_avg=eigvect_avg, H_avg=H_avg)
+#%%
+
