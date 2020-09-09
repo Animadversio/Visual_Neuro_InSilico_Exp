@@ -267,6 +267,41 @@ class BigGAN_wrapper():#nn.Module
         img_tsr = self.visualize_batch_np(codes_all_arr, truncation=truncation, B=B)
         return [img.permute([1,2,0]).numpy() for img in img_tsr]
 
+#%% StyleGAN2 wrapper for ease of usage
+class StyleGAN_wrapper():#nn.Module
+    def __init__(self, StyleGAN, ):
+        self.StyleGAN = StyleGAN
+        self.truncation = None
+        self.mean_latent = None
+
+    def select_trunc(self, truncation, mean_latent):
+        self.truncation = truncation
+        self.mean_latent = mean_latent
+
+    def visualize(self, code, scale=1.0, resolution=256, truncation=1, mean_latent=None, preset=True):
+        if preset and self.truncation is not None:
+            imgs, _ = self.StyleGAN([code], truncation=self.truncation, truncation_latent=self.mean_latent)
+        else:
+            imgs, _ = self.StyleGAN([code], truncation=truncation, truncation_latent=mean_latent)
+        imgs = F.interpolate(imgs, size=(resolution, resolution), align_corners=True, mode='bilinear')
+        return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
+
+    def visualize_batch_np(self, codes_all_arr, truncation, mean_latent, B=5):
+        csr = 0
+        img_all = None
+        imgn = codes_all_arr.shape[0]
+        while csr < imgn:
+            csr_end = min(csr + B, imgn)
+            with torch.no_grad():
+                img_list = self.visualize(torch.from_numpy(codes_all_arr[csr:csr_end, :]).float().cuda(),
+                                       truncation=truncation, mean_latent=mean_latent, preset=False).cpu()
+            img_all = img_list if img_all is None else torch.cat((img_all, img_list), dim=0)
+            csr = csr_end
+            clear_output(wait=True)
+            progress_bar(csr_end, imgn, "ploting row of page: %d of %d" % (csr_end, imgn))
+        return img_all
+
+
 # G = BigGAN_wrapper(BGAN)
 # # layer name translation
 # # "defc7.weight", "defc7.bias", "defc6.weight", "defc6.bias", "defc5.weight", "defc5.bias".
