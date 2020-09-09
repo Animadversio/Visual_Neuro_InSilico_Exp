@@ -188,6 +188,40 @@ def var_cmp_plot(var=['CMA10Adam10Final500_postAdam_all', 'CMA10Adam10Final500_p
                                      labels[0], labels[2], stats["T02"].statistic, stats["T02"].pvalue,
                                      labels[1], labels[2], stats["T12"].statistic, stats["T12"].pvalue))
     return fig, stats
+
+def var_stripe_plot(var=[], labels=[], jitter=False, cmap=cm.RdBu, titstr="", tests=[(0,1),(1,2),(2,3)], median=None):
+    """Designed to plot paired scatter plot for discrete categories. Paired t test is performed at the end and stats
+    are returned.
+    Input is a pandas dataframe and variable names in it."""
+    varn = len(var)
+    clist = [cmap(float((vari + .5) / (varn + 1))) for vari in range(varn)]
+    fig, ax = plt.subplots(figsize=[6, 8])
+
+    for vari, varnm in enumerate(var):
+        xjit = np.random.randn(len(var[vari])) * 0.1 if jitter else np.zeros(len(var[vari]))
+        plt.scatter(vari + 1 + xjit, var[vari], s=9, color=clist[vari], alpha=0.6,
+                    label=labels[vari])
+    plt.legend()
+    ticks = np.arange(varn).reshape(1, -1)
+    # plt.plot(1 + ticks.repeat(data.shape[0], 0).T + xjit[np.newaxis, :], data[var].T,
+    #          color="gray", alpha=0.1)
+    plt.xticks(np.arange(len(labels))+1, labels)
+    stats = {}
+    medstr = ""
+    if median is None: median = list(range(varn))
+    for vari in median:
+        med = np.nanmedian(var[vari])
+        stats["M%d" % vari] = med
+        medstr += "%s:%.2f " % (labels[vari], med)
+        if (vari+1)%2==0: medstr+="\n"
+    statstr = ""
+    for pair in tests:
+        t_res = ttest_ind(var[pair[0]], var[pair[1]], nan_policy='omit')
+        stats["T%d%d" % pair] = t_res
+        statstr += "%s - %s:%.1f(%.1e)\n"%(labels[pair[0]], labels[pair[1]], t_res.statistic, t_res.pvalue)
+    plt.title(
+        "%s\nMed:%s\nT: %s" % (titstr, medstr, statstr))
+    return fig, stats
 #%%
 fig, stats = var_cmp_plot(jitter=True, cmap=cm.jet, titstr="BigGAN inversion score for BigGAN rand image\n for "
                                                            "BasinCMA w/ w/out Hessian basis")
@@ -311,3 +345,12 @@ fig, stats = var_cmp_plot(var=['CMA10Adam10Final500_postAdam_all', 'CMA10Adam10F
 plt.savefig(join(summarydir, "ImageNet_major_cmp.png"))
 plt.savefig(join(summarydir, "ImageNet_major_cmp.pdf"))
 plt.show()
+#%%
+fig, stats = var_stripe_plot(var=[format_tab['CMA10Adam10Final500_postAdam_all'], format_tab[
+    'CMA10Adam10Final500_postAdam_none'],
+               INformat_tab['CMA10Adam10Final500_postAdam_all'], INformat_tab['CMA10Adam10Final500_postAdam_none'],],
+                labels=["GAN_Basin_All", "GAN_Basin_None", "Nat_Basin_All", "Nat_Basin_None"] , jitter=True,
+              cmap=cm.jet, tests=[(0,1),(2,3),(0,2),(1,3)],titstr="Fitting Score Comparison Across Spaces (BigGAN and ImageNet)")
+plt.savefig(join(summarydir, "BigGAN_ImageNet_cmp.png"))
+plt.savefig(join(summarydir, "BigGAN_ImageNet_cmp.pdf"))
+fig.show()
