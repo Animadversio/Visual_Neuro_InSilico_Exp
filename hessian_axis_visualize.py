@@ -21,7 +21,7 @@ figdir = r"E:\OneDrive - Washington University in St. Louis\HessTune\HessEigVec"
 from PIL import Image
 from skimage.io import imsave
 # go through spectrum in batch, and plot B number of axis in a row
-def vis_eigen_frame(eigvect_avg, eigv_avg, ref_code=None, figdir=figdir, page_B=50,
+def vis_eigen_frame(eigvect_avg, eigv_avg, ref_code=None, figdir=figdir, page_B=50, G=G,
                     eig_rng=(0, 4096), eiglist=None, maxdist=120, rown=7, transpose=True):
     if ref_code is None:
         ref_code = np.zeros((1, 4096))
@@ -46,6 +46,30 @@ def vis_eigen_frame(eigvect_avg, eigv_avg, ref_code=None, figdir=figdir, page_B=
             img_page = []
             print("Finish printing page eigen %d-%d (%.1fs)"%(eiglist[csr], eigi, time()-t0))
             csr = idx
+#%%
+def vis_eigen_action(eigvec, ref_codes, figdir=figdir, page_B=50, G=G,
+                    maxdist=120, rown=7, transpose=True, RND=None, namestr=""):
+    if ref_codes is None:
+        ref_codes = np.zeros((1, 4096))
+    reflist = list(ref_codes)
+    t0 = time()
+    csr = 0
+    img_page = []
+    for idx, ref_code in enumerate(reflist):  # range(eig_rng[0]+1, eig_rng[1]+1):
+        interp_codes = LExpMap(ref_code, eigvec, rown, (-maxdist, maxdist))
+        img_list = G.render(interp_codes)
+        img_page.extend(img_list)
+        if (idx == csr + page_B - 1) or idx + 1 == len(reflist):
+            mtg = build_montages(img_page, (256, 256), (rown, idx - csr + 1), transpose=transpose)[0]
+            # Image.fromarray(np.uint8(mtg * 255.0)).show()
+            # imsave(join(figdir, "%d-%d.jpg" % (csr, eigi)), np.uint8(mtg * 255.0))
+            if RND is None: RND = np.random.randint(10000)
+            imsave(join(figdir, "%s_ref_%d-%d_%d.jpg" %
+                        (namestr, csr, idx, RND)), np.uint8(mtg * 255.0))
+            img_page = []
+            print("Finish printing page eigen %d-%d (%.1fs)"%(csr, idx, time()-t0))
+            csr = idx + 1
+    return mtg
 # imgs = visualize_np(G, interp_codes)
 #%% Average Hessian for the Pasupathy Patches
 out_dir = r"E:\OneDrive - Washington University in St. Louis\ref_img_fit\Pasupathy\Nullspace"
@@ -84,3 +108,54 @@ figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\fc6G
 vis_eigen_frame(eigvect_avg, eigv_avg, ref_code=None, figdir=figdir, page_B=50,
                 eiglist=[0,1,2,5,10,20,30,50,100,200,300,400,600,800,1000,2000,3000,4000], maxdist=240, rown=5,
                 transpose=False)
+#%%
+vis_eigen_action(eigvect_avg[:, -5], np.random.randn(10,4096), figdir=figdir, page_B=50,
+                    maxdist=20, rown=5, transpose=False)
+#%%
+vis_eigen_action(eigvect_avg[:, -5], None, figdir=figdir, page_B=50,
+                    maxdist=20, rown=5, transpose=False)
+
+#%%
+# from GAN_utils import BigGAN_wrapper
+from pytorch_pretrained_biggan import BigGAN
+from torchvision.transforms import ToPILImage
+BGAN = BigGAN.from_pretrained("biggan-deep-256")
+BGAN.cuda().eval()
+for param in BGAN.parameters():
+    param.requires_grad_(False)
+BG = BigGAN_wrapper(BGAN)
+EmbedMat = BG.BigGAN.embeddings.weight.cpu().numpy()
+#%%
+figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\BigGAN"
+Hessdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\BigGAN"
+data = np.load(join(Hessdir, "H_avg_1000cls.npz"))
+eva_BG = data['eigvals_avg']
+evc_BG = data['eigvects_avg']
+evc_nois = data['eigvects_nois_avg']
+evc_clas = data['eigvects_clas_avg']
+#%%
+imgs = BG.render(np.random.randn(1, 256)*0.06)
+#%%
+eigi = 5
+refvecs = np.vstack((EmbedMat[:,np.random.randint(0, 1000, 10)], 0.5*np.random.randn(128,10))).T
+vis_eigen_action(evc_BG[:, -eigi], refvecs, figdir=figdir, page_B=50, G=BG,
+                 maxdist=0.5, rown=5, transpose=False, namestr="eig%d"%eigi)
+#%% Effect of eigen vectors within the noise space
+eigi = 3
+tanvec = np.hstack((evc_nois[:, -eigi], np.zeros(128)))
+refvecs = np.vstack((EmbedMat[:,np.random.randint(0, 1000, 10)], 0.5*np.random.randn(128,10))).T
+vis_eigen_action(tanvec, refvecs, figdir=figdir, page_B=50, G=BG,
+                 maxdist=2, rown=5, transpose=False, namestr="eig_nois%d"%eigi)
+#%%
+eigi = 3
+tanvec = np.hstack((np.zeros(128), evc_clas[:, -eigi]))
+refvecs = np.vstack((EmbedMat[:,np.random.randint(0, 1000, 10)], 0.5*np.random.randn(128,10))).T
+vis_eigen_action(tanvec, refvecs, figdir=figdir, page_B=50, G=BG,
+                 maxdist=0.4, rown=5, transpose=False, namestr="eig_clas%d"%eigi)
+#%%
+eigi = 120
+tanvec = np.hstack((np.zeros(128), evc_clas[:, -eigi]))
+refvecs = np.vstack((EmbedMat[:, np.random.randint(0, 1000, 10)], 0.5*np.random.randn(128,10))).T
+vis_eigen_action(tanvec, refvecs, figdir=figdir, page_B=50, G=BG,
+                 maxdist=2, rown=5, transpose=False, namestr="eig_clas%d"%eigi)
+
