@@ -263,6 +263,9 @@ class BigGAN_wrapper():#nn.Module
                 progress_bar(csr_end, imgn, "ploting row of page: %d of %d" % (csr_end, imgn))
         return img_all
 
+    def render(self, codes_all_arr, truncation=0.7, B=15):
+        return self.visualize_batch_np(codes_all_arr, truncation=truncation, B=B)
+
 # G = BigGAN_wrapper(BGAN)
 # # layer name translation
 # # "defc7.weight", "defc7.bias", "defc6.weight", "defc6.bias", "defc5.weight", "defc5.bias".

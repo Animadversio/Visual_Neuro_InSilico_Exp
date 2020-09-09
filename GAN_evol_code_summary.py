@@ -159,3 +159,96 @@ plt.legend()
 plt.savefig(join(summarydir, "eigvect_proj_errorbar.png"))
 plt.savefig(join(summarydir, "eigvect_proj_errorbar.pdf"))
 plt.show()
+#%%
+"""Apply this analysis on the BigGAN"""
+#%%
+bganidx = (exprec_tab.GAN=="BigGAN").nonzero()[0]
+BGAN_exprec_tab = exprec_tab.iloc[bganidx].copy()
+BGAN_exprec_tab = BGAN_exprec_tab.reset_index()
+#%%
+T0 = time()
+bgancode_col = []
+bganscore_col = []
+for rowi in tqdm(bganidx):
+    # rowi = bganidx[i]
+    data = np.load(join(rootdir, exprec_tab.npzname[rowi]))
+    mask = (data["generations"] == data["generations"].max())
+    meanscore = np.mean(data['scores_all'][mask])
+    bganscore_col.append(meanscore)
+    if 'codes_all' in data:
+        meancode = np.mean(data['codes_all'][mask, :], axis=0)
+        bgancode_col.append(meancode)
+    elif 'codes_fin' in data:
+        meancode = np.mean(data['codes_fin'][-40:, :], axis=0)
+        bgancode_col.append(meancode)
+print("%.1f sec"%(time()-T0))
+
+bganscores = np.array(bganscore_col)
+bgancodes = np.array(bgancode_col)
+np.savez(join(summarydir, "BigGAN_evol_mean_code.npz"), bgancodes=bgancodes, bganscores=bganscores, rowidx=bganidx,
+         exptab=BGAN_exprec_tab)
+#%%
+
+Hessdir2 = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\BigGAN"
+data = np.load(join(Hessdir2, "H_avg_1000cls.npz"))#,eigv_avg=eigv_avg, eigvect_avg=eigvect_avg, H_avg=H_avg)
+eigval_B = data["eigvals_avg"].copy()
+eigvec_B = data["eigvects_avg"].copy()
+# eigval = eigval[::-1]
+# eigvec = eigvec[:, ::-1]
+#%%
+shufcodes_B = np.array([bgancodes[i, np.random.permutation(256)].copy() for i in range(bgancodes.shape[0])])
+shufcodes_sep_B = np.array([bgancodes[i, np.hstack((np.random.permutation(128), 128+np.random.permutation(
+    128)))].copy()  for i in range(bgancodes.shape[0])])
+#%%
+CMArows = (BGAN_exprec_tab.optimizer == "CholCMA").nonzero()[0]
+#%%
+evol_proj_cc_B = bgancodes[CMArows,:] @ eigvec_B
+shuf_proj_cc_B = shufcodes_B[CMArows,:] @ eigvec_B
+shuf_proj_cc_sep_B = shufcodes_sep_B[CMArows,:] @ eigvec_B
+evol_proj_cc_B = np.flip(evol_proj_cc_B, axis=1)
+shuf_proj_cc_B = np.flip(shuf_proj_cc_B, axis=1)
+shuf_proj_cc_sep_B = np.flip(shuf_proj_cc_sep_B, axis=1)
+evol_proj_men_B = np.mean(evol_proj_cc_B,0)
+evol_proj_sem_B = np.std(evol_proj_cc_B,0) / np.sqrt(evol_proj_cc_B.shape[0])
+shuf_proj_men_B = np.mean(shuf_proj_cc_B,0)
+shuf_proj_sem_B = np.std(shuf_proj_cc_B,0) / np.sqrt(evol_proj_cc_B.shape[0])
+shuf_proj_men_sep_B = np.mean(shuf_proj_cc_sep_B,0)
+shuf_proj_sem_sep_B = np.std(shuf_proj_cc_sep_B,0) / np.sqrt(evol_proj_cc_B.shape[0])
+#%%
+plt.figure()
+plt.errorbar(range(256), evol_proj_men_B,evol_proj_sem_B, alpha=0.4, fmt='.', label="evolved coef")
+plt.errorbar(range(256), shuf_proj_men_B,shuf_proj_sem_B, alpha=0.4, fmt='.', label="shuffle coef")
+plt.errorbar(range(256), shuf_proj_men_sep_B,shuf_proj_sem_sep_B, alpha=0.4, fmt='.', label="shuffle coef (separate)")
+plt.title("Comparison of Projection Coefficients on Hessian Eigen Vectors\n Point=Mean, Errorbar=SEM")
+plt.ylabel("Project Coefficient")
+plt.legend()
+plt.savefig(join(summarydir, "BigGAN_eigvect_proj_errorbar.png"))
+plt.savefig(join(summarydir, "BigGAN_eigvect_proj_errorbar.pdf"))
+plt.show()
+#%%
+CMArows = (BGAN_exprec_tab.optimizer == "CholCMA_class").nonzero()[0]
+#%%
+evol_proj_cc_B = bgancodes[CMArows,:] @ eigvec_B
+shuf_proj_cc_B = shufcodes_B[CMArows,:] @ eigvec_B
+shuf_proj_cc_sep_B = shufcodes_sep_B[CMArows,:] @ eigvec_B
+evol_proj_cc_B = np.flip(evol_proj_cc_B, axis=1)
+shuf_proj_cc_B = np.flip(shuf_proj_cc_B, axis=1)
+shuf_proj_cc_sep_B = np.flip(shuf_proj_cc_sep_B, axis=1)
+evol_proj_men_B = np.mean(evol_proj_cc_B,0)
+evol_proj_sem_B = np.std(evol_proj_cc_B,0) / np.sqrt(evol_proj_cc_B.shape[0])
+shuf_proj_men_B = np.mean(shuf_proj_cc_B,0)
+shuf_proj_sem_B = np.std(shuf_proj_cc_B,0) / np.sqrt(evol_proj_cc_B.shape[0])
+shuf_proj_men_sep_B = np.mean(shuf_proj_cc_sep_B,0)
+shuf_proj_sem_sep_B = np.std(shuf_proj_cc_sep_B,0) / np.sqrt(evol_proj_cc_B.shape[0])
+#%%
+plt.figure()
+plt.errorbar(range(256), evol_proj_men_B,evol_proj_sem_B, alpha=0.4, fmt='.', label="evolved coef")
+plt.errorbar(range(256), shuf_proj_men_B,shuf_proj_sem_B, alpha=0.4, fmt='.', label="shuffle coef")
+plt.errorbar(range(256), shuf_proj_men_sep_B,shuf_proj_sem_sep_B, alpha=0.4, fmt='.', label="shuffle coef (separate)")
+plt.title("Comparison of Projection Coefficients on Hessian Eigen Vectors\n Point=Mean, Errorbar=SEM")
+plt.ylabel("Project Coefficient")
+plt.legend()
+plt.savefig(join(summarydir, "BigGAN_class_eigvect_proj_errorbar.png"))
+plt.savefig(join(summarydir, "BigGAN_class_eigvect_proj_errorbar.pdf"))
+plt.show()
+
