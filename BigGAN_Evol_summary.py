@@ -94,11 +94,13 @@ plt.show()
 """
 Load the cluster in silico exp results (newest ones). 
 """
-
 rootdir = r"E:\Cluster_Backup\BigGAN_Optim_Tune_new"
 summarydir = join(rootdir, "summary")
 os.makedirs(summarydir, exist_ok=True)
 # savedir = r"E:\OneDrive - Washington University in St. Louis\BigGAN_Optim_Tune\%s_%s_%d"
+#%%
+exprec_tab = pd.read_csv(join(summarydir, "optim_raw_score_tab.csv"))
+align_tab = pd.read_csv(join(summarydir, "optim_aligned_score_tab_BigGAN.csv"))
 #%% Do a survey of all the exp done (Full version, not Receptive Field Matched)
 unit_strs = os.listdir(rootdir)
 unit_strs = [unit_str for unit_str in unit_strs if "alexnet" in unit_str]  # only keep the full size evolution.
@@ -168,6 +170,11 @@ for ui, unit_str in enumerate(unit_strs):
         align_col_fc6.append(tuple(entry))
 align_tab_fc6 = pd.DataFrame(align_col_fc6, columns=["unitstr", "net", "layer", "unit", 'suffix', "RND"]+list(methods_fc6))
 align_tab_fc6.to_csv(join(summarydir, "optim_aligned_score_tab_fc6.csv"))
+#%%
+#%% Read predefined csv
+exprec_tab = pd.read_csv(join(summarydir, "optim_raw_score_tab.csv"))
+align_tab = pd.read_csv(join(summarydir, "optim_aligned_score_tab_BigGAN.csv"))
+align_tab_fc6 = pd.read_csv(join(summarydir, "optim_aligned_score_tab_fc6.csv"))
 #%% Visualization
 import seaborn as sns
 sns.set()
@@ -570,4 +577,40 @@ axt.figure.savefig(join(traj_dir, "All_traj_cmb.pdf"))
 axt2.figure.savefig(join(traj_dir, "All_traj_cmb_normalize.pdf"))
 # plt.show()
 #%%
-data["codes_fin"][0,:]
+# %%
+from matplotlib import cm
+def var_cmp_plot(var=['CholCMA', 'HessCMA', 'HessCMA_noA'], data=align_tab,
+                    labels=['CholCMA', 'HessCMA', 'HessCMA_noA'], cmap=cm.RdBu, titstr="", msk=None, jitter=False):
+    varn = len(var)
+    clist = [cmap(float((vari + .5) / (varn + 1))) for vari in range(varn)]
+    fig, ax = plt.subplots(figsize=[6, 8])
+    if not jitter:
+        xjit = np.zeros(data.shape[0])
+    else:
+        xjit = np.random.randn(data.shape[0]) * 0.1
+    for vari, varnm in enumerate(var):
+        plt.scatter(vari + 1 + xjit, data[varnm], s=9, color=clist[vari], alpha=0.6,
+                    label=labels[vari])
+    plt.legend()
+    intvs = np.arange(varn).reshape(1, -1)
+    plt.plot(1 + intvs.repeat(data.shape[0], 0).T + xjit[np.newaxis, :], data[var].T,
+             color="gray", alpha=0.1)
+    plt.xticks(np.arange(1, 4), labels)
+    stats = {}
+    stats["T01"] = ttest_rel(data[var[0]], data[var[1]], nan_policy='omit')
+    stats["T02"] = ttest_rel(data[var[0]], data[var[2]], nan_policy='omit')
+    stats["T12"] = ttest_rel(data[var[1]], data[var[2]], nan_policy='omit')
+    plt.title(
+        "%s\nT: %s - %s:%.1f(%.1e)\n%s - %s:%.1f(%.1e)\n"
+        "%s - %s:%.1f(%.1e)" % (titstr, labels[0], labels[1], stats["T01"].statistic, stats["T01"].pvalue,
+                                     labels[0], labels[2], stats["T02"].statistic, stats["T02"].pvalue,
+                                     labels[1], labels[2], stats["T12"].statistic, stats["T12"].pvalue))
+    return fig, stats
+#%%
+summarydir2 = "E:\OneDrive - Washington University in St. Louis\Hessian_summary\App\ActivMaxim"
+fig, stats = var_cmp_plot(jitter=True, titstr="Compare CholCMA to CMA-Hessian in ActMax AlexNet")
+fig.savefig(join(summarydir, "BigGAN_CMA-Hess_cmp.png"))
+fig.savefig(join(summarydir, "BigGAN_CMA-Hess_cmp.pdf"))
+fig.savefig(join(summarydir2, "BigGAN_CMA-Hess_cmp.png"))
+fig.savefig(join(summarydir2, "BigGAN_CMA-Hess_cmp.pdf"))
+plt.show()
