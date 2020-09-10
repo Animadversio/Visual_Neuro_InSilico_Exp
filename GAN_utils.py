@@ -237,7 +237,7 @@ def visualize_np(G, code, layout=None, show=True):
     return imgs
 
 #%% BigGAN wrapper for ease of usage
-def load_BigGAN(version="biggan-deep-256"):
+def loadBigGAN(version="biggan-deep-256"):
     from pytorch_pretrained_biggan import BigGAN, truncated_noise_sample, BigGANConfig
     if platform == "linux":
         cache_path = "/scratch/binxu/torch/"
@@ -246,6 +246,10 @@ def load_BigGAN(version="biggan-deep-256"):
         BGAN.load_state_dict(torch.load(join(cache_path, "%s-pytorch_model.bin" % version)))
     else:
         BGAN = BigGAN.from_pretrained(version)
+    for param in BGAN.parameters():
+        param.requires_grad_(False)
+    # embed_mat = BGAN.embeddings.parameters().__next__().data
+    BGAN.cuda()
     return BGAN
 
 class BigGAN_wrapper():#nn.Module

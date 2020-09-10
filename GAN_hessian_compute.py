@@ -1,3 +1,4 @@
+
 import numpy as np
 from hessian_eigenthings.lanczos import lanczos
 from GAN_hvp_operator import GANForwardMetricHVPOperator, GANHVPOperator, get_full_hessian
@@ -42,17 +43,21 @@ def hessian_compute(G, feat, ImDist, hessian_method="BackwardIter", cutoff=None,
         raise NotImplementedError
     return eigvals, eigvects, H
 
+def layer_hessian_compute(feat, net, ):
+    pass
+
 if __name__ == "__main__":
+    #%%
     import sys
     from time import time
     import torch
-    from GAN_utils import loadBigBiGAN, loadStyleGAN, BigBiGAN_wrapper, StyleGAN_wrapper
+    from GAN_utils import loadBigBiGAN, loadStyleGAN, BigBiGAN_wrapper, StyleGAN_wrapper, loadBigGAN, BigGAN_wrapper
     sys.path.append(r"/home/binxu/PerceptualSimilarity")
     sys.path.append(r"D:\Github\PerceptualSimilarity")
     sys.path.append(r"E:\Github_Projects\PerceptualSimilarity")
     import models
     ImDist = models.PerceptualLoss(model='net-lin', net='squeeze', use_gpu=1, gpu_ids=[0])
-
+    #%% BigBiGAN
     BBGAN = loadBigBiGAN()
     G = BigBiGAN_wrapper(BBGAN)
     noisevect = torch.randn(1, 120)
@@ -67,17 +72,33 @@ if __name__ == "__main__":
     T0 = time()
     hessian_compute(G, feat, ImDist, hessian_method="BP")
     print("%.2f sec" % (time() - T0))  # 16.22 sec
-    #%%
+    #%% StyleGAN2
     SGAN = loadStyleGAN("ffhq-512-avg-tpurun1.pt", size=512)
     G = StyleGAN_wrapper(SGAN)
     feat = 0.5 * torch.randn(1, 512).detach().clone().cuda()
     EPS = 1E-2
     T0 = time()
     hessian_compute(G, feat, ImDist, hessian_method="BackwardIter")
-    print("%.2f sec" % (time() - T0))  # 16.22 sec
+    print("%.2f sec" % (time() - T0))  # 2132.44 sec
     T0 = time()
     hessian_compute(G, feat, ImDist, hessian_method="ForwardIter")
-    print("%.2f sec" % (time() - T0))  # 16.22 sec
+    print("%.2f sec" % (time() - T0))  # 325.83 sec
     T0 = time()
     hessian_compute(G, feat, ImDist, hessian_method="BP")
-    print("%.2f sec" % (time() - T0))  # 16.22 sec
+    print("%.2f sec" % (time() - T0))  # 2135.00 sec
+    #%% BigGAN
+    from GAN_utils import loadBigGAN, BigGAN_wrapper
+    BGAN = loadBigGAN()
+    BGAN.cuda().eval()
+    G = BigGAN_wrapper(BGAN)
+    feat = 0.05 * torch.randn(1, 256).detach().clone().cuda()
+    EPS = 1E-2
+    T0 = time()
+    eva_BI, evc_BI, H_BI = hessian_compute(G, feat, ImDist, hessian_method="BackwardIter")
+    print("%.2f sec" % (time() - T0))  # 2132.44 sec
+    T0 = time()
+    eva_FI, evc_FI, H_FI = hessian_compute(G, feat, ImDist, hessian_method="ForwardIter")
+    print("%.2f sec" % (time() - T0))  # 325.83 sec
+    T0 = time()
+    eva_BP, evc_BP, H_BP = hessian_compute(G, feat, ImDist, hessian_method="BP")
+    print("%.2f sec" % (time() - T0))  # 2135.00 sec
