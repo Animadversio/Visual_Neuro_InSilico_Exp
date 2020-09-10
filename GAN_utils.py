@@ -176,8 +176,6 @@ class upconvGAN(nn.Module):
             self.G.load_state_dict(SDnew)
         # if shuffled:
 
-
-
     def forward(self, x):
         return self.G(x)[:, [2, 1, 0], :, :]
 
@@ -208,7 +206,7 @@ class upconvGAN(nn.Module):
                 img_all = imgs if img_all is None else torch.cat((img_all, imgs), dim=0)
                 csr = csr_end
         return img_all
-#%% Very useful function
+#%% Very useful function to visualize output
 import numpy as np
 from build_montages import build_montages, color_framed_montages
 from PIL import Image
@@ -268,6 +266,44 @@ class BigGAN_wrapper():#nn.Module
         return [img.permute([1,2,0]).numpy() for img in img_tsr]
 
 #%% StyleGAN2 wrapper for ease of usage
+import sys
+if platform == "linux":  # CHPC cluster
+    StyleGAN_root = r"/home/binxu/stylegan2-pytorch"
+    ckpt_root = "/scratch/binxu/torch/StyleGANckpt"
+else:
+    if os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':  # PonceLab-Desktop 3
+        StyleGAN_root = r"D:\Github\stylegan2-pytorch"
+        ckpt_root = join(StyleGAN_root, 'checkpoint')
+    elif os.environ['COMPUTERNAME'] == 'DESKTOP-MENSD6S':  # Home_WorkStation
+        StyleGAN_root = r"E:\DL_Projects\Vision\stylegan2-pytorch"
+        ckpt_root = join(StyleGAN_root, 'checkpoint')
+    # elif os.environ['COMPUTERNAME'] == 'PONCELAB-ML2C':  # PonceLab-Desktop Victoria
+    #     homedir = r"C:\Users\ponce\Documents\Generator_DB_Windows"
+    #     netsdir = os.path.join(homedir, 'nets')
+    # elif os.environ['COMPUTERNAME'] == 'PONCELAB-ML2B':
+    #     homedir = r"C:\Users\Ponce lab\Documents\Python\Generator_DB_Windows"
+    #     netsdir = os.path.join(homedir, 'nets')
+    # elif os.environ['COMPUTERNAME'] == 'PONCELAB-ML2A':
+    #     homedir = r"C:\Users\Poncelab-ML2a\Documents\Python\Generator_DB_Windows"
+    #     netsdir = os.path.join(homedir, 'nets')
+    else:
+        StyleGAN_root = r"E:\DL_Projects\Vision\stylegan2-pytorch"
+        ckpt_root = join(StyleGAN_root, 'checkpoint')
+sys.path.append(StyleGAN_root)
+from model import Generator
+def loadStyleGAN(ckpt_name, channel_multiplier=2, n_mlp=8, latent=512, size=256, device="cpu"):
+    ckpt_path = join(ckpt_root, ckpt_name)
+    g_ema = Generator(
+        size, latent, n_mlp, channel_multiplier=channel_multiplier
+    ).to(device)
+    checkpoint = torch.load(ckpt_path)
+    g_ema.load_state_dict(checkpoint['g_ema'])
+    g_ema.eval()
+    for param in g_ema.parameters():
+        param.requires_grad_(False)
+    g_ema.cuda()
+    return g_ema
+
 class StyleGAN_wrapper():#nn.Module
     def __init__(self, StyleGAN, ):
         self.StyleGAN = StyleGAN
