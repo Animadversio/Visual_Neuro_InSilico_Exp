@@ -84,9 +84,8 @@ np.savez(join(FC6figdir, "spectra_col_evol.npz"), eigval_col=eigval_col, )
 
 #%% StyleGAN2
 SGdir = r"E:\Cluster_Backup\StyleGAN2"
-Hdir = "E:\Cluster_Backup\StyleGAN2\stylegan2-cat-config-f"
-figdir = "E:\OneDrive - Washington University in St. Louis\Hessian_summary\StyleGAN2"
-#%%
+SGfigdir = "E:\OneDrive - Washington University in St. Louis\Hessian_summary\StyleGAN2"
+#%
 npzpaths = glob(join(Hdir, "*.npz"))
 npzfns = [path.split("\\")[-1] for path in npzpaths]
 eigval_col = []
@@ -95,3 +94,22 @@ for fn, path in zip(npzfns, npzpaths):
     evas = data["eigvals"]
     eigval_col.append(evas)
 eigval_col = np.array(eigval_col)
+#%% Synopsis
+rootdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary"
+spaceD = [4096, 256, 120, 512, 512]
+GANlist = ["FC6", "BigGAN", "BigBiGAN", "StyleGAN-face", "StyleGAN-cat"]
+fnlist = ["FC6GAN\\spectra_col_evol.npz",
+          "BigGAN\\spectra_col.npz",
+          "BigBiGAN\\spectra_col_FFHQ512.npz",
+          "StyleGAN2\\spectra_col_stylegan2-cat-config-f.npz"]
+plt.figure()
+for i, GAN in enumerate(GANlist):
+    with np.load(join(rootdir, fnlist[i])) as data:
+        eigval_col = data["eigval_col"]
+    eva_mean = eigval_col.mean(axis=0)
+    eva_std = eigval_col.std(axis=0)
+    eva_lim = np.percentile(eigval_col, [5, 95], axis=0)
+
+    plt.plot(np.arange(spaceD[i])/spaceD[i], eva_mean / eva_mean.max(), alpha=0.7)  # , eigval_arr.std(axis=0)
+    plt.fill_between(np.arange(spaceD[i])/spaceD[i], eva_lim[0, :] / eva_mean.max(), eva_lim[1, :] / eva_mean.max(), alpha=0.5, label=GAN)
+plt.show()
