@@ -40,7 +40,8 @@ sys.path.append(r"D:\Github\BigGANsAreWatching")
 sys.path.append(r"E:\Github_Projects\BigGANsAreWatching")
 from BigGAN.gan_load import UnconditionalBigGAN, make_big_gan
 from BigGAN.model.BigGAN import Generator
-BBGAN = make_big_gan(r"E:\Github_Projects\BigGANsAreWatching\BigGAN\weights\BigBiGAN_x1.pth", resolution=128)
+# BBGAN = make_big_gan(r"E:\Github_Projects\BigGANsAreWatching\BigGAN\weights\BigBiGAN_x1.pth", resolution=128)
+BBGAN = make_big_gan(r"D:\Github\BigGANsAreWatching\BigGAN\weights\BigBiGAN_x1.pth", resolution=128)
 for param in BBGAN.parameters():
     param.requires_grad_(False)
 BBGAN.eval()
@@ -76,9 +77,10 @@ for triali in range(20):
         imgs1 = G.visualize(ref_vect)
         imgs2 = G.visualize(mov_vect)
         dsim = ImDist(imgs1, imgs2)
-        H = get_full_hessian(dsim, mov_vect)  # 77sec to compute a Hessian.
-        # ToPILImage()(imgs[0,:,:,:].cpu()).show()
+        T0 = time()
+        H = get_full_hessian(dsim, mov_vect)  # 14.9 sec to compute a Hessian.
         eigvals, eigvects = np.linalg.eigh(H)
+        print("Spent time %.1f sec" % (time() - T00))
         plt.figure(figsize=[7,5])
         plt.subplot(1, 2, 1)
         plt.plot(eigvals)
@@ -114,8 +116,31 @@ for triali in range(20):
         PILimg = ToPILImage()(imggrid)#.show()
         PILimg.save(join(savedir, "eigvect_sph_norm%d_%03d.jpg" % (trunc, RND)))
         print("Spent time %.1f sec"%(time() - T00))
-
-#%%
+#%% Method comparison,
+from GAN_hvp_operator import GANForwardMetricHVPOperator, GANHVPOperator, get_full_hessian
+"""Comparising BP, forward and backward"""
+T0 = time()
+if hessian_method == "BackwardIter":
+    metricHVP = GANHVPOperator(G, feat, model_squ)
+    eigvals, eigvects = lanczos(metricHVP, num_eigenthings=800, use_gpu=True)  # takes 113 sec on K20x cluster,
+    eigvects = eigvects.T  # note the output shape from lanczos is different from that of linalg.eigh, row is eigvec
+    # the spectrum has a close correspondance with the full Hessian. since they use the same graph.
+elif hessian_method == "ForwardIter":
+    metricHVP = GANForwardMetricHVPOperator(G, feat, model_squ, preprocess=lambda img: img, EPS=args.EPS)  # 1E-3,)
+    eigvals, eigvects = lanczos(metricHVP, num_eigenthings=800, use_gpu=True, max_steps=200, tol=1e-6, )
+    eigvects = eigvects.T
+    # EPS=1E-2, max_steps=20 takes 84 sec on K20x cluster.
+    # The hessian is not so close
+elif hessian_method == "BP":  # 240 sec on cluster
+    ref_vect = feat.detach().clone().float().cuda()
+    mov_vect = ref_vect.float().detach().clone().requires_grad_(True)
+    imgs1 = G.visualize(ref_vect)
+    imgs2 = G.visualize(mov_vect)
+    dsim = model_squ(imgs1, imgs2)
+    H = get_full_hessian(dsim, mov_vect)  # 122 sec for a 256d hessian, # 240 sec on cluster for 4096d hessian
+    eigvals, eigvects = np.linalg.eigh(H)
+print("%.2f sec"%time() - T0)
+#%% Analyze Results
 from glob import glob
 import re
 import os

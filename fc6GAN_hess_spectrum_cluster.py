@@ -1,6 +1,7 @@
 """
 Python code deployable on cluster that compute the Hessian matrix around some latent codes in a given file.
 Can distribute around
+3 methods of Hessian computation are used and compared.
 """
 
 import sys

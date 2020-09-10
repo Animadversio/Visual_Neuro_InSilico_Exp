@@ -208,8 +208,10 @@ class upconvGAN(nn.Module):
         return img_all
 #%% Very useful function to visualize output
 import numpy as np
-from build_montages import build_montages, color_framed_montages
 from PIL import Image
+from build_montages import build_montages, color_framed_montages
+from IPython.display import clear_output
+from hessian_eigenthings.utils import progress_bar
 def visualize_np(G, code, layout=None, show=True):
     """Utility function to visualize a np code vectors.
 
@@ -235,8 +237,17 @@ def visualize_np(G, code, layout=None, show=True):
     return imgs
 
 #%% BigGAN wrapper for ease of usage
-from IPython.display import clear_output
-from hessian_eigenthings.utils import progress_bar
+def load_BigGAN(version="biggan-deep-256"):
+    from pytorch_pretrained_biggan import BigGAN, truncated_noise_sample, BigGANConfig
+    if platform == "linux":
+        cache_path = "/scratch/binxu/torch/"
+        cfg = BigGANConfig.from_json_file(join(cache_path, "%s-config.json" % version))
+        BGAN = BigGAN(cfg)
+        BGAN.load_state_dict(torch.load(join(cache_path, "%s-pytorch_model.bin" % version)))
+    else:
+        BGAN = BigGAN.from_pretrained(version)
+    return BGAN
+
 class BigGAN_wrapper():#nn.Module
     def __init__(self, BigGAN, space="class"):
         self.BigGAN = BigGAN
@@ -264,6 +275,39 @@ class BigGAN_wrapper():#nn.Module
     def render(self, codes_all_arr, truncation=0.7, B=15):
         img_tsr = self.visualize_batch_np(codes_all_arr, truncation=truncation, B=B)
         return [img.permute([1,2,0]).numpy() for img in img_tsr]
+#%%
+import sys
+if platform == "linux":
+    BigBiGAN_root = r"/home/binxu/BigGANsAreWatching"
+else:
+    if os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':  # PonceLab-Desktop 3
+        BigBiGAN_root = r"D:\Github\BigGANsAreWatching"
+    elif os.environ['COMPUTERNAME'] == 'DESKTOP-MENSD6S':  # Home_WorkStation
+        BigBiGAN_root = r"E:\Github_Projects\BigGANsAreWatching"
+    else:
+        BigBiGAN_root = r"D:\Github\BigGANsAreWatching"
+sys.path.append(BigBiGAN_root)
+# the model is on cuda from this.
+def loadBigBiGAN(weightpath=None):
+    from BigGAN.gan_load import UnconditionalBigGAN, make_big_gan
+    # from BigGAN.model.BigGAN import Generator
+    if weightpath is None:
+        weightpath = join(BigBiGAN_root, "BigGAN\weights\BigBiGAN_x1.pth")
+    BBGAN = make_big_gan(weightpath, resolution=128)
+    # BBGAN = make_big_gan(r"E:\Github_Projects\BigGANsAreWatching\BigGAN\weights\BigBiGAN_x1.pth", resolution=128)
+    for param in BBGAN.parameters():
+        param.requires_grad_(False)
+    BBGAN.eval()
+    return BBGAN
+
+class BigBiGAN_wrapper():#nn.Module
+    def __init__(self, BigBiGAN, ):
+        self.BigGAN = BigBiGAN
+
+    def visualize(self, code, scale=1.0, resolution=256):
+        imgs = self.BigGAN(code, )
+        imgs = F.interpolate(imgs, size=(resolution, resolution), align_corners=True, mode='bilinear')
+        return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
 
 #%% StyleGAN2 wrapper for ease of usage
 import sys
@@ -290,8 +334,9 @@ else:
         StyleGAN_root = r"E:\DL_Projects\Vision\stylegan2-pytorch"
         ckpt_root = join(StyleGAN_root, 'checkpoint')
 sys.path.append(StyleGAN_root)
-from model import Generator
-def loadStyleGAN(ckpt_name, channel_multiplier=2, n_mlp=8, latent=512, size=256, device="cpu"):
+
+def loadStyleGAN(ckpt_name="ffhq-512-avg-tpurun1.pt", channel_multiplier=2, n_mlp=8, latent=512, size=512, device="cpu"):
+    from model import Generator
     ckpt_path = join(ckpt_root, ckpt_name)
     g_ema = Generator(
         size, latent, n_mlp, channel_multiplier=channel_multiplier
@@ -307,11 +352,15 @@ def loadStyleGAN(ckpt_name, channel_multiplier=2, n_mlp=8, latent=512, size=256,
 class StyleGAN_wrapper():#nn.Module
     def __init__(self, StyleGAN, ):
         self.StyleGAN = StyleGAN
-        self.truncation = None
-        self.mean_latent = None
-
-    def select_trunc(self, truncation, mean_latent):
+        truncation = 0.8  # Note these parameters could be tuned
+        truncation_mean = 4096
+        mean_latent = StyleGAN.mean_latent(truncation_mean)
         self.truncation = truncation
+        self.mean_latent = mean_latent
+
+    def select_trunc(self, truncation, truncation_mean=4096):
+        self.truncation = truncation
+        mean_latent = self.StyleGAN.mean_latent(truncation_mean)
         self.mean_latent = mean_latent
 
     def visualize(self, code, scale=1.0, resolution=256, truncation=1, mean_latent=None, preset=True):
