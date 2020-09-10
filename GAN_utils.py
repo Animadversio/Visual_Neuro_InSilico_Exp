@@ -208,8 +208,10 @@ class upconvGAN(nn.Module):
         return img_all
 #%% Very useful function to visualize output
 import numpy as np
-from build_montages import build_montages, color_framed_montages
 from PIL import Image
+from build_montages import build_montages, color_framed_montages
+from IPython.display import clear_output
+from hessian_eigenthings.utils import progress_bar
 def visualize_np(G, code, layout=None, show=True):
     """Utility function to visualize a np code vectors.
 
@@ -235,8 +237,17 @@ def visualize_np(G, code, layout=None, show=True):
     return imgs
 
 #%% BigGAN wrapper for ease of usage
-from IPython.display import clear_output
-from hessian_eigenthings.utils import progress_bar
+def load_BigGAN(version="biggan-deep-256"):
+    from pytorch_pretrained_biggan import BigGAN, truncated_noise_sample, BigGANConfig
+    if platform == "linux":
+        cache_path = "/scratch/binxu/torch/"
+        cfg = BigGANConfig.from_json_file(join(cache_path, "%s-config.json" % version))
+        BGAN = BigGAN(cfg)
+        BGAN.load_state_dict(torch.load(join(cache_path, "%s-pytorch_model.bin" % version)))
+    else:
+        BGAN = BigGAN.from_pretrained(version)
+    return BGAN
+
 class BigGAN_wrapper():#nn.Module
     def __init__(self, BigGAN, space="class"):
         self.BigGAN = BigGAN
@@ -273,8 +284,19 @@ elif os.environ['COMPUTERNAME'] == 'DESKTOP-MENSD6S':  # Home_WorkStation
 else:
     BigBiGAN_root = r"D:\Github\BigGANsAreWatching"
 sys.path.append(BigBiGAN_root)
-# BBGAN = make_big_gan(r"E:\Github_Projects\BigGANsAreWatching\BigGAN\weights\BigBiGAN_x1.pth", resolution=128)
 # the model is on cuda from this.
+def loadBigBiGAN(weightpath=None):
+    from BigGAN.gan_load import UnconditionalBigGAN, make_big_gan
+    # from BigGAN.model.BigGAN import Generator
+    if weightpath is None:
+        weightpath = join(BigBiGAN_root, "BigGAN\weights\BigBiGAN_x1.pth")
+    BBGAN = make_big_gan(weightpath, resolution=128)
+    # BBGAN = make_big_gan(r"E:\Github_Projects\BigGANsAreWatching\BigGAN\weights\BigBiGAN_x1.pth", resolution=128)
+    for param in BBGAN.parameters():
+        param.requires_grad_(False)
+    BBGAN.eval()
+    return BBGAN
+
 class BigBiGAN_wrapper():#nn.Module
     def __init__(self, BigBiGAN, ):
         self.BigGAN = BigBiGAN
@@ -284,16 +306,6 @@ class BigBiGAN_wrapper():#nn.Module
         imgs = F.interpolate(imgs, size=(resolution, resolution), align_corners=True, mode='bilinear')
         return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
 
-def loadBigBiGAN(weightpath=None):
-    from BigGAN.gan_load import UnconditionalBigGAN, make_big_gan
-    # from BigGAN.model.BigGAN import Generator
-    if weightpath is None:
-        weightpath = join(BigBiGAN_root, "BigGAN\weights\BigBiGAN_x1.pth")
-    BBGAN = make_big_gan(weightpath, resolution=128)
-    for param in BBGAN.parameters():
-        param.requires_grad_(False)
-    BBGAN.eval()
-    return BBGAN
 #%% StyleGAN2 wrapper for ease of usage
 import sys
 if platform == "linux":  # CHPC cluster
