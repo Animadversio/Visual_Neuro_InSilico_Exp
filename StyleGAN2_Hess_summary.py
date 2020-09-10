@@ -72,7 +72,7 @@ def plot_spectra(eigval_col, savename="spectrum_stat_all3.jpg", ):
     plt.savefig(join(figdir, savename), bbox_extra_artists=[st]) # this is working.
     plt.show()
     return fig
-
+#%%
 plot_spectra(eigval_col, savename="Cat-f_spectra.jpg", )
 #%% Go through all the models see how their thing is doing
 subpath = [f.path for f in os.scandir(SGdir) if f.is_dir()]
@@ -81,7 +81,9 @@ failnms = []
 for fdnm in subfdnm:
     try:
         eigval_col, _, meta = scan_hess_npz(join(SGdir, fdnm))
+        eigval_col = eigval_col[::-1]
         plot_spectra(eigval_col, savename="%s-spectra.jpg"%fdnm)
+        np.savez(join(figdir, "spectra_col_%s.npz"%fdnm), eigval_col=eigval_col, )
         print(fdnm, "folder finished")
     except:
         print(fdnm, "folder failed, please check")

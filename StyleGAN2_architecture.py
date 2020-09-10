@@ -23,3 +23,4 @@ for name, param in g_ema.state_dict().items():
     paramnum += np.prod(param.shape)
 for name, param in g_ema.state_dict().items():
     print(name, list(param.shape), "%.1f%%"%(100*np.prod(param.shape) / paramnum))
+#%%
