@@ -277,12 +277,15 @@ class BigGAN_wrapper():#nn.Module
         return [img.permute([1,2,0]).numpy() for img in img_tsr]
 #%%
 import sys
-if os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':  # PonceLab-Desktop 3
-    BigBiGAN_root = r"D:\Github\BigGANsAreWatching"
-elif os.environ['COMPUTERNAME'] == 'DESKTOP-MENSD6S':  # Home_WorkStation
-    BigBiGAN_root = r"E:\Github_Projects\BigGANsAreWatching"
+if platform == "linux":
+    BigBiGAN_root = r"/home/binxu/BigGANsAreWatching"
 else:
-    BigBiGAN_root = r"D:\Github\BigGANsAreWatching"
+    if os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':  # PonceLab-Desktop 3
+        BigBiGAN_root = r"D:\Github\BigGANsAreWatching"
+    elif os.environ['COMPUTERNAME'] == 'DESKTOP-MENSD6S':  # Home_WorkStation
+        BigBiGAN_root = r"E:\Github_Projects\BigGANsAreWatching"
+    else:
+        BigBiGAN_root = r"D:\Github\BigGANsAreWatching"
 sys.path.append(BigBiGAN_root)
 # the model is on cuda from this.
 def loadBigBiGAN(weightpath=None):
