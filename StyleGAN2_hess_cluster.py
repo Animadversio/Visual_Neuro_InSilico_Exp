@@ -155,6 +155,15 @@ for triali in range(args.trialn):
             eigvals = np.abs(eigenvals[sort_idx])
             eigvects = eigenvecs[:, sort_idx]
             H = eigvects @ np.diag(eigvals) @ eigvects.T
+        elif args.method == "BackwardIter":
+            G.select_trunc(truncation, mean_latent)
+            SGhvp = GANHVPOperator(G, ref_z, ImDist, )
+            eigenvals, eigenvecs = lanczos(SGhvp, num_eigenthings=250, max_steps=200, tol=1e-5, )
+            eigenvecs = eigenvecs.T
+            sort_idx = np.argsort(np.abs(eigenvals))
+            eigvals = np.abs(eigenvals[sort_idx])
+            eigvects = eigenvecs[:, sort_idx]
+            H = eigvects @ np.diag(eigvals) @ eigvects.T
         print("Computing Hessian Completed, %.1f sec" %(time()-T00))
 #%%
         plt.figure(figsize=[7,5])
