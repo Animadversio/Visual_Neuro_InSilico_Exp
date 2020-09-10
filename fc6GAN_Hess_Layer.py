@@ -22,14 +22,12 @@ def Hess_hook(module, fea_in, fea_out):
 
 #%%
 feat = torch.randn(4096, requires_grad=True)
-
-#%%
 archdir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit"
 #%%
 layernames = [name for name, _ in G.G.named_children()]
 eva_col = []
 from time import time
-for Li in [22, 23, 24]:#0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21
+for Li in [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, ]:#
     L2dist_col = []
     torch.cuda.empty_cache()
     H1 = G.G[Li].register_forward_hook(Hess_hook)
