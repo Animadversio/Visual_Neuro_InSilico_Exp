@@ -44,6 +44,24 @@ StyleGAN_root = r"E:\DL_Projects\Vision\stylegan2-pytorch"
 StyleGAN_root = r"D:\Github\stylegan2-pytorch"
 sys.path.append(StyleGAN_root)
 from model import Generator
+def loadStyleGAN(ckpt_name):
+    ckpt_path = join(StyleGAN_root, "checkpoint", ckpt_name)
+    size = 256
+    device = "cpu"
+    latent = 512
+    n_mlp = 8
+    channel_multiplier = 2
+    g_ema = Generator(
+        size, latent, n_mlp, channel_multiplier=channel_multiplier
+    ).to(device)
+    checkpoint = torch.load(ckpt_path)
+    g_ema.load_state_dict(checkpoint['g_ema'])
+    g_ema.eval()
+    for param in g_ema.parameters():
+        param.requires_grad_(False)
+    g_ema.cuda()
+    return g_ema
+
 #%%
 ckpt_name = r"stylegan2-cat-config-f.pt"# r"stylegan2-ffhq-config-f.pt"#
 # r"AbstractArtFreaGAN.pt"#r"2020-01-11-skylion-stylegan2-animeportraits.pt"
@@ -96,6 +114,7 @@ class StyleGAN_wrapper():#nn.Module
             progress_bar(csr_end, imgn, "ploting row of page: %d of %d" % (csr_end, imgn))
         return img_all
 
+g_ema = loadStyleGAN("stylegan2-cat-config-f.pt")
 G = StyleGAN_wrapper(g_ema)
 #%% Forward Operator Factorization
 from GAN_hvp_operator import GANForwardMetricHVPOperator
