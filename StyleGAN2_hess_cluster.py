@@ -157,7 +157,7 @@ for triali in range(args.trialn):
             H = eigvects @ np.diag(eigvals) @ eigvects.T
         elif args.method == "BackwardIter":
             G.select_trunc(truncation, mean_latent)
-            SGhvp = GANHVPOperator(G, ref_z, ImDist, )
+            SGhvp = GANHVPOperator(G, ref_z, ImDist, preprocess=lambda img: img)
             eigenvals, eigenvecs = lanczos(SGhvp, num_eigenthings=250, max_steps=200, tol=1e-5, )
             eigenvecs = eigenvecs.T
             sort_idx = np.argsort(np.abs(eigenvals))
