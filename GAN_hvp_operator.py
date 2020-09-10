@@ -29,7 +29,8 @@ class GANHVPOperator(Operator):
         self.criterion = criterion
         self.code = code.clone().requires_grad_(False).float().to(device) # torch.float32
         # self.perturb_vec = torch.zeros((1, 4096), dtype=torch.float32).requires_grad_(True).to(device)
-        self.perturb_vec = 0.0001 * torch.randn((1, 4096), dtype=torch.float32).requires_grad_(True).to(device)
+        self.perturb_vec = 0.0001 * torch.randn((1, code.numel()), dtype=torch.float32).requires_grad_(True).to(
+            device) # debugged Sep 10
         self.activation = activation
         if activation:  # then criterion is a single entry objective function
             self.img_ref = self.model.visualize(self.code + self.perturb_vec)
@@ -45,7 +46,7 @@ class GANHVPOperator(Operator):
 
     def select_code(self, code):
         self.code = code.clone().requires_grad_(False).float().to(self.device) # torch.float32
-        self.perturb_vec = torch.zeros((1, 4096), dtype=torch.float32).requires_grad_(True).to(self.device)
+        self.perturb_vec = torch.zeros((1, code.numel()), dtype=torch.float32).requires_grad_(True).to(self.device)
         self.img_ref = self.model.visualize(self.code, )  # forward the feature vector through the GAN
         img_pertb = self.model.visualize(self.code + self.perturb_vec)
         d_sim = self.criterion(self.img_ref, img_pertb)
