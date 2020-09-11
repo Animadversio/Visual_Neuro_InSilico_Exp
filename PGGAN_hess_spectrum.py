@@ -6,7 +6,7 @@ import lpips
 from GAN_hessian_compute import hessian_compute
 from torchvision.transforms import ToPILImage
 from torchvision.utils import make_grid
-
+ImDist = lpips.LPIPS(net='squeeze').cuda()
 use_gpu = True if torch.cuda.is_available() else False
 model = torch.hub.load('facebookresearch/pytorch_GAN_zoo:hub',
                        'PGAN', model_name='celebAHQ-256',
@@ -27,9 +27,7 @@ class PGGAN_wrapper():  # nn.Module
         imgs = self.PGGAN.forward(code,)  # Matlab version default to 0.7
         return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
 G = PGGAN_wrapper(model.avgG)
-#%%
 
-ImDist = lpips.LPIPS(net='squeeze').cuda()
 #%%
 feat = noise.detach().clone().cuda()
 EPS = 1E-2
@@ -60,3 +58,12 @@ for EPS in [1E-5, 1E-4, 1E-3, 1E-2, 1E-1, 1, 2, 10]:
     print("%.2f sec" % (time() - T0))  # 325.83 sec
     print("EPS %.1e Correlation of Flattened Hessian matrix BP vs ForwardIter %.3f" % (EPS, np.corrcoef(H_BP.flatten(), H_FI.flatten())[0, 1]))
     H_col.append((eva_FI, evc_FI, H_FI))
+
+# EPS 1.0e-05 Correlation of Flattened Hessian matrix BP vs ForwardIter 1.000
+# EPS 1.0e-04 Correlation of Flattened Hessian matrix BP vs ForwardIter 0.999
+# EPS 1.0e-03 Correlation of Flattened Hessian matrix BP vs ForwardIter 0.989
+# EPS 1.0e-02 Correlation of Flattened Hessian matrix BP vs ForwardIter 0.901
+# EPS 1.0e-01 Correlation of Flattened Hessian matrix BP vs ForwardIter 0.398
+# EPS 1.0e+00 Correlation of Flattened Hessian matrix BP vs ForwardIter 0.046
+# EPS 2.0e+00 Correlation of Flattened Hessian matrix BP vs ForwardIter 0.008
+# EPS 1.0e+01 Correlation of Flattened Hessian matrix BP vs ForwardIter -0.003
