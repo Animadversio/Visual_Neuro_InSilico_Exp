@@ -3,7 +3,7 @@ import numpy as np
 from hessian_eigenthings.lanczos import lanczos
 from GAN_hvp_operator import GANForwardMetricHVPOperator, GANHVPOperator, get_full_hessian
 
-def hessian_compute(G, feat, ImDist, hessian_method="BackwardIter", cutoff=None, preprocess=lambda img: img):
+def hessian_compute(G, feat, ImDist, hessian_method="BackwardIter", cutoff=None, preprocess=lambda img: img, EPS=1E-2):
     """Higher level API for GAN hessian compute
     Parameters:
         G: GAN, usually wrapped up by a custom class. Equipped with a `visualize` function that takes a torch vector and
