@@ -1,13 +1,16 @@
 import torch
+import numpy as np
+from tqdm import tqdm
 from time import time
+from os.path import join
 import sys
 import lpips
 from GAN_hessian_compute import hessian_compute
 from torchvision.transforms import ToPILImage
 from torchvision.utils import make_grid
-
 use_gpu = True if torch.cuda.is_available() else False
 model = torch.hub.load('facebookresearch/pytorch_GAN_zoo:hub', 'DCGAN', pretrained=True, useGPU=use_gpu)
+ImDist = lpips.LPIPS(net='squeeze').cuda()
 
 class DCGAN_wrapper():  # nn.Module
     def __init__(self, DCGAN, ):
@@ -18,7 +21,65 @@ class DCGAN_wrapper():  # nn.Module
         return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
 
 G = DCGAN_wrapper(model.avgG)
-
 #%%
 noise, _ = model.buildNoiseData(1)
-model.avgG
+feat = noise.detach().clone().cuda()
+T0 = time()
+eva_BI, evc_BI, H_BI = hessian_compute(G, feat, ImDist, hessian_method="BackwardIter")
+print("%.2f sec" % (time() - T0))  # 13.40 sec
+T0 = time()
+eva_FI, evc_FI, H_FI = hessian_compute(G, feat, ImDist, hessian_method="ForwardIter")
+print("%.2f sec" % (time() - T0))  # 6.89 sec
+T0 = time()
+eva_BP, evc_BP, H_BP = hessian_compute(G, feat, ImDist, hessian_method="BP")
+print("%.2f sec" % (time() - T0))  # 12.5 sec
+print("Correlation of Flattened Hessian matrix BP vs BackwardIter %.3f" % np.corrcoef(H_BP.flatten(), H_BI.flatten())[0, 1])
+print("Correlation of Flattened Hessian matrix BP vs ForwardIter %.3f" %
+      np.corrcoef(H_BP.flatten(), H_FI.flatten())[0, 1])
+print("Correlation of Flattened Hessian matrix ForwardIter vs BackwardIter %.3f"%
+      np.corrcoef(H_FI.flatten(), H_BI.flatten())[0, 1])
+H_col = []
+for EPS in [1E-6, 1E-5, 1E-4, 1E-3, 1E-2, 1E-1, ]:
+    T0 = time()
+    eva_FI, evc_FI, H_FI = hessian_compute(G, feat, ImDist, hessian_method="ForwardIter", EPS=EPS)
+    print("%.2f sec" % (time() - T0))  # 325.83 sec
+    print("EPS %.1e Correlation of Flattened Hessian matrix BP vs ForwardIter %.3f" % (EPS, np.corrcoef(H_BP.flatten(), H_FI.flatten())[0, 1]))
+    H_col.append((eva_FI, evc_FI, H_FI))
+
+# Correlation of Flattened Hessian matrix BP vs BackwardIter 1.000
+# Correlation of Flattened Hessian matrix BP vs ForwardIter 0.845
+# Correlation of Flattened Hessian matrix ForwardIter vs BackwardIter 0.845
+# EPS 1.0e-06 Correlation of Flattened Hessian matrix BP vs ForwardIter 0.978
+# EPS 1.0e-05 Correlation of Flattened Hessian matrix BP vs ForwardIter 0.978
+# EPS 1.0e-04 Correlation of Flattened Hessian matrix BP vs ForwardIter 0.978
+# EPS 1.0e-03 Correlation of Flattened Hessian matrix BP vs ForwardIter 0.958
+# EPS 1.0e-02 Correlation of Flattened Hessian matrix BP vs ForwardIter 0.858
+# EPS 1.0e-01 Correlation of Flattened Hessian matrix BP vs ForwardIter 0.199
+#%%
+np.savez(join(savedir,"Hessian_EPS_cmp.npz"), eva_BI=eva_BI, evc_BI=evc_BI, H_BI=H_BI,
+                                        eva_FI=eva_FI, evc_FI=evc_FI, H_FI=H_FI,
+                                        eva_BP=eva_BP, evc_BP=evc_BP, H_BP=H_BP, feat=feat.detach().cpu().numpy())
+#%%
+figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\DCGAN"
+savedir = r"E:\Cluster_Data\DCGAN"
+for triali in tqdm(range(300)):
+    noise, _ = model.buildNoiseData(1)
+    feat = noise.detach().clone().cuda()
+    T0 = time()
+    eva_BI, evc_BI, H_BI = hessian_compute(G, feat, ImDist, hessian_method="BackwardIter")
+    print("%.2f sec" % (time() - T0))  # 13.40 sec
+    T0 = time()
+    eva_FI, evc_FI, H_FI = hessian_compute(G, feat, ImDist, hessian_method="ForwardIter", EPS=1E-4)
+    print("%.2f sec" % (time() - T0))  # 6.89 sec
+    T0 = time()
+    eva_BP, evc_BP, H_BP = hessian_compute(G, feat, ImDist, hessian_method="BP")
+    print("%.2f sec" % (time() - T0))  # 12.5 sec
+    print("Correlation of Flattened Hessian matrix BP vs BackwardIter %.3f" % np.corrcoef(H_BP.flatten(), H_BI.flatten())[0, 1])
+    print("Correlation of Flattened Hessian matrix BP vs ForwardIter %.3f" %
+          np.corrcoef(H_BP.flatten(), H_FI.flatten())[0, 1])
+    print("Correlation of Flattened Hessian matrix ForwardIter vs BackwardIter %.3f"%
+          np.corrcoef(H_FI.flatten(), H_BI.flatten())[0, 1])
+    np.savez(join(savedir, "Hessian_cmp_%d.npz" % triali), eva_BI=eva_BI, evc_BI=evc_BI, H_BI=H_BI,
+                                        eva_FI=eva_FI, evc_FI=evc_FI, H_FI=H_FI,
+                                        eva_BP=eva_BP, evc_BP=evc_BP, H_BP=H_BP, feat=feat.detach().cpu().numpy())
+    print("Save finished")
