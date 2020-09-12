@@ -58,7 +58,6 @@ for EPS in [1E-5, 1E-4, 1E-3, 1E-2, 1E-1, 1, 2, 10]:
     print("%.2f sec" % (time() - T0))  # 325.83 sec
     print("EPS %.1e Correlation of Flattened Hessian matrix BP vs ForwardIter %.3f" % (EPS, np.corrcoef(H_BP.flatten(), H_FI.flatten())[0, 1]))
     H_col.append((eva_FI, evc_FI, H_FI))
-
 # EPS 1.0e-05 Correlation of Flattened Hessian matrix BP vs ForwardIter 1.000
 # EPS 1.0e-04 Correlation of Flattened Hessian matrix BP vs ForwardIter 0.999
 # EPS 1.0e-03 Correlation of Flattened Hessian matrix BP vs ForwardIter 0.989
@@ -67,3 +66,5 @@ for EPS in [1E-5, 1E-4, 1E-3, 1E-2, 1E-1, 1, 2, 10]:
 # EPS 1.0e+00 Correlation of Flattened Hessian matrix BP vs ForwardIter 0.046
 # EPS 2.0e+00 Correlation of Flattened Hessian matrix BP vs ForwardIter 0.008
 # EPS 1.0e+01 Correlation of Flattened Hessian matrix BP vs ForwardIter -0.003
+#%%
+from Hessian_analysis_tools import plot_spectra

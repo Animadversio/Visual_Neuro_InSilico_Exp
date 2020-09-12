@@ -56,13 +56,14 @@ for EPS in [1E-6, 1E-5, 1E-4, 1E-3, 1E-2, 1E-1, ]:
 # EPS 1.0e-02 Correlation of Flattened Hessian matrix BP vs ForwardIter 0.858
 # EPS 1.0e-01 Correlation of Flattened Hessian matrix BP vs ForwardIter 0.199
 #%%
-np.savez(join(savedir,"Hessian_EPS_cmp.npz"), eva_BI=eva_BI, evc_BI=evc_BI, H_BI=H_BI,
+savedir = r"E:\Cluster_Data\DCGAN"
+np.savez(join(savedir, "Hessian_EPS_cmp.npz"), eva_BI=eva_BI, evc_BI=evc_BI, H_BI=H_BI,
                                         eva_FI=eva_FI, evc_FI=evc_FI, H_FI=H_FI,
                                         eva_BP=eva_BP, evc_BP=evc_BP, H_BP=H_BP, feat=feat.detach().cpu().numpy())
 #%%
 figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\DCGAN"
 savedir = r"E:\Cluster_Data\DCGAN"
-for triali in tqdm(range(300)):
+for triali in tqdm(range(168, 300)):
     noise, _ = model.buildNoiseData(1)
     feat = noise.detach().clone().cuda()
     T0 = time()
@@ -83,3 +84,24 @@ for triali in tqdm(range(300)):
                                         eva_FI=eva_FI, evc_FI=evc_FI, H_FI=H_FI,
                                         eva_BP=eva_BP, evc_BP=evc_BP, H_BP=H_BP, feat=feat.detach().cpu().numpy())
     print("Save finished")
+#%% Visualize Spectra
+figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\DCGAN"
+savedir = r"E:\Cluster_Data\DCGAN"
+eva_col = []
+evc_col = []
+for triali in tqdm(range(300)):
+    data = np.load(join(savedir, "Hessian_cmp_%d.npz" % triali))
+    eva_BP = data["eva_BP"]
+    evc_BP = data["evc_BP"]
+    eva_col.append(eva_BP)
+    evc_col.append(evc_BP)
+
+eva_col = np.array(eva_col)
+#%%
+from Hessian_analysis_tools import plot_spectra, compute_hess_corr, plot_consistentcy_mat
+fig = plot_spectra(eva_col, figdir=figdir, titstr="DCGAN", )
+#%%
+corr_mat_log, corr_mat_lin = compute_hess_corr(eva_col, evc_col, figdir=figdir, use_cuda=False)
+# without cuda 2:12 mins, with cuda 6:55
+#%%
+fig1, fig2 = plot_consistentcy_mat(corr_mat_log, corr_mat_lin, posN=300, figdir=figdir, titstr="DCGAN")

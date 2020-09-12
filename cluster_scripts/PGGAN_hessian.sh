@@ -8,6 +8,7 @@
 #PBS -q dque
 #PBS -t 1-2
 
+
 export TORCH_HOME="/scratch/binxu/torch"
 
 param_list='--dataset rand --idx_rg 0 200
