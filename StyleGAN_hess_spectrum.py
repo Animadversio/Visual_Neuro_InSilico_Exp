@@ -24,7 +24,7 @@ class StyleGAN_wrapper():  # nn.Module
         return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
 G = StyleGAN_wrapper(model.cuda())
 #%%
-savedir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\StyleGAN"
+savedir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\StyleGAN_hr"
 #%%
 data = np.load(join(savedir, "Hessian_EPS_BP.npz"))
 H_BP = data["H_BP"]
@@ -92,6 +92,7 @@ for EPSi in range(data_FI['H_col'].shape[0]):
     # print("EPS %.1e Correlation of Flattened Hessian matrix BP vs ForwardIter %.3f" % (
     #     EPS, np.corrcoef(H_BP.flatten(), H_FI.flatten())[0, 1]))
 #%%%
+from Hessian_analysis_tools import plot_spectra, compute_hess_corr, plot_consistentcy_mat, plot_consistency_example
 import matplotlib.pylab as plt
 import matplotlib
 matplotlib.rcParams['pdf.fonttype'] = 42
@@ -134,3 +135,81 @@ fig = plot_spectra(data_FI["H_col"][5, 0][np.newaxis, :], savename="spectrum_met
 fig = plot_spectra(data_FI["H_col"][6, 0][np.newaxis, :], savename="spectrum_method_cmp.jpg", label="ForwardIter 1E-2", fig=fig)
 plt.show()
 #%%
+"""
+This is the smaller explicit version of StyleGAN. Very easy to work with
+"""
+#%%
+sys.path.append("E:\Github_Projects\style-based-gan-pytorch")
+from model import StyledGenerator
+from generate import get_mean_style
+import math
+#%%
+generator = StyledGenerator(512).to("cuda")
+generator.load_state_dict(torch.load(r"E:\Github_Projects\style-based-gan-pytorch\checkpoint\stylegan-256px-new.model")['g_running'])
+generator.eval()
+for param in generator.parameters():
+    param.requires_grad_(False)
+mean_style = get_mean_style(generator, "cuda")
+step = int(math.log(256, 2)) - 2
+#%%
+feat = torch.randn(1, 512, requires_grad=True).to("cuda")
+image = generator(
+        feat,
+        step=step,
+        alpha=1,
+        mean_style=mean_style,
+        style_weight=0.7,
+    )
+#%%
+class StyleGAN_wrapper():  # nn.Module
+    def __init__(self, StyleGAN, ):
+        self.StyleGAN = StyleGAN
+
+    def visualize(self, code, scale=1, step=step, mean_style=mean_style):
+        imgs = self.StyleGAN(
+            code,
+            step=step,
+            alpha=1,
+            mean_style=mean_style,
+            style_weight=0.7,
+        )  # Matlab version default to 0.7
+        return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
+G = StyleGAN_wrapper(generator)
+#%%
+from GAN_hessian_compute import hessian_compute, get_full_hessian
+
+#%%
+for triali in range(1, 15):
+    feat = torch.randn(1, 512,).to("cuda")
+    T0 = time()
+    eva_BP, evc_BP, H_BP = hessian_compute(G, feat, ImDist, hessian_method="BP")
+    print("%.2f sec" % (time() - T0))  # 120 sec
+    feat = feat.detach().clone()
+    T0 = time()
+    eva_BI, evc_BI, H_BI = hessian_compute(G, feat, ImDist, hessian_method="BackwardIter")
+    print("%.2f sec" % (time() - T0))  # 120 sec
+    T0 = time()
+    eva_FI, evc_FI, H_FI = hessian_compute(G, feat, ImDist, hessian_method="ForwardIter", EPS=1E-3)
+    print("%.2f sec" % (time() - T0))  # 64 sec
+    print("Correlation of Flattened Hessian matrix BP vs BackwardIter %.3f" % np.corrcoef(H_BP.flatten(), H_BI.flatten())[0, 1])
+    print("Correlation of Flattened Hessian matrix BP vs ForwardIter %.3f" %
+          np.corrcoef(H_BP.flatten(), H_FI.flatten())[0, 1])
+    print("Correlation of Flattened Hessian matrix ForwardIter vs BackwardIter %.3f"%
+          np.corrcoef(H_FI.flatten(), H_BI.flatten())[0, 1])
+    H_col = []
+    for EPS in [1E-6, 1E-5, 1E-4, 3E-4, 1E-3, 3E-3, 1E-2, 5E-2, 1E-1]:
+        T0 = time()
+        eva_FI, evc_FI, H_FI = hessian_compute(G, feat, ImDist, hessian_method="ForwardIter", EPS=EPS)
+        H_PSD = evc_FI @ np.diag(np.abs(eva_FI)) @ evc_FI.T
+        print("%.2f sec" % (time() - T0))  # 325.83 sec
+        print("EPS %.1e Correlation of Flattened Hessian matrix BP vs ForwardIter %.3f" % (EPS, np.corrcoef(H_BP.flatten(), H_FI.flatten())[0, 1]))
+        print("EPS %.1e Correlation of Flattened Hessian matrix BP vs ForwardIter (AbsHess) %.3f" % (
+            EPS, np.corrcoef(H_BP.flatten(), H_PSD.flatten())[0, 1]))
+        H_col.append((eva_FI, evc_FI, H_FI))
+
+    np.savez(join(savedir, "Hess_accuracy_cmp_%d.npz" % triali), eva_BI=eva_BI, evc_BI=evc_BI, H_BI=H_BI,
+                                            eva_FI=eva_FI, evc_FI=evc_FI, H_FI=H_FI, H_col=H_col,
+                                            eva_BP=eva_BP, evc_BP=evc_BP, H_BP=H_BP, feat=feat.detach().cpu().numpy())
+    print("Save finished")
+#%%
+datadir = r"E:\Cluster_Data\StyleGAN"

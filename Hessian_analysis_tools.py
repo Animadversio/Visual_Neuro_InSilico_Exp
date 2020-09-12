@@ -28,7 +28,7 @@ def plot_spectra(eigval_col, savename="spectrum_all", figdir="", abs=True,
     if fig is None:
         fig, axs = plt.subplots(1, 2, figsize=[10, 5])
     else:
-        plt.figure(fig.number)
+        plt.figure(num=fig.number)
         axs = fig.axes
     plt.sca(axs[0])
     plt.plot(range(eigN), eigmean, alpha=0.6)  #, eigval_arr.std(axis=0)
@@ -45,7 +45,7 @@ def plot_spectra(eigval_col, savename="spectrum_all", figdir="", abs=True,
     st = plt.suptitle("Hessian Spectrum of %s\n (error bar for [5,95] percentile among all samples)"%(titstr))
     plt.savefig(join(figdir, savename+".png"), bbox_extra_artists=[st]) # this is working.
     plt.savefig(join(figdir, savename+".pdf"), bbox_extra_artists=[st])  # this is working.
-    plt.show()
+    # plt.show()
     return fig
 #%%
 import numpy.ma as ma
