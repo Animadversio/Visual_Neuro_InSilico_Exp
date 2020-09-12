@@ -78,13 +78,13 @@ if __name__ == "__main__":
     feat = 0.5 * torch.randn(1, 512).detach().clone().cuda()
     EPS = 1E-2
     T0 = time()
-    hessian_compute(G, feat, ImDist, hessian_method="BackwardIter")
+    eva_BI, evc_BI, H_BI = hessian_compute(G, feat, ImDist, hessian_method="BackwardIter")
     print("%.2f sec" % (time() - T0))  # 2132.44 sec
     T0 = time()
-    hessian_compute(G, feat, ImDist, hessian_method="ForwardIter")
+    eva_FI, evc_FI, H_FI = hessian_compute(G, feat, ImDist, hessian_method="ForwardIter")
     print("%.2f sec" % (time() - T0))  # 325.83 sec
     T0 = time()
-    hessian_compute(G, feat, ImDist, hessian_method="BP")
+    eva_BP, evc_BP, H_BP = hessian_compute(G, feat, ImDist, hessian_method="BP")
     print("%.2f sec" % (time() - T0))  # 2135.00 sec
     #%% BigGAN
     from GAN_utils import loadBigGAN, BigGAN_wrapper
@@ -95,10 +95,10 @@ if __name__ == "__main__":
     EPS = 1E-2
     T0 = time()
     eva_BI, evc_BI, H_BI = hessian_compute(G, feat, ImDist, hessian_method="BackwardIter")
-    print("%.2f sec" % (time() - T0))  # 2132.44 sec
+    print("%.2f sec" % (time() - T0))  # 70.57 sec
     T0 = time()
     eva_FI, evc_FI, H_FI = hessian_compute(G, feat, ImDist, hessian_method="ForwardIter")
-    print("%.2f sec" % (time() - T0))  # 325.83 sec
+    print("%.2f sec" % (time() - T0))  # 67.02 sec
     T0 = time()
     eva_BP, evc_BP, H_BP = hessian_compute(G, feat, ImDist, hessian_method="BP")
-    print("%.2f sec" % (time() - T0))  # 2135.00 sec
+    print("%.2f sec" % (time() - T0))  # 69.4 sec
