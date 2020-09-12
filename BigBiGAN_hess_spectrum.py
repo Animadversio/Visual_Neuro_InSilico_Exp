@@ -239,11 +239,7 @@ for eigi in tqdm.trange(Hnums):
         vHv_ij = torch.diag((inpr * eva_j.unsqueeze(0)) @ inpr.T)
         corr_mat_log[eigi, eigj] = corr_nan_torch(vHv_ij.log10(), eva_j.log10())
         corr_mat_lin[eigi, eigj] = corr_nan_torch(vHv_ij, eva_j)
-        # vHv_ij = np.diag(eigvect_i.T @ eigvect_j @ np.diag(eigval_j) @ eigvect_j.T @ eigvect_i)
-        # corr_mat_log[eigi, eigj] = np.corrcoef(np.log10(vHv_ij), np.log10(eigvect_j))[0, 1]
-        # corr_mat_lin[eigi, eigj] = np.corrcoef(vHv_ij, eigvect_j)[0, 1]
 
-    print(time() - T0)
 print(time() - T0)  # 107.9 sev
 corr_mat_log = corr_mat_log.cpu().numpy()
 corr_mat_lin = corr_mat_lin.cpu().numpy()

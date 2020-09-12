@@ -133,3 +133,35 @@ def plot_consistentcy_mat(corr_mat_log, corr_mat_lin, savelabel="", posN=100, fi
     plt.savefig(join(figdir, "Hess_%s_corrmat_lin.pdf"%savelabel))
     plt.show()
     return fig1, fig2
+#%% Derive from BigBiGAN
+def plot_consistency_example(eigval_col, eigvec_col, nsamp=5, titstr="GAN", figdir=""):
+    Hnums = len(eigval_col)
+    eiglist = sorted(np.random.choice(Hnums, nsamp, replace=False))  # range(5)
+    fig = plt.figure(figsize=[10, 10], constrained_layout=False)
+    spec = fig.add_gridspec(ncols=nsamp, nrows=nsamp, left=0.075, right=0.975, top=0.9, bottom=0.05)
+    for axi, eigi in enumerate(eiglist):
+        eigval_i, eigvect_i = eigval_col[eigi], eigvec_col[eigi]
+        for axj, eigj in enumerate(eiglist):
+            eigval_j, eigvect_j = eigval_col[eigj], eigvec_col[eigj]
+            inpr = eigvect_i.T @ eigvect_j
+            vHv_ij = np.diag((inpr @ np.diag(eigval_j)) @ inpr.T)
+            ax = fig.add_subplot(spec[axi, axj])
+            if axi == axj:
+                ax.hist(np.log10(eigval_j), 20)
+            else:
+                ax.scatter(np.log10(eigval_j), np.log10(vHv_ij), s=15, alpha=0.6)
+                ax.set_aspect(1, adjustable='datalim')
+            if axi == 4:
+                ax.set_xlabel("eigvals @ pos %d" % eigj)
+            if axj == 0:
+                ax.set_ylabel("vHv eigvec @ pos %d" % eigi)
+    ST = plt.suptitle("Consistency of %s Hessian Across Vectors\n"
+                      "Cross scatter of EigenValues and vHv values for Hessian at %d Random Vectors"%(titstr, nsamp),
+                      fontsize=18)
+    # plt.subplots_adjust(left=0.175, right=0.95 )
+    RND = np.random.randint(1000)
+    plt.savefig(join(figdir, "Hess_consistency_example_rnd%03d.jpg" % RND),
+                bbox_extra_artists=[ST])  #
+    plt.savefig(join(figdir, "Hess_consistency_example_rnd%03d.pdf" % RND),
+                bbox_extra_artists=[ST])  #
+    return fig

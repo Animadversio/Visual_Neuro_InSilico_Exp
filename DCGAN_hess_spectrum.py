@@ -98,10 +98,12 @@ for triali in tqdm(range(300)):
 
 eva_col = np.array(eva_col)
 #%%
-from Hessian_analysis_tools import plot_spectra, compute_hess_corr, plot_consistentcy_mat
+from Hessian_analysis_tools import plot_spectra, compute_hess_corr, plot_consistentcy_mat, plot_consistency_example
 fig = plot_spectra(eva_col, figdir=figdir, titstr="DCGAN", )
 #%%
 corr_mat_log, corr_mat_lin = compute_hess_corr(eva_col, evc_col, figdir=figdir, use_cuda=False)
 # without cuda 2:12 mins, with cuda 6:55
 #%%
 fig1, fig2 = plot_consistentcy_mat(corr_mat_log, corr_mat_lin, posN=300, figdir=figdir, titstr="DCGAN")
+#%%
+fig3 = plot_consistency_example(eva_col, evc_col, figdir=figdir, nsamp=5, titstr="DCGAN",)

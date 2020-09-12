@@ -1,9 +1,12 @@
-
+"""
+Higher level API for GAN hessian compute
+"""
+#%%
 import numpy as np
 from hessian_eigenthings.lanczos import lanczos
 from GAN_hvp_operator import GANForwardMetricHVPOperator, GANHVPOperator, get_full_hessian
 
-def hessian_compute(G, feat, ImDist, hessian_method="BackwardIter", cutoff=None, preprocess=lambda img: img, EPS=1E-2):
+def hessian_compute(G, feat, ImDist, hessian_method="BackwardIter", cutoff=None, preprocess=lambda img: img, EPS=1E-2, device="cuda"):
     """Higher level API for GAN hessian compute
     Parameters:
         G: GAN, usually wrapped up by a custom class. Equipped with a `visualize` function that takes a torch vector and
@@ -18,6 +21,7 @@ def hessian_compute(G, feat, ImDist, hessian_method="BackwardIter", cutoff=None,
             compute.
     """
     if cutoff is None: cutoff = feat.numel() // 2 - 1
+    ImDist.to(device)
     if hessian_method == "BackwardIter":
         metricHVP = GANHVPOperator(G, feat, ImDist, preprocess=preprocess)
         eigvals, eigvects = lanczos(metricHVP, num_eigenthings=cutoff, use_gpu=True)  # takes 113 sec on K20x cluster,
@@ -32,7 +36,7 @@ def hessian_compute(G, feat, ImDist, hessian_method="BackwardIter", cutoff=None,
         # EPS=1E-2, max_steps=20 takes 84 sec on K20x cluster.
         # The hessian is not so close
     elif hessian_method == "BP":  # 240 sec on cluster
-        ref_vect = feat.detach().clone().float().cuda()
+        ref_vect = feat.detach().clone().float().to(device)
         mov_vect = ref_vect.float().detach().clone().requires_grad_(True)
         imgs1 = G.visualize(ref_vect)
         imgs2 = G.visualize(mov_vect)
