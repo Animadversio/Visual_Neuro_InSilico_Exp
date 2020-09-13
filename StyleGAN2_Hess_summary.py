@@ -112,7 +112,8 @@ def compute_hess_corr(eigval_col, eigvec_col, fdnm=""):
     np.savez(join(figdir, "Hess_%s_corr_mat.npz" % fdnm), corr_mat_log=corr_mat_log, corr_mat_lin=corr_mat_lin)
     return corr_mat_log, corr_mat_lin
 #%%
-def plot_consistentcy_mat(corr_mat_log, corr_mat_lin, Hlabel="", posN=100):
+def plot_consistentcy_mat(corr_mat_log, corr_mat_lin, Hlabel=""):
+    posN = corr_mat_log.shape[0]
     corr_mat_log_nodiag = corr_mat_log.copy()
     corr_mat_lin_nodiag = corr_mat_lin.copy()
     np.fill_diagonal(corr_mat_log_nodiag, np.nan) # corr_mat_log_nodiag =
@@ -158,4 +159,46 @@ for fdnm in subfdnm:#["FFHQ512"]:
         print(fdnm, "folder failed, please check")
         failnms2.append(fdnm)
 #%%
+from Hessian_analysis_tools import plot_spectra, compute_hess_corr, plot_consistentcy_mat, plot_consistency_example
+def scan_hess_npz(Hdir, evakey='eva_BP', evckey='evc_BP', npzpat="Hess_BP(\d*).npz", ):
+    npzpaths = glob(join(Hdir, "*.npz"))
+    npzfns = [path.split("\\")[-1] for path in npzpaths]
+    npzpattern = re.compile(npzpat)
+    eigval_col = []
+    eigvec_col = []
+    meta = []
+    for fn, path in zip(npzfns, npzpaths):
+        match = npzpattern.findall(fn)
+        if len(match) == 0:
+            continue
+        try:
+            parts = match[0]  # trunc, RND
+            data = np.load(path)
+            evas = data[evakey]
+            evcs = data[evckey]
+            eigval_col.append(evas)
+            eigvec_col.append(evcs)
+            meta.append(parts)
+        except KeyError:
+            print("KeyError, keys in the archive : ", list(data))
+            return
+    eigval_col = np.array(eigval_col)
+    print("Load %d npz files of Hessian info" % len(meta))
+    return eigval_col, eigvec_col, meta
+#%%
+SGdir = r"E:\Cluster_Backup\StyleGAN2"
+modelnms = ["ffhq-256-config-e-003810", "stylegan2-cat-config-f"]
+for modelnm in modelnms:
+    datadir = join(SGdir, modelnm)
+    eva_col, evc_col, meta = scan_hess_npz(datadir, npzpat="Hess_BP_(\d*).npz")
+    fig = plot_spectra(eva_col, figdir=figdir, titstr="StyleGAN2-%s"%modelnm, savename="Hess_spectra_%s"%modelnm)
+    # corr_mat_log, corr_mat_lin = compute_hess_corr(eva_col, evc_col, figdir=figdir, use_cuda=True, savelabel=modelnm)
+    # without cuda 12:11 mins, with cuda 76sec
+    with np.load(join(figdir, "Hess_%s_corr_mat.npz" % modelnm)) as data:
+        corr_mat_log, corr_mat_lin = data["corr_mat_log"], data["corr_mat_lin"]
+    fig1, fig2 = plot_consistentcy_mat(corr_mat_log, corr_mat_lin, figdir=figdir, titstr="StyleGAN2-%s"%modelnm, savelabel=modelnm)
+    fig3 = plot_consistency_example(eva_col, evc_col, figdir=figdir, nsamp=5, titstr="StyleGAN2-%s"%modelnm, savelabel=modelnm)
+    fig3.show()
+
+
 

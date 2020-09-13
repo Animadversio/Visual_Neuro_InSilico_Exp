@@ -1,7 +1,9 @@
 import torch
 import numpy as np
+from tqdm import tqdm
 from time import time
 import sys
+from os.path import join
 import lpips
 from GAN_hessian_compute import hessian_compute
 from torchvision.transforms import ToPILImage
@@ -67,4 +69,29 @@ for EPS in [1E-5, 1E-4, 1E-3, 1E-2, 1E-1, 1, 2, 10]:
 # EPS 2.0e+00 Correlation of Flattened Hessian matrix BP vs ForwardIter 0.008
 # EPS 1.0e+01 Correlation of Flattened Hessian matrix BP vs ForwardIter -0.003
 #%%
-from Hessian_analysis_tools import plot_spectra
+#%% Visualize Spectra
+figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\PGGAN"
+savedir = r"E:\Cluster_Backup\PGGAN"
+eva_col = []
+evc_col = []
+for triali in tqdm(range(400)):
+    data = np.load(join(savedir, "Hessian_cmp_%d.npz" % triali))
+    eva_BP = data["eva_BP"]
+    evc_BP = data["evc_BP"]
+    eva_col.append(eva_BP)
+    evc_col.append(evc_BP)
+
+eva_col = np.array(eva_col)
+#%%
+from Hessian_analysis_tools import plot_spectra, compute_hess_corr, plot_consistency_example, plot_consistentcy_mat
+fig = plot_spectra(eva_col, figdir=figdir, titstr="PGGAN", )
+#%%
+corr_mat_log, corr_mat_lin = compute_hess_corr(eva_col, evc_col, figdir=figdir, use_cuda=True)
+# without cuda 12:11 mins, with cuda 8:21
+corr_mat_log, corr_mat_lin = compute_hess_corr(eva_col, evc_col, figdir=figdir, use_cuda=False)
+
+#%%
+fig1, fig2 = plot_consistentcy_mat(corr_mat_log, corr_mat_lin, posN=300, figdir=figdir, titstr="PGGAN")
+#%%
+fig3 = plot_consistency_example(eva_col, evc_col, figdir=figdir, nsamp=5, titstr="PGGAN",)
+fig3.show()

@@ -49,21 +49,6 @@ print("Save Completed. ")
 #%%
 np.savez(join(savedir, "Hessian_EPS_BP.npz"), eva_BP=eva_BP, evc_BP=evc_BP, H_BP=H_BP, feat=feat.detach().cpu().numpy())
 #%%
-
-# T0 = time()
-# eva_FI, evc_FI, H_FI = hessian_compute(G, feat, ImDist, hessian_method="ForwardIter", EPS=1E-3, preprocess=lambda img: F.interpolate(img, (256, 256), mode='bilinear', align_corners=True))
-# print("%.2f sec" % (time() - T0))  # 252.28 sec
-#
-# G.StyleGAN.cpu()
-# T0 = time()
-# eva_BP, evc_BP, H_BP = hessian_compute(G, feat, ImDist, hessian_method="BP", preprocess=lambda img: F.interpolate(img, (256, 256), mode='bilinear', align_corners=True), device="cpu") # this takes 16384 sec...
-# print("%.2f sec" % (time() - T0))
-#
-# G.StyleGAN.cuda()
-# T0 = time()
-# eva_BP, evc_BP, H_BP = hessian_compute(G, feat, ImDist, hessian_method="BP", preprocess=lambda img: F.interpolate(img, (256, 256), mode='bilinear', align_corners=True)) # this will exceed gpu memory
-# print("%.2f sec" % (time() - T0))
-#%%
 G.StyleGAN.to("cpu")
 feat.cpu()
 T0 = time()
@@ -141,19 +126,22 @@ This is the smaller explicit version of StyleGAN. Very easy to work with
 """
 #%%
 sys.path.append("E:\Github_Projects\style-based-gan-pytorch")
+sys.path.append("D:\Github\style-based-gan-pytorch")
 from model import StyledGenerator
 from generate import get_mean_style
 import math
 #%%
 generator = StyledGenerator(512).to("cuda")
-generator.load_state_dict(torch.load(r"E:\Github_Projects\style-based-gan-pytorch\checkpoint\stylegan-256px-new.model")['g_running'])
+# generator.load_state_dict(torch.load(r"E:\Github_Projects\style-based-gan-pytorch\checkpoint\stylegan-256px-new.model")['g_running'])
+generator.load_state_dict(torch.load(r"D:\Github\style-based-gan-pytorch\checkpoint\stylegan-256px-new.model")[
+                              'g_running'])
 generator.eval()
 for param in generator.parameters():
     param.requires_grad_(False)
 mean_style = get_mean_style(generator, "cuda")
 step = int(math.log(256, 2)) - 2
 #%%
-feat = torch.randn(1, 512, requires_grad=True).to("cuda")
+feat = torch.randn(1, 512, requires_grad=False).to("cuda")
 image = generator(
         feat,
         step=step,
@@ -211,6 +199,40 @@ for triali in range(1, 15):
                                             eva_FI=eva_FI, evc_FI=evc_FI, H_FI=H_FI, H_col=H_col,
                                             eva_BP=eva_BP, evc_BP=evc_BP, H_BP=H_BP, feat=feat.detach().cpu().numpy())
     print("Save finished")
+#%%
+datadir = r"E:\Cluster_Backup\StyleGAN"
+for triali in tqdm(range(300)):
+    feat = torch.randn(1, 512,).to("cuda")
+    T0 = time()
+    eva_BP, evc_BP, H_BP = hessian_compute(G, feat, ImDist, hessian_method="BP")
+    print("%.2f sec" % (time() - T0))  # 120 sec
+    np.savez(join(datadir, "Hessian_rand_%d.npz" % triali), eva_BP=eva_BP, evc_BP=evc_BP, H_BP=H_BP,
+        feat=feat.detach().cpu().numpy())
+#%%
+eva_col = []
+evc_col = []
+for triali in tqdm(range(300)):
+    data = np.load(join(datadir, "Hessian_rand_%d.npz" % triali))
+    eva_col.append(data["eva_BP"])
+    evc_col.append(data["evc_BP"])
+#%%
+eva_col = np.array(eva_col)
+#%%
+import os
+figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\StyleGAN"
+os.makedirs(figdir, exist_ok=True)
+from Hessian_analysis_tools import plot_spectra, compute_hess_corr, plot_consistency_example, plot_consistentcy_mat
+fig = plot_spectra(eva_col, figdir=figdir, titstr="StyleGAN", )
+#%%
+corr_mat_log, corr_mat_lin = compute_hess_corr(eva_col, evc_col, figdir=figdir, use_cuda=True)
+# without cuda 12:11 mins, with cuda 8:21
+# corr_mat_log, corr_mat_lin = compute_hess_corr(eva_col, evc_col, figdir=figdir, use_cuda=False)
+#%
+fig1, fig2 = plot_consistentcy_mat(corr_mat_log, corr_mat_lin, posN=300, figdir=figdir, titstr="StyleGAN")
+#%
+fig3 = plot_consistency_example(eva_col, evc_col, figdir=figdir, nsamp=5, titstr="StyleGAN",)
+fig3.show()
+#%%
 #%% Accuracy plot
 figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\StyleGAN"
 datadir = r"E:\Cluster_Data\StyleGAN"
@@ -248,6 +270,7 @@ plt.title("StyleGAN BP vs ForwardIter Pos-Semi-Definite Hessian Correlation")
 plt.savefig(join(figdir, "StyleGAN_BP-FI-PSD-HessCorr.png"))
 plt.show()
 
+#%%
 plt.plot(raw_corr_tab.T)
 plt.xticks(np.arange(len(EPS_list)), labels=EPS_list)
 plt.ylabel("Correlation for Vectorized Hessian")

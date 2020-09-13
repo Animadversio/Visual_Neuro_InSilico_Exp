@@ -14,6 +14,32 @@ matplotlib.rcParams['ps.fonttype'] = 42
 from time import time
 import os
 from os.path import join
+def scan_hess_npz(Hdir, evakey='eva_BP', evckey='evc_BP', npzpat="Hess_BP(\d*).npz", ):
+    npzpaths = glob(join(Hdir, "*.npz"))
+    npzfns = [path.split("\\")[-1] for path in npzpaths]
+    npzpattern = re.compile(npzpat)
+    eigval_col = []
+    eigvec_col = []
+    meta = []
+    for fn, path in zip(npzfns, npzpaths):
+        match = npzpattern.findall(fn)
+        if len(match) == 0:
+            continue
+        parts = match[0]  # trunc, RND
+        data = np.load(path)
+        try:
+            evas = data[evakey]
+            evcs = data[evckey]
+            eigval_col.append(evas)
+            eigvec_col.append(evcs)
+            meta.append(parts)
+        except KeyError:
+            print("KeyError, keys in the archive : ", list(data))
+            return
+    eigval_col = np.array(eigval_col)
+    print("Load %d npz files of Hessian info" % len(meta))
+    return eigval_col, eigvec_col, meta
+
 def plot_spectra(eigval_col, savename="spectrum_all", figdir="", abs=True,
                  titstr="GAN", label="all", fig=None):
     """A local function to compute these figures for different subspaces. """
@@ -60,6 +86,8 @@ def corr_nan_torch(V1, V2):
     return corr_torch(V1[~Msk], V2[~Msk])
 
 def compute_hess_corr(eigval_col, eigvec_col, savelabel="", figdir="", use_cuda=False):
+    """cuda should be used for large mat mul like 512 1024 4096.
+    small matmul should stay with cpu numpy computation. cuda will add the IO overhead."""
     posN = len(eigval_col)
     T0 = time()
     if use_cuda:
@@ -89,7 +117,7 @@ def compute_hess_corr(eigval_col, eigvec_col, savelabel="", figdir="", use_cuda=
 
     print("%.1f sec" % (time() - T0)) # 582.2 secs for the 1000 by 1000 mat. not bad!
     np.savez(join(figdir, "Hess_%s_corr_mat.npz" % savelabel), corr_mat_log=corr_mat_log, corr_mat_lin=corr_mat_lin)
-
+    print("Compute results saved to %s" % join(figdir, "Hess_%s_corr_mat.npz" % savelabel))
     corr_mat_log_nodiag = corr_mat_log.copy()
     corr_mat_lin_nodiag = corr_mat_lin.copy()
     np.fill_diagonal(corr_mat_log_nodiag, np.nan)  # corr_mat_log_nodiag =
@@ -102,7 +130,8 @@ def compute_hess_corr(eigval_col, eigvec_col, savelabel="", figdir="", use_cuda=
     print("Lin scale non-diag mean corr value %.3f med %.3f" % (lin_nodiag_mean_cc, lin_nodiag_med_cc))
     return corr_mat_log, corr_mat_lin
 #%
-def plot_consistentcy_mat(corr_mat_log, corr_mat_lin, savelabel="", posN=100, figdir="", titstr="GAN"):
+def plot_consistentcy_mat(corr_mat_log, corr_mat_lin, savelabel="", figdir="", titstr="GAN"):
+    posN = corr_mat_log.shape[0]
     corr_mat_log_nodiag = corr_mat_log.copy()
     corr_mat_lin_nodiag = corr_mat_lin.copy()
     np.fill_diagonal(corr_mat_log_nodiag, np.nan)
@@ -134,7 +163,16 @@ def plot_consistentcy_mat(corr_mat_log, corr_mat_lin, savelabel="", posN=100, fi
     plt.show()
     return fig1, fig2
 #%% Derive from BigBiGAN
-def plot_consistency_example(eigval_col, eigvec_col, nsamp=5, titstr="GAN", figdir=""):
+def plot_consistency_example(eigval_col, eigvec_col, nsamp=5, titstr="GAN", figdir="", savelabel=""):
+    """
+    Note for scatter plot the aspect ratio is set fixed to one.
+    :param eigval_col:
+    :param eigvec_col:
+    :param nsamp:
+    :param titstr:
+    :param figdir:
+    :return:
+    """
     Hnums = len(eigval_col)
     eiglist = sorted(np.random.choice(Hnums, nsamp, replace=False))  # range(5)
     fig = plt.figure(figsize=[10, 10], constrained_layout=False)
@@ -160,8 +198,8 @@ def plot_consistency_example(eigval_col, eigvec_col, nsamp=5, titstr="GAN", figd
                       fontsize=18)
     # plt.subplots_adjust(left=0.175, right=0.95 )
     RND = np.random.randint(1000)
-    plt.savefig(join(figdir, "Hess_consistency_example_rnd%03d.jpg" % RND),
+    plt.savefig(join(figdir, "Hess_consistency_example_%s_rnd%03d.jpg" % (savelabel, RND)),
                 bbox_extra_artists=[ST])  #
-    plt.savefig(join(figdir, "Hess_consistency_example_rnd%03d.pdf" % RND),
+    plt.savefig(join(figdir, "Hess_consistency_example_%s_rnd%03d.pdf" % (savelabel, RND)),
                 bbox_extra_artists=[ST])  #
     return fig
