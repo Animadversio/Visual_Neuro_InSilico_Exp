@@ -3,6 +3,7 @@ import torch
 import torch
 import torch.nn.functional as F
 import numpy as np
+import matplotlib.pylab as plt
 from tqdm import tqdm
 from time import time
 from os.path import join
@@ -177,7 +178,6 @@ class StyleGAN_wrapper():  # nn.Module
 G = StyleGAN_wrapper(generator)
 #%%
 from GAN_hessian_compute import hessian_compute, get_full_hessian
-
 #%%
 for triali in range(1, 15):
     feat = torch.randn(1, 512,).to("cuda")
@@ -211,5 +211,65 @@ for triali in range(1, 15):
                                             eva_FI=eva_FI, evc_FI=evc_FI, H_FI=H_FI, H_col=H_col,
                                             eva_BP=eva_BP, evc_BP=evc_BP, H_BP=H_BP, feat=feat.detach().cpu().numpy())
     print("Save finished")
-#%%
+#%% Accuracy plot
+figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\StyleGAN"
 datadir = r"E:\Cluster_Data\StyleGAN"
+EPS_list = [1E-6, 1E-5, 1E-4, 3E-4, 1E-3, 3E-3, 1E-2, 5E-2, 1E-1]
+raw_corr_tab = []
+PSD_corr_tab = []
+for triali in range(15):
+    print("Computation trial %d"%triali)
+    data = np.load(join(savedir, "Hess_accuracy_cmp_%d.npz" % triali), allow_pickle=True)
+    H_col = data["H_col"]
+    eva_BP, evc_BP, H_BP = data["eva_BP"], data["evc_BP"], data["H_BP"]
+    corr_vals = []
+    PSD_corr_vals = []
+    for EPSi, EPS in enumerate(EPS_list):
+        eva_FI, evc_FI, H_FI = H_col[EPSi, :]
+        H_PSD = evc_FI @ np.diag(np.abs(eva_FI)) @ evc_FI.T
+        corr_vals.append(np.corrcoef(H_BP.flatten(), H_FI.flatten())[0, 1])
+        PSD_corr_vals.append(np.corrcoef(H_BP.flatten(), H_PSD.flatten())[0, 1])
+        print("EPS %.1e Correlation of Flattened Hessian matrix BP vs ForwardIter %.3f" % (
+            EPS, corr_vals[-1]))
+        print("EPS %.1e Correlation of Flattened Hessian matrix BP vs ForwardIter (AbsHess) %.3f" % (
+            EPS, PSD_corr_vals[-1]))
+    raw_corr_tab.append(corr_vals)
+    PSD_corr_tab.append(PSD_corr_vals)
+raw_corr_tab = np.array(raw_corr_tab)
+PSD_corr_tab = np.array(PSD_corr_tab)
+np.savez(join(figdir, "accuracy_stats.npz"), raw_corr_tab=raw_corr_tab, PSD_corr_tab=PSD_corr_tab,
+                                             EPS_list=EPS_list)
+#%%
+plt.plot(PSD_corr_tab.T)
+plt.xticks(np.arange(len(EPS_list)), labels=EPS_list)
+plt.ylabel("Correlation for Vectorized Hessian")
+plt.xlabel("EPS for Forward Diff")
+plt.title("StyleGAN BP vs ForwardIter Pos-Semi-Definite Hessian Correlation")
+plt.savefig(join(figdir, "StyleGAN_BP-FI-PSD-HessCorr.png"))
+plt.show()
+
+plt.plot(raw_corr_tab.T)
+plt.xticks(np.arange(len(EPS_list)), labels=EPS_list)
+plt.ylabel("Correlation for Vectorized Hessian")
+plt.xlabel("EPS for Forward Diff")
+plt.title("StyleGAN BP vs ForwardIter Raw Hessian Correlation")
+plt.savefig(join(figdir, "StyleGAN_BP-FI-raw-HessCorr.png"))
+plt.show()
+
+men = raw_corr_tab.mean(axis=0)
+err = raw_corr_tab.std(axis=0)/np.sqrt(raw_corr_tab.shape[0])
+plt.plot(men, )
+plt.fill_between(range(len(men)), men-err, men+err, alpha=0.3, label="raw")
+men = PSD_corr_tab.mean(axis=0)
+err = PSD_corr_tab.std(axis=0)/np.sqrt(PSD_corr_tab.shape[0])
+plt.plot(men, )
+plt.fill_between(range(len(men)), men-err, men+err, alpha=0.3, label="PSD")
+plt.xticks(np.arange(len(EPS_list)), labels=EPS_list)
+plt.legend()
+plt.ylabel("Correlation for Vectorized Hessian")
+plt.xlabel("EPS for Forward Diff")
+plt.title("StyleGAN BP vs ForwardIter Hessian Correlation")
+plt.savefig(join(figdir, "StyleGAN_BP-FI-HessCorr-cmp.png"))
+plt.savefig(join(figdir, "StyleGAN_BP-FI-HessCorr-cmp.pdf"))
+plt.show()
+#%%
