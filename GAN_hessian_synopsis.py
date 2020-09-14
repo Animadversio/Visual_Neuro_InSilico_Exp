@@ -1,15 +1,17 @@
 import os
 import re
+from time import time
+from os.path import join
 from glob import glob
 import sys
 import pandas as pd
 import numpy as np
+from Hessian_analysis_tools import scan_hess_npz
 import matplotlib.pylab as plt
 import matplotlib
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
-from time import time
-from os.path import join
+summarydir = "E:\OneDrive - Washington University in St. Louis\Hessian_summary"
 #%% BigGAN
 BGfigdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\BigGAN"
 BGdatadir = r"E:\Cluster_Backup\BigGANH"
@@ -32,6 +34,7 @@ eigvals_nois_col = np.array(eigvals_nois_col)[:,::-1]
 np.savez(join(BGfigdir, "spectra_col.npz"),eigval_col=eigval_col,
 							eigvals_clas_col=eigvals_clas_col,
 							eigvals_nois_col=eigvals_nois_col,)
+
 #%% BigBiGAN
 BBGdir = r"E:\OneDrive - Washington University in St. Louis\HessGANCmp\BigBiGAN"
 BBGfigdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\BigBiGAN"
@@ -82,6 +85,7 @@ for idx in range(284): # Note load it altogether is very slow, not recommended
 eigvals_col = np.array(eigvals_col)[:, ::-1]
 code_all = np.array(code_all)
 np.savez(join(FC6figdir, "spectra_col_evol.npz"), eigval_col=eigvals_col, )
+#%%
 
 #%% StyleGAN2
 SGdir = r"E:\Cluster_Backup\StyleGAN2"
@@ -95,19 +99,46 @@ for fn, path in zip(npzfns, npzpaths):
     evas = data["eigvals"]
     eigval_col.append(evas)
 eigval_col = np.array(eigval_col)
+#%% StyleGAN2
+Hdir = r"E:\Cluster_Backup\StyleGAN2\stylegan2-cat-config-f"
+eigval_col, _, meta = scan_hess_npz(Hdir, npzpat="Hess_BP_(\d*).npz", evakey='eva_BP', evckey=None, )
+np.savez(join(summarydir, "StyleGAN2", "spectra_col_stylegan2-cat-config-f_BP.npz"), eigval_col=eigval_col, )
+
+Hdir = r"E:\Cluster_Backup\StyleGAN2\ffhq-256-config-e-003810"
+eigval_col, _, meta = scan_hess_npz(Hdir, npzpat="Hess_BP_(\d*).npz", evakey='eva_BP', evckey=None, )
+np.savez(join(summarydir, "StyleGAN2", "spectra_col_ffhq-256-config-e-003810_BP.npz"), eigval_col=eigval_col, )
+#%% StyleGAN
+Hdir = r"E:\Cluster_Backup\StyleGAN"
+eigval_col, _, meta = scan_hess_npz(Hdir, npzpat="Hessian_rand_(\d*).npz", evakey='eva_BP', evckey=None, )
+np.savez(join(summarydir, "StyleGAN", "spectra_col_face256_BP.npz"), eigval_col=eigval_col, )
+#%% PGGAN
+Hdir = r"E:\Cluster_Backup\PGGAN"
+eigval_col, _, meta = scan_hess_npz(Hdir, npzpat='Hessian_cmp_(\d*).npz', evakey='eva_BP', evckey=None, )
+np.savez(join(summarydir, "PGGAN", "spectra_col_BP.npz"), eigval_col=eigval_col, )
+#%% DCGAN
+Hdir = r"E:\Cluster_Backup\DCGAN"
+eigval_col, _, meta = scan_hess_npz(Hdir, npzpat='Hessian_cmp_(\d*).npz', evakey='eva_BP', evckey=None, )
+np.savez(join(summarydir, "DCGAN", "spectra_col_BP.npz"), eigval_col=eigval_col, )
+
 #%%
 """Visualize the spectra of different GANs all in one place"""
 rootdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary"
-spaceD = [4096, 256, 120, 512, 512, 512, 512]
-GANlist = ["FC6", "BigGAN", "BigBiGAN", "StyleGAN-face", "StyleGAN-cat",
-           "StyleGAN-face-Forw", "StyleGAN-cat-Forw"]
+spaceD = [4096, 120, 256, 120, 512, 512, 512, 512, 512]
+GANlist = ["FC6", "DCGAN-fashion", "BigGAN", "BigBiGAN", "PGGAN-face", "StyleGAN-face", "StyleGAN2-face512",
+           "StyleGAN2-face256", "StyleGAN2-cat", ]
+           # "StyleGAN-face-Forw", "StyleGAN-cat-Forw"]
 fnlist = ["FC6GAN\\spectra_col_evol.npz",
+          "DCGAN\\spectra_col_BP.npz",
           "BigGAN\\spectra_col.npz",
           "BigBiGAN\\spectra_col.npz",
+          "PGGAN\\spectra_col_BP.npz",
+          "StyleGAN\\spectra_col_face256_BP.npz",
           "StyleGAN2\\spectra_col_FFHQ512.npz",
-          "StyleGAN2\\spectra_col_stylegan2-cat-config-f.npz",
-          "StyleGAN2\\spectra_col_ffhq-512-avg-tpurun1_Forwa.npz",
-          "StyleGAN2\\spectra_col_stylegan2-cat-config-f_Forwa.npz"]
+          "StyleGAN2\\spectra_col_ffhq-256-config-e-003810_BP.npz",
+          "StyleGAN2\\spectra_col_stylegan2-cat-config-f_BP.npz", ]
+          # "StyleGAN2\\spectra_col_stylegan2-cat-config-f.npz",
+          # "StyleGAN2\\spectra_col_ffhq-512-avg-tpurun1_Forwa.npz",
+          # "StyleGAN2\\spectra_col_stylegan2-cat-config-f_Forwa.npz"]
 plt.figure()
 for i, GAN in enumerate(GANlist):
     with np.load(join(rootdir, fnlist[i])) as data:
@@ -131,7 +162,7 @@ plt.figure()
 for i, GAN in enumerate(GANlist):
     with np.load(join(rootdir, fnlist[i])) as data:
         eigval_col = data["eigval_col"]
-    if eigval_col[:,-1].mean() > eigval_col[:,0].mean():
+    if eigval_col[:, -1].mean() > eigval_col[:,0].mean():
         eigval_col = eigval_col[:, ::-1]
     eva_mean = eigval_col.mean(axis=0)
     eva_std = eigval_col.std(axis=0)
@@ -139,7 +170,7 @@ for i, GAN in enumerate(GANlist):
 
     plt.plot(np.arange(len(eva_mean))/spaceD[i], np.log10(eva_mean / eva_mean.max()), alpha=0.7)  # , eigval_arr.std(axis=0)
     plt.fill_between(np.arange(len(eva_mean))/spaceD[i], np.log10(eva_lim[0, :] / eva_mean.max()),
-                                                     np.log10(eva_lim[1, :] / eva_mean.max()), alpha=0.5, label=GAN)
+                                                         np.log10(eva_lim[1, :] / eva_mean.max()), alpha=0.5, label=GAN)
 plt.ylabel("log10(eig/eigmax)")
 plt.xlabel("rank normalized to all dimensions")
 plt.title("Spectra Compared Across GANs")
@@ -160,7 +191,7 @@ for i, GAN in enumerate(GANlist):
 
     plt.plot(np.arange(len(eva_mean)), np.log10(eva_mean / eva_mean.max()), alpha=0.7)  # , eigval_arr.std(axis=0)
     plt.fill_between(np.arange(len(eva_mean)), np.log10(eva_lim[0, :] / eva_mean.max()),
-                                                         np.log10(eva_lim[1, :] / eva_mean.max()), alpha=0.5, label=GAN)
+                                               np.log10(eva_lim[1, :] / eva_mean.max()), alpha=0.5, label=GAN)
 plt.ylabel("log10(eig/eigmax)")
 plt.xlabel("ranks")
 plt.xlim([-25, 525])
@@ -169,3 +200,7 @@ plt.legend(loc="best")
 plt.savefig(join(rootdir, "spectra_synopsis_log_rank.png"))
 plt.savefig(join(rootdir, "spectra_synopsis_log_rank.pdf"))
 plt.show()
+#%%
+
+#%%
+#%%

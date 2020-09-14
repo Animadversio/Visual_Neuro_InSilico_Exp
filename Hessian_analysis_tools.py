@@ -1,6 +1,9 @@
 #%%
 """
 This lib curates functions that are useful for Hessian analysis for different GANs
+- load computed hess npz
+- Visualize spectra
+
 """
 import sys
 import re
@@ -14,14 +17,19 @@ matplotlib.rcParams['ps.fonttype'] = 42
 from time import time
 import os
 from os.path import join
-def scan_hess_npz(Hdir, evakey='eva_BP', evckey='evc_BP', npzpat="Hess_BP(\d*).npz", ):
+def scan_hess_npz(Hdir, npzpat="Hess_BP_(\d*).npz", evakey='eva_BP', evckey='evc_BP', ):
+    """ Function to load in npz and collect the spectra.
+    Set evckey=None to avoid loading eigenvectors.
+
+    Note for newer experiments use evakey='eva_BP', evckey='evc_BP'
+    For older experiments use evakey='eigvals', evckey='eigvects'"""
     npzpaths = glob(join(Hdir, "*.npz"))
     npzfns = [path.split("\\")[-1] for path in npzpaths]
     npzpattern = re.compile(npzpat)
     eigval_col = []
     eigvec_col = []
     meta = []
-    for fn, path in zip(npzfns, npzpaths):
+    for fn, path in tqdm(zip(npzfns, npzpaths)):
         match = npzpattern.findall(fn)
         if len(match) == 0:
             continue
@@ -29,9 +37,10 @@ def scan_hess_npz(Hdir, evakey='eva_BP', evckey='evc_BP', npzpat="Hess_BP(\d*).n
         data = np.load(path)
         try:
             evas = data[evakey]
-            evcs = data[evckey]
             eigval_col.append(evas)
-            eigvec_col.append(evcs)
+            if evckey is not None:
+                evcs = data[evckey]
+                eigvec_col.append(evcs)
             meta.append(parts)
         except KeyError:
             print("KeyError, keys in the archive : ", list(data))
