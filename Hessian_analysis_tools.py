@@ -17,7 +17,7 @@ matplotlib.rcParams['ps.fonttype'] = 42
 from time import time
 import os
 from os.path import join
-def scan_hess_npz(Hdir, npzpat="Hess_BP_(\d*).npz", evakey='eva_BP', evckey='evc_BP', ):
+def scan_hess_npz(Hdir, npzpat="Hess_BP_(\d*).npz", evakey='eva_BP', evckey='evc_BP', featkey="feat"):
     """ Function to load in npz and collect the spectra.
     Set evckey=None to avoid loading eigenvectors.
 
@@ -28,6 +28,7 @@ def scan_hess_npz(Hdir, npzpat="Hess_BP_(\d*).npz", evakey='eva_BP', evckey='evc
     npzpattern = re.compile(npzpat)
     eigval_col = []
     eigvec_col = []
+    feat_col = []
     meta = []
     for fn, path in tqdm(zip(npzfns, npzpaths)):
         match = npzpattern.findall(fn)
@@ -41,14 +42,20 @@ def scan_hess_npz(Hdir, npzpat="Hess_BP_(\d*).npz", evakey='eva_BP', evckey='evc
             if evckey is not None:
                 evcs = data[evckey]
                 eigvec_col.append(evcs)
+            if featkey is not None:
+                feat = data[featkey]
+                feat_col.append(feat)
             meta.append(parts)
         except KeyError:
             print("KeyError, keys in the archive : ", list(data))
             return
     eigval_col = np.array(eigval_col)
     print("Load %d npz files of Hessian info" % len(meta))
-    return eigval_col, eigvec_col, meta
-
+    if featkey is None:
+        return eigval_col, eigvec_col, meta
+    else:
+        return eigval_col, eigvec_col, feat_col, meta
+#%%
 def plot_spectra(eigval_col, savename="spectrum_all", figdir="", abs=True,
                  titstr="GAN", label="all", fig=None):
     """A local function to compute these figures for different subspaces. """

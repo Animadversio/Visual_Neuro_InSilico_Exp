@@ -10,18 +10,18 @@ import matplotlib.pylab as plt
 from time import time
 from os.path import join
 from imageio import imwrite
+from PIL import Image
+from skimage.io import imsave
 from build_montages import build_montages, color_framed_montages
 from geometry_utils import SLERP, LERP, LExpMap
 from GAN_utils import upconvGAN
+#%% FC6 GAN
 G = upconvGAN("fc6")
 G.requires_grad_(False).cuda()  # this notation is incorrect in older pytorch
 #%%
-#%%
 figdir = r"E:\OneDrive - Washington University in St. Louis\HessTune\HessEigVec"
-from PIL import Image
-from skimage.io import imsave
 # go through spectrum in batch, and plot B number of axis in a row
-def vis_eigen_frame(eigvect_avg, eigv_avg, ref_code=None, figdir=figdir, page_B=50, G=G,
+def vis_eigen_frame(eigvect_avg, eigv_avg, G, ref_code=None, figdir=figdir, page_B=50,
                     eig_rng=(0, 4096), eiglist=None, maxdist=120, rown=7, transpose=True):
     if ref_code is None:
         ref_code = np.zeros((1, 4096))
@@ -47,7 +47,7 @@ def vis_eigen_frame(eigvect_avg, eigv_avg, ref_code=None, figdir=figdir, page_B=
             print("Finish printing page eigen %d-%d (%.1fs)"%(eiglist[csr], eigi, time()-t0))
             csr = idx
 #%%
-def vis_eigen_action(eigvec, ref_codes, figdir=figdir, page_B=50, G=G,
+def vis_eigen_action(eigvec, ref_codes, G, figdir=figdir, page_B=50,
                     maxdist=120, rown=7, transpose=True, RND=None, namestr=""):
     if ref_codes is None:
         ref_codes = np.zeros((1, 4096))
@@ -115,14 +115,11 @@ vis_eigen_action(eigvect_avg[:, -5], np.random.randn(10,4096), figdir=figdir, pa
 vis_eigen_action(eigvect_avg[:, -5], None, figdir=figdir, page_B=50,
                     maxdist=20, rown=5, transpose=False)
 
-#%%
-# from GAN_utils import BigGAN_wrapper
+#%% BigGAN
+from GAN_utils import BigGAN_wrapper, loadBigGAN
 from pytorch_pretrained_biggan import BigGAN
 from torchvision.transforms import ToPILImage
-BGAN = BigGAN.from_pretrained("biggan-deep-256")
-BGAN.cuda().eval()
-for param in BGAN.parameters():
-    param.requires_grad_(False)
+BGAN = loadBigGAN("biggan-deep-256").cuda()
 BG = BigGAN_wrapper(BGAN)
 EmbedMat = BG.BigGAN.embeddings.weight.cpu().numpy()
 #%%
@@ -159,3 +156,23 @@ refvecs = np.vstack((EmbedMat[:, np.random.randint(0, 1000, 10)], 0.5*np.random.
 vis_eigen_action(tanvec, refvecs, figdir=figdir, page_B=50, G=BG,
                  maxdist=2, rown=5, transpose=False, namestr="eig_clas%d"%eigi)
 
+#%%
+from GAN_utils import BigBiGAN_wrapper, loadBigBiGAN
+from torchvision.transforms import ToPILImage
+#%%
+BBGAN = loadBigBiGAN().cuda()
+BBG = BigBiGAN_wrapper(BBGAN)
+# EmbedMat = BG.BigGAN.embeddings.weight.cpu().numpy()
+#%%
+from lpips import LPIPS
+ImDist = LPIPS(net="squeeze")
+#%%
+from GAN_hessian_compute import hessian_compute, get_full_hessian
+# from Hessian_analysis_tools import scan_hess_npz, compute_hess_corr, plot_spectra
+npzdir = r"E:\OneDrive - Washington University in St. Louis\HessGANCmp\BigBiGAN"
+eigval_col, eigvec_col, feat_col, meta = scan_hess_npz(npzdir, npzpat="Hess_norm9_(\d*).npz", evakey='eigvals', evckey='eigvects', featkey="vect")
+feat_arr = np.array(feat_col).squeeze()
+#%%
+eigid = 20
+figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\BigBiGAN"
+mtg = vis_eigen_action(eigvec=eigvec_col[12][:, -eigid-1], ref_codes=feat_arr[[12, 0, 2, 4, 6, 8, 10, 12, ], :], G=BBG, maxdist=2, rown=5, transpose=False, namestr="BigBiGAN_norm9_eig%d"%eigid, figdir=figdir)

@@ -303,7 +303,7 @@ def loadBigBiGAN(weightpath=None):
         param.requires_grad_(False)
     BBGAN.eval()
     return BBGAN
-
+#%%
 class BigBiGAN_wrapper():#nn.Module
     def __init__(self, BigBiGAN, ):
         self.BigGAN = BigBiGAN
@@ -313,6 +313,18 @@ class BigBiGAN_wrapper():#nn.Module
         imgs = F.interpolate(imgs, size=(resolution, resolution), align_corners=True, mode='bilinear')
         return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
 
+    def render(self, codes_all_arr, B=15, scale=1.0, resolution=256):
+        img_tsr = None
+        imgn = codes_all_arr.shape[0]
+        csr = 0
+        with torch.no_grad():
+            while csr < imgn:
+                csr_end = min(csr + B, imgn)
+                code_batch = torch.from_numpy(codes_all_arr[csr:csr_end, :]).float().cuda()
+                img_list = self.visualize(code_batch, scale=scale, resolution=resolution).cpu()
+                img_tsr = img_list if img_tsr is None else torch.cat((img_tsr, img_list), dim=0)
+                csr = csr_end
+        return [img.permute([1,2,0]).numpy() for img in img_tsr]
 #%% StyleGAN2 wrapper for ease of usage
 import sys
 if platform == "linux":  # CHPC cluster
