@@ -138,6 +138,35 @@ def compute_hess_corr(eigval_col, eigvec_col, savelabel="", figdir="", use_cuda=
     print("Log scale non-diag mean corr value %.3f med %.3f" % (log_nodiag_mean_cc, log_nodiag_med_cc))
     print("Lin scale non-diag mean corr value %.3f med %.3f" % (lin_nodiag_mean_cc, lin_nodiag_med_cc))
     return corr_mat_log, corr_mat_lin
+
+def compute_vector_hess_corr(eigval_col, eigvec_col, savelabel="", figdir="", use_cuda=False):
+    posN = len(eigval_col)
+    T0 = time()
+    if use_cuda:
+        corr_mat_vec = torch.zeros((posN, posN)).cuda()
+        for eigi in tqdm(range(posN)):
+            eva_i, evc_i = torch.from_numpy(eigval_col[eigi]).cuda(), torch.from_numpy(eigvec_col[eigi]).cuda()
+            H_i = (evc_i * eva_i.unsqueeze(0)) @ evc_i.T
+            for eigj in range(posN):
+                eva_j, evc_j = torch.from_numpy(eigval_col[eigj]).cuda(), torch.from_numpy(eigvec_col[eigj]).cuda()
+                H_j = (evc_j * eva_j.unsqueeze(0)) @ evc_j.T
+                corr_mat_vec[eigi, eigj] = corr_torch(H_i.flatten(), H_j.flatten())
+        corr_mat_vec = corr_mat_vec.cpu().numpy()
+    else:
+        corr_mat_vec = np.zeros((posN, posN))
+        for eigi in tqdm(range(posN)):
+            eva_i, evc_i = eigval_col[eigi], eigvec_col[eigi]
+            H_i = (evc_i * eva_i[np.newaxis, :]) @ evc_i.T
+            for eigj in range(posN):
+                eva_j, evc_j = eigval_col[eigj], eigvec_col[eigj]
+                H_j = (evc_j * eva_j[np.newaxis, :]) @ evc_j.T
+                # corr_mat_log[eigi, eigj] = \
+                # np.corrcoef(ma.masked_invalid(np.log10(vHv_ij)), ma.masked_invalid(np.log10(eva_j)))[0, 1]
+                corr_mat_vec[eigi, eigj] = np.corrcoef(H_i.flatten(), H_j.flatten())[0, 1]
+    print("%.1f sec" % (time() - T0))  #
+    np.savez(join(figdir, "Hess_%s_corr_mat_vec.npz" % savelabel), corr_mat_vec=corr_mat_vec, )
+    print("Compute results saved to %s" % join(figdir, "Hess_%s_corr_mat_vec.npz" % savelabel))
+    return corr_mat_vec
 #%
 def plot_consistentcy_mat(corr_mat_log, corr_mat_lin, savelabel="", figdir="", titstr="GAN"):
     posN = corr_mat_log.shape[0]
@@ -212,3 +241,70 @@ def plot_consistency_example(eigval_col, eigvec_col, nsamp=5, titstr="GAN", figd
     plt.savefig(join(figdir, "Hess_consistency_example_%s_rnd%03d.pdf" % (savelabel, RND)),
                 bbox_extra_artists=[ST])  #
     return fig
+#%%
+def plot_layer_consistency_mat(corr_mat_log, corr_mat_lin, corr_mat_vec, savelabel="", figdir="", titstr="GAN", layernames=None):
+    posN = corr_mat_log.shape[0]
+    corr_mat_log_nodiag = corr_mat_log.copy()
+    corr_mat_lin_nodiag = corr_mat_lin.copy()
+    corr_mat_vec_nodiag = corr_mat_vec.copy()
+    np.fill_diagonal(corr_mat_log_nodiag, np.nan)
+    np.fill_diagonal(corr_mat_lin_nodiag, np.nan)
+    np.fill_diagonal(corr_mat_vec_nodiag, np.nan)
+    log_nodiag_mean_cc = np.nanmean(corr_mat_log_nodiag)
+    lin_nodiag_mean_cc = np.nanmean(corr_mat_lin_nodiag)
+    vec_nodiag_mean_cc = np.nanmean(corr_mat_vec_nodiag)
+    log_nodiag_med_cc = np.nanmedian(corr_mat_log_nodiag)
+    lin_nodiag_med_cc = np.nanmedian(corr_mat_lin_nodiag)
+    vec_nodiag_med_cc = np.nanmedian(corr_mat_vec_nodiag)
+    print("Log scale corr non-diag mean value %.3f"%log_nodiag_mean_cc)
+    print("Lin scale corr non-diag mean value %.3f"%lin_nodiag_mean_cc)
+    print("Vec Hessian corr non-diag mean value %.3f"%vec_nodiag_mean_cc)
+    fig1 = plt.figure(figsize=[10, 8])
+    plt.matshow(corr_mat_log, fignum=0)
+    plt.title("%s Hessian at 1 vector for %d layers\nCorrelation Mat of log of vHv and eigenvalues"
+              "\nNon-Diagonal mean %.3f median %.3f"%(titstr, posN, log_nodiag_mean_cc, log_nodiag_med_cc), fontsize=15)
+    plt.colorbar()
+    fig1.axes[0].tick_params(axis="x", bottom=True, top=False, labelbottom=True, labeltop=False)
+    if layernames is not None:
+        plt.yticks(range(posN), layernames);
+        plt.ylim(-0.5, posN-0.5)
+        plt.xticks(range(posN), layernames, rotation=35, rotation_mode='anchor', ha='right')
+        plt.xlim(-0.5, posN - 0.5)
+    plt.subplots_adjust(top=0.85)
+    plt.savefig(join(figdir, "Hess_%s_Layer_corrmat_log.jpg"%savelabel))
+    plt.savefig(join(figdir, "Hess_%s_Layer_corrmat_log.pdf"%savelabel))
+    plt.show()
+
+    fig2 = plt.figure(figsize=[10, 8])
+    plt.matshow(corr_mat_lin, fignum=0)
+    plt.title("%s Hessian at 1 vector for %d layers\nCorrelation Mat of vHv and eigenvalues"
+              "\nNon-Diagonal mean %.3f median %.3f"%(titstr, posN, lin_nodiag_mean_cc, lin_nodiag_med_cc), fontsize=15)
+    fig2.axes[0].tick_params(axis="x", bottom=True, top=False, labelbottom=True, labeltop=False)
+    if layernames is not None:
+        plt.yticks(range(posN), layernames);
+        plt.ylim(-0.5, posN - 0.5)
+        plt.xticks(range(posN), layernames, rotation=35, rotation_mode='anchor', ha='right')
+        plt.xlim(-0.5, posN - 0.5)
+    plt.colorbar()
+    plt.subplots_adjust(top=0.85)
+    plt.savefig(join(figdir, "Hess_%s_Layer_corrmat_lin.jpg"%savelabel))
+    plt.savefig(join(figdir, "Hess_%s_Layer_corrmat_lin.pdf"%savelabel))
+    plt.show()
+
+    fig3 = plt.figure(figsize=[10, 8])
+    plt.matshow(corr_mat_vec, fignum=0)
+    plt.title("%s Hessian at 1 vector for %d layers\nCorrelation Mat of vectorized Hessian Mat"
+              "\nNon-Diagonal mean %.3f median %.3f" % (titstr, posN, vec_nodiag_mean_cc, vec_nodiag_med_cc),
+              fontsize=15)
+    plt.colorbar()
+    fig3.axes[0].tick_params(axis="x", bottom=True, top=False, labelbottom=True, labeltop=False)
+    if layernames is not None:
+        plt.yticks(range(posN), layernames);
+        plt.ylim(-0.5, posN - 0.5)
+        plt.xticks(range(posN), layernames, rotation=35, rotation_mode='anchor', ha='right')
+        plt.xlim(-0.5, posN - 0.5)
+    plt.subplots_adjust(top=0.85)
+    plt.savefig(join(figdir, "Hess_%s_Layer_corrmat_vecH.jpg" % savelabel))
+    plt.savefig(join(figdir, "Hess_%s_Layer_corrmat_vecH.pdf" % savelabel))
+    plt.show()
+    return fig1, fig2, fig3

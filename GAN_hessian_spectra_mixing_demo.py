@@ -1,12 +1,8 @@
 
-
-
 """
-Spectral Mixing for Random directions
+Spectral Mixing for Random directions make the figures to demonstrate this
 """
-GAN = GANlist[2]
-with np.load(join(rootdir, fnlist[2])) as data:
-    eigval_col = data["eigvals_clas_col"]
+
 import os
 import re
 from time import time
@@ -70,3 +66,12 @@ for path, label in zip(fnlist, GANlist):
     eigval_m = eigval_col.mean(0)
     figdir = join(rootdir, GANname)
     plot_spectra_mix_cmp(eigval_m, Hlabel=label, figdir=figdir)
+
+#%% The first and second moment of the alpha distribution by derivation.
+def theoretical_moment(eigval_m):
+    """Compute the theoretical first and 2nd moment for the eigenvalue distribution"""
+    dim = len(eigval_m)
+    Var = ((eigval_m**2).sum() * dim - eigval_m.sum()**2) * 2 / dim**2 / (dim+2)
+    Mean = eigval_m.sum()/dim
+    return Mean, Var
+
