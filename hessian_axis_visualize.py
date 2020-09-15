@@ -19,6 +19,7 @@ from GAN_utils import upconvGAN
 G = upconvGAN("fc6")
 G.requires_grad_(False).cuda()  # this notation is incorrect in older pytorch
 #%%
+#%%
 figdir = r"E:\OneDrive - Washington University in St. Louis\HessTune\HessEigVec"
 # go through spectrum in batch, and plot B number of axis in a row
 def vis_eigen_frame(eigvect_avg, eigv_avg, G, ref_code=None, figdir=figdir, page_B=50,
