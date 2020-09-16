@@ -17,7 +17,7 @@ matplotlib.rcParams['ps.fonttype'] = 42
 from time import time
 import os
 from os.path import join
-def scan_hess_npz(Hdir, npzpat="Hess_BP_(\d*).npz", evakey='eva_BP', evckey='evc_BP', featkey="feat"):
+def scan_hess_npz(Hdir, npzpat="Hess_BP_(\d*).npz", evakey='eva_BP', evckey='evc_BP', featkey=None):
     """ Function to load in npz and collect the spectra.
     Set evckey=None to avoid loading eigenvectors.
 

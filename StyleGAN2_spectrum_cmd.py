@@ -18,7 +18,8 @@ modelname = "ffhq-256-config-e-003810"  # 109 sec
 SGAN = loadStyleGAN(modelname+".pt", size=256, channel_multiplier=1)  # 491 sec per BP
 modelname = "stylegan2-ffhq-config-f"
 SGAN = loadStyleGAN(modelname+".pt", size=1024, channel_multiplier=2)  # 491 sec per BP
-
+modelname = "2020-01-11-skylion-stylegan2-animeportraits"
+SGAN = loadStyleGAN(modelname+".pt", size=512, channel_multiplier=2)
 #%%
 # for triali in range(1,16):
 #     feat = 0.5 * torch.randn(1, 512).detach().clone().cuda()

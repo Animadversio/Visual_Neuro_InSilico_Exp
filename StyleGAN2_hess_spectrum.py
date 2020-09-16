@@ -114,6 +114,11 @@ class StyleGAN_wrapper():#nn.Module
             progress_bar(csr_end, imgn, "ploting row of page: %d of %d" % (csr_end, imgn))
         return img_all
 
+    def render(self, codes_all_arr, truncation=0.7, B=15):
+        img_tsr = self.visualize_batch_np(codes_all_arr, truncation=truncation, B=B)
+        return [img.permute([1,2,0]).numpy() for img in img_tsr]
+
+
 g_ema = loadStyleGAN("stylegan2-cat-config-f.pt")
 G = StyleGAN_wrapper(g_ema)
 #%% Forward Operator Factorization
@@ -186,10 +191,6 @@ for triali in range(10):
         PILimg = ToPILImage()(imggrid)  # .show()
         PILimg.save(join(savedir, "eigvect_lin_trunc%.1f_EPS%.E_%04d.jpg" % (truncation, HVP_eps, RND)))
         print("Spent time %.1f sec" % (time() - T00))
-
-
-
-
 
 #%%
 T00 = time()

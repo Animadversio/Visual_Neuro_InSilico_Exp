@@ -402,6 +402,9 @@ class StyleGAN_wrapper():#nn.Module
             progress_bar(csr_end, imgn, "ploting row of page: %d of %d" % (csr_end, imgn))
         return img_all
 
+    def render(self, codes_all_arr, truncation=0.7, B=15):
+        img_tsr = self.visualize_batch_np(codes_all_arr, truncation=self.truncation, mean_latent=self.mean_latent, B=B)
+        return [img.permute([1,2,0]).numpy() for img in img_tsr]
 
 # G = BigGAN_wrapper(BGAN)
 # # layer name translation
