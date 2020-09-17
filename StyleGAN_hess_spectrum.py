@@ -77,7 +77,7 @@ for EPSi in range(data_FI['H_col'].shape[0]):
     # print("EPS %.1e Correlation of Flattened Hessian matrix BP vs ForwardIter %.3f" % (
     #     EPS, np.corrcoef(H_BP.flatten(), H_FI.flatten())[0, 1]))
 #%%%
-from Hessian_analysis_tools import plot_spectra, compute_hess_corr, plot_consistentcy_mat, plot_consistency_example
+from hessian_analysis_tools import plot_spectra, compute_hess_corr, plot_consistentcy_mat, plot_consistency_example
 import matplotlib.pylab as plt
 import matplotlib
 matplotlib.rcParams['pdf.fonttype'] = 42
@@ -220,7 +220,7 @@ eva_col = np.array(eva_col)
 import os
 figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\StyleGAN"
 os.makedirs(figdir, exist_ok=True)
-from Hessian_analysis_tools import plot_spectra, compute_hess_corr, plot_consistency_example, plot_consistentcy_mat
+from hessian_analysis_tools import plot_spectra, compute_hess_corr, plot_consistency_example, plot_consistentcy_mat
 fig = plot_spectra(eva_col, figdir=figdir, titstr="StyleGAN", )
 #%%
 corr_mat_log, corr_mat_lin = compute_hess_corr(eva_col, evc_col, figdir=figdir, use_cuda=True)

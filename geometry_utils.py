@@ -28,6 +28,16 @@ def LExpMap(refcode, tan_vec, steps, lim=(0,1)):
     ticks = np.linspace(lim[0], lim[1], steps, endpoint=True)[:, np.newaxis]
     exp_code = refcode + ticks @ tan_vec
     return exp_code
+
+def SExpMap(refcode, tan_vec, steps, lim=(0,1)):
+    """ Linear Interpolation for numpy arrays"""
+    refcode, tan_vec = refcode.reshape(1,-1), tan_vec.reshape(1,-1)
+    refnorm = np.linalg.norm(refcode)
+    realtanv = tan_vec - (tan_vec@refcode.T)@refcode/refnorm**2
+    tannorm = np.linalg.norm(realtanv)
+    angles = np.linspace(lim[0], lim[1], steps, endpoint=True)[:, np.newaxis]
+    exp_code = (np.cos(angles) @ refcode / refnorm + np.sin(angles) @ realtanv / tannorm) * refnorm
+    return exp_code
 #%% Geometric Utility Function
 def ExpMap(x, tang_vec, EPS = 1E-4):
     angle_dist = sqrt((tang_vec ** 2).sum(axis=1))  # vectorized

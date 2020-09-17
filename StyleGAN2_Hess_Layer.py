@@ -15,7 +15,7 @@ try:
 except:
     ImDist = lpips.PerceptualLoss(net="squeeze").cuda()
 from GAN_hessian_compute import hessian_compute, get_full_hessian
-from Hessian_analysis_tools import compute_vector_hess_corr, compute_hess_corr, plot_layer_consistency_mat
+from hessian_analysis_tools import compute_vector_hess_corr, compute_hess_corr, plot_layer_consistency_mat
 from GAN_utils import loadStyleGAN2, StyleGAN2_wrapper
 #%%
 modelname = "ffhq-256-config-e-003810"  # 109 sec
@@ -70,7 +70,7 @@ for blocki in range(len(SGAN.convs)):
     plt.savefig(join(datadir, "spectrum_genBlock%d_latent.png" % (blocki)))
     # plt.show()
 #%%
-from Hessian_analysis_tools import plot_consistentcy_mat, compute_hess_corr, compute_vector_hess_corr, plot_layer_consistency_mat
+from hessian_analysis_tools import plot_consistentcy_mat, compute_hess_corr, compute_vector_hess_corr, plot_layer_consistency_mat
 datadir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\StyleGAN2"
 layernames = [("StyleBlock%02d" % blocki) for blocki in range(12)] # if blocki!=8 else "SelfAttention"
 eva_col, evc_col = [], []
@@ -100,7 +100,7 @@ fig0 = plot_layer_spectra(eva_col, layernames=layernames, figdir=datadir, titstr
                           namestr="zspace_all_block")
 fig0 = plot_layer_spectra(eva_col, layernames=layernames, figdir=datadir, titstr="StyleGAN2", normalize=True,
                           namestr="zspace_all_block_norm")
-from Hessian_analysis_tools import plot_consistentcy_mat, compute_hess_corr, compute_vector_hess_corr, plot_layer_consistency_mat
+from hessian_analysis_tools import plot_consistentcy_mat, compute_hess_corr, compute_vector_hess_corr, plot_layer_consistency_mat
 corr_mat_log, corr_mat_lin = compute_hess_corr(eva_col, evc_col, savelabel="StyleGAN2_zspace", figdir=datadir)
 corr_mat_vec = compute_vector_hess_corr(eva_col, evc_col, savelabel="StyleGAN2_zspace", figdir=datadir)
 fig1, fig2, fig3 = plot_layer_consistency_mat(corr_mat_log, corr_mat_lin, corr_mat_vec, savelabel="StyleGAN2_zspace",

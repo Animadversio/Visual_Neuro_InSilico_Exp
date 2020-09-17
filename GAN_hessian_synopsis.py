@@ -6,7 +6,7 @@ from glob import glob
 import sys
 import pandas as pd
 import numpy as np
-from Hessian_analysis_tools import scan_hess_npz
+from hessian_analysis_tools import scan_hess_npz
 import matplotlib.pylab as plt
 import matplotlib
 matplotlib.rcParams['pdf.fonttype'] = 42

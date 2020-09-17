@@ -358,7 +358,10 @@ def loadStyleGAN2(ckpt_name="ffhq-512-avg-tpurun1.pt", channel_multiplier=2, n_m
     g_ema = Generator(
         size, latent, n_mlp, channel_multiplier=channel_multiplier
     ).to(device)
-    checkpoint = torch.load(ckpt_path)
+    try:
+        checkpoint = torch.load(ckpt_path)
+    except:
+        print("Checkpoint %s load failed, Available Checkpoints: "%ckpt_name, os.listdir(ckpt_path))
     g_ema.load_state_dict(checkpoint['g_ema'])
     g_ema.eval()
     for param in g_ema.parameters():
@@ -374,17 +377,25 @@ class StyleGAN2_wrapper():#nn.Module
         mean_latent = StyleGAN.mean_latent(truncation_mean)
         self.truncation = truncation
         self.mean_latent = mean_latent
+        self.wspace = False
 
     def select_trunc(self, truncation, truncation_mean=4096):
         self.truncation = truncation
         mean_latent = self.StyleGAN.mean_latent(truncation_mean)
         self.mean_latent = mean_latent
 
-    def visualize(self, code, scale=1.0, resolution=256, truncation=1, mean_latent=None, preset=True):
-        if preset and self.truncation is not None:
-            imgs, _ = self.StyleGAN([code], truncation=self.truncation, truncation_latent=self.mean_latent)
+    def select_space(self, wspace=False):
+        self.wspace = wspace
+
+    def visualize(self, code, scale=1.0, resolution=256, truncation=1, mean_latent=None, preset=True, wspace=False):
+        if preset:
+            imgs, _ = self.StyleGAN([code], truncation=self.truncation, truncation_latent=self.mean_latent, input_is_latent=self.wspace)
         else:
-            imgs, _ = self.StyleGAN([code], truncation=truncation, truncation_latent=mean_latent)
+            if truncation is None:
+                imgs, _ = self.StyleGAN([code], truncation=self.truncation, truncation_latent=self.mean_latent,
+                                        input_is_latent=wspace)
+            else:
+                imgs, _ = self.StyleGAN([code], truncation=truncation, truncation_latent=mean_latent, input_is_latent=wspace)
         imgs = F.interpolate(imgs, size=(resolution, resolution), align_corners=True, mode='bilinear')
         return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
 

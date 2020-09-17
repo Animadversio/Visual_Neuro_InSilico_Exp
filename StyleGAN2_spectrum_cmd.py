@@ -1,8 +1,12 @@
 import sys
+import os
 from os.path import join
 from time import time
 import torch
 import numpy as np
+import torch.nn.functional as F
+from torchvision.transforms import ToPILImage
+from torchvision.utils import make_grid
 sys.path.append("E:\Github_Projects\Visual_Neuro_InSilico_Exp")
 sys.path.append("D:\Github\Visual_Neuro_InSilico_Exp")
 import lpips
@@ -111,7 +115,7 @@ for triali in range(0, 100):
                    preprocess=lambda img: F.interpolate(img, (256, 256), mode='bilinear', align_corners=True))
     print("%.2f sec" % (time() - T0))  # 109 sec
     np.savez(join(savedir, "Hess_BP_%d.npz"%triali), eva_BP=eva_BP, evc_BP=evc_BP, H_BP=H_BP, feat=feat.detach().cpu().numpy())
-
+#%%
 modelname = "stylegan2-ffhq-config-f"
 SGAN = loadStyleGAN2(modelname+".pt", size=512, channel_multiplier=2)
 G = StyleGAN2_wrapper(SGAN)

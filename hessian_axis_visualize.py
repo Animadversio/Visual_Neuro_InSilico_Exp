@@ -13,12 +13,17 @@ from imageio import imwrite
 from PIL import Image
 from skimage.io import imsave
 from build_montages import build_montages, color_framed_montages
-from geometry_utils import SLERP, LERP, LExpMap
-from GAN_utils import upconvGAN
+from geometry_utils import SLERP, LERP, LExpMap, SExpMap
+from GAN_utils import upconvGAN, loadBigGAN, loadBigBiGAN, loadStyleGAN, BigGAN_wrapper, BigBiGAN_wrapper, StyleGAN_wrapper
+from GAN_hessian_compute import hessian_compute, get_full_hessian
+from hessian_analysis_tools import scan_hess_npz, compute_hess_corr, plot_spectra, average_H
+#%%
+from lpips import LPIPS
+ImDist = LPIPS(net="squeeze")
 #%%
 figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary"
 # go through spectrum in batch, and plot B number of axis in a row
-def vis_eigen_frame(eigvect_avg, eigv_avg, G, ref_code=None, figdir=figdir, page_B=50,
+def vis_eigen_frame(eigvect_avg, eigv_avg, G, ref_code=None, figdir="", page_B=50,
                     eig_rng=(0, 4096), eiglist=None, maxdist=120, rown=7, transpose=True):
     if ref_code is None:
         ref_code = np.zeros((1, 4096))
@@ -55,7 +60,10 @@ def vis_eigen_action(eigvec, ref_codes, G, figdir=figdir, page_B=50,
     csr = 0
     codes_page = []
     for idx, ref_code in enumerate(reflist):  # range(eig_rng[0]+1, eig_rng[1]+1):
-        interp_codes = LExpMap(ref_code, eigvec, rown, (-maxdist, maxdist))
+        if sphere:
+            interp_codes = LExpMap(ref_code, eigvec, rown, (-maxdist, maxdist))
+        else:
+            interp_codes = SExpMap(ref_code, eigvec, rown, (-maxdist, maxdist))
         codes_page.append(interp_codes)
         if (idx == csr + page_B - 1) or idx + 1 == len(reflist):
             codes_all = np.concatenate(tuple(codes_page), axis=0)
@@ -164,11 +172,8 @@ if __name__ == "__main__":
     BBG = BigBiGAN_wrapper(BBGAN)
     # EmbedMat = BG.BigGAN.embeddings.weight.cpu().numpy()
     #%%
-    from lpips import LPIPS
-    ImDist = LPIPS(net="squeeze")
-    #%%
     from GAN_hessian_compute import hessian_compute, get_full_hessian
-    from Hessian_analysis_tools import scan_hess_npz, compute_hess_corr, plot_spectra
+    from hessian_analysis_tools import scan_hess_npz, compute_hess_corr, plot_spectra
     npzdir = r"E:\OneDrive - Washington University in St. Louis\HessGANCmp\BigBiGAN"
     eigval_col, eigvec_col, feat_col, meta = scan_hess_npz(npzdir, npzpat="Hess_norm9_(\d*).npz", evakey='eigvals', evckey='eigvects', featkey="vect")
     feat_arr = np.array(feat_col).squeeze()
@@ -178,13 +183,13 @@ if __name__ == "__main__":
     mtg = vis_eigen_action(eigvec=eigvec_col[12][:, -eigid-1], ref_codes=feat_arr[[12, 0, 2, 4, 6, 8, 10, 12, ], :], G=BBG, maxdist=2, rown=5, transpose=False, namestr="BigBiGAN_norm9_eig%d"%eigid, figdir=figdir)
     #%% StyleGAN2
     from GAN_hessian_compute import hessian_compute
-    from GAN_utils import loadStyleGAN2, StyleGAN2_wrapper
+    from GAN_utils import loadStyleGAN, StyleGAN_wrapper
     figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\StyleGAN2"
     #%% Cats
     modelname = "stylegan2-cat-config-f"
     npzdir = r"E:\Cluster_Backup\StyleGAN2\stylegan2-cat-config-f"
-    SGAN = loadStyleGAN2(modelname+".pt", size=256, channel_multiplier=2)  #
-    G = StyleGAN2_wrapper(SGAN)
+    SGAN = loadStyleGAN(modelname+".pt", size=256, channel_multiplier=2)  #
+    G = StyleGAN_wrapper(SGAN)
     eigval_col, eigvec_col, feat_col, meta = scan_hess_npz(npzdir, npzpat="Hess_BP_(\d*).npz", evakey='eva_BP',
                                                            evckey='evc_BP', featkey="feat")
     feat_arr = np.array(feat_col).squeeze()
@@ -195,8 +200,8 @@ if __name__ == "__main__":
     #%% Animation
     modelname = "2020-01-11-skylion-stylegan2-animeportraits"
     npzdir = r"E:\Cluster_Backup\StyleGAN2\2020-01-11-skylion-stylegan2-animeportraits"
-    SGAN = loadStyleGAN2(modelname+".pt", size=512, channel_multiplier=2)
-    G = StyleGAN2_wrapper(SGAN)
+    SGAN = loadStyleGAN(modelname+".pt", size=512, channel_multiplier=2)
+    G = StyleGAN_wrapper(SGAN)
     eigval_col, eigvec_col, feat_col, meta = scan_hess_npz(npzdir, npzpat="Hess_BP_(\d*).npz", evakey='eva_BP',
                                                            evckey='evc_BP', featkey="feat")
     feat_arr = np.array(feat_col).squeeze()
@@ -204,11 +209,11 @@ if __name__ == "__main__":
     eigid = 3
     mtg = vis_eigen_action(eigvec=eigvec_col[0][:, -eigid-1], ref_codes=feat_arr[[0, 2, 4, 6, 8, 10, 12, ], :],
                            G=G, maxdist=10, rown=5, transpose=False, namestr="SG2_anime_eig%d"%eigid, figdir=figdir)
-    #%% Faces
+    #%% Faces 256
     modelname = 'ffhq-256-config-e-003810'
     npzdir = r"E:\Cluster_Backup\StyleGAN2\ffhq-256-config-e-003810"
-    SGAN = loadStyleGAN2(modelname+".pt", size=256, channel_multiplier=1)  #
-    G = StyleGAN2_wrapper(SGAN)
+    SGAN = loadStyleGAN(modelname+".pt", size=256, channel_multiplier=1)  #
+    G = StyleGAN_wrapper(SGAN)
     eigval_col, eigvec_col, feat_col, meta = scan_hess_npz(npzdir, npzpat="Hess_BP_(\d*).npz", evakey='eva_BP',
                                                            evckey='evc_BP', featkey="feat")
     feat_arr = np.array(feat_col).squeeze()
@@ -216,3 +221,44 @@ if __name__ == "__main__":
     eigid = 14
     mtg = vis_eigen_action(eigvec=eigvec_col[0][:, -eigid-1], ref_codes=feat_arr[[0, 2, 4, 6, 8, 10, 12, ], :],
                            G=G, maxdist=10, rown=5, transpose=False, namestr="SG2_Face256_eig%d"%eigid, figdir=figdir)
+    #%% Faces
+    modelname = 'ffhq-256-config-e-003810'
+    npzdir = r"E:\Cluster_Backup\StyleGAN2\ffhq-256-config-e-003810"
+    SGAN = loadStyleGAN(modelname+".pt", size=256, channel_multiplier=1)  #
+    G = StyleGAN_wrapper(SGAN)
+    eigval_col, eigvec_col, feat_col, meta = scan_hess_npz(npzdir, npzpat="Hess_BP_(\d*).npz", evakey='eva_BP',
+                                                           evckey='evc_BP', featkey="feat")
+    feat_arr = np.array(feat_col).squeeze()
+    #%%
+    def average_H(eigval_col, eigvec_col):
+        """Compute the average Hessian over a bunch of positions"""
+        nH = len(eigvec_col)
+        dimen = eigval_col.shape[1]
+        H_avg = np.zeros((dimen, dimen))
+        for iH in range(nH):
+            H = (eigvec_col[iH] * eigval_col[iH][np.newaxis, :]) @ eigvec_col[iH].T
+            H_avg += H
+        H_avg /= nH
+        eva_avg, evc_avg = np.linalg.eigh(H_avg)
+        return H_avg, eva_avg, evc_avg
+
+    H_avg, eva_avg, evc_avg = average_H(eigval_col, eigvec_col)
+    #%%
+    maxang = 1.5
+    figdir = "E:\Cluster_Backup\StyleGAN2_axis\Face256"
+    for eigid in list(range(20))+list(range(20,60,2))+list(range(60,200,4)):
+        mtg = vis_eigen_action(eigvec=evc_avg[:, -eigid-1], ref_codes=feat_arr[[0, 2, 4, 6, 8, 10, 12, 14, 16, 20, 40, 60], :],
+                       G=G, sphere=True, maxdist=1.5, rown=5, transpose=False, namestr="SG2_Face256_AVGeig%d_Sph%.1f"%(eigid, maxang), figdir=figdir)
+        print("Finish printing eigenvalue %d"%eigid)
+        # if eigid==5:
+        #     break
+
+    maxdis = 6
+    figdir = "E:\Cluster_Backup\StyleGAN2_axis\Face256"
+    for eigid in list(range(20))+list(range(20,60,2))+list(range(60,200,4)):
+        mtg = vis_eigen_action(eigvec=evc_avg[:, -eigid-1], ref_codes=feat_arr[[0, 2, 4, 6, 8, 10, 12, 14, 16, 20, 40, 60], :],
+                               G=G, maxdist=maxdis, rown=7, transpose=False, namestr="SG2_Face256_AVGeig%d_Lin%1.f"%(eigid, maxdis), figdir=figdir)
+        print("Finish printing eigenvalue %d"%eigid)
+
+    #%
+
