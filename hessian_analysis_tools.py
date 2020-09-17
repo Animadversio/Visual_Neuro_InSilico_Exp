@@ -56,6 +56,18 @@ def scan_hess_npz(Hdir, npzpat="Hess_BP_(\d*).npz", evakey='eva_BP', evckey='evc
     else:
         return eigval_col, eigvec_col, feat_col, meta
 #%%
+def average_H(eigval_col, eigvec_col):
+    """Compute the average Hessian over a bunch of positions"""
+    nH = len(eigvec_col)
+    dimen = eigval_col.shape[1]
+    H_avg = np.zeros((dimen, dimen))
+    for iH in range(nH):
+        H = (eigvec_col[iH] * eigval_col[iH][np.newaxis, :]) @ eigvec_col[iH].T
+        H_avg += H
+    H_avg /= nH
+    eva_avg, evc_avg = np.linalg.eigh(H_avg)
+    return H_avg, eva_avg, evc_avg
+#%%
 def plot_spectra(eigval_col, savename="spectrum_all", figdir="", abs=True,
                  titstr="GAN", label="all", fig=None):
     """A local function to compute these figures for different subspaces. """

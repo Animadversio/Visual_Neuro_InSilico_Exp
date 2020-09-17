@@ -9,34 +9,31 @@ from numpy.linalg import norm
 import matplotlib.pylab as plt
 from time import time
 from os.path import join
-from imageio import imwrite
+from imageio import imwrite, imsave
 from PIL import Image
-from skimage.io import imsave
 from build_montages import build_montages, color_framed_montages
 from geometry_utils import SLERP, LERP, LExpMap, SExpMap
-from GAN_utils import upconvGAN, loadBigGAN, loadBigBiGAN, loadStyleGAN, BigGAN_wrapper, BigBiGAN_wrapper, StyleGAN_wrapper
+from GAN_utils import upconvGAN, loadBigGAN, loadBigBiGAN, loadStyleGAN2, BigGAN_wrapper, BigBiGAN_wrapper, \
+    StyleGAN2_wrapper
 from GAN_hessian_compute import hessian_compute, get_full_hessian
 from hessian_analysis_tools import scan_hess_npz, compute_hess_corr, plot_spectra, average_H
 #%%
-from lpips import LPIPS
-ImDist = LPIPS(net="squeeze")
-#%%
 figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary"
 # go through spectrum in batch, and plot B number of axis in a row
-def vis_eigen_frame(eigvect_avg, eigv_avg, G, ref_code=None, figdir="", page_B=50,
-                    eig_rng=(0, 4096), eiglist=None, maxdist=120, rown=7, transpose=True):
-    if ref_code is None:
-        ref_code = np.zeros((1, 4096))
+def vis_eigen_frame(eigvect_avg, eigv_avg, G, ref_code=None, figdir="", RND=None, namestr="", page_B=50, transpose=True,
+                    eiglist=None, eig_rng=(0, 4096), maxdist=120, rown=7, sphere=False, ):
+    if ref_code is None: ref_code = np.zeros((1, 4096))
+    if RND is None: RND = np.random.randint(10000)
+    if eiglist is None: eiglist = list(range(eig_rng[0], eig_rng[1]))
     t0 = time()
-    if eiglist is not None:
-        if type(eiglist) is not list:
-            raise
-    else:
-        eiglist = list(range(eig_rng[0], eig_rng[1]))
     csr = 0
     codes_page = []
+    codes_col = []
     for idx, eigi in enumerate(eiglist):  # range(eig_rng[0]+1, eig_rng[1]+1):
-        interp_codes = LExpMap(ref_code, eigvect_avg[:, -eigi-1], rown, (-maxdist, maxdist))
+        if sphere:
+            interp_codes = LExpMap(ref_code, eigvect_avg[:, -eigi-1], rown, (-maxdist, maxdist))
+        else:
+            interp_codes = SExpMap(ref_code, eigvect_avg[:, -eigi-1], rown, (-maxdist, maxdist))
         codes_page.append(interp_codes)
         if (idx == csr + page_B - 1) or idx + 1 == len(eiglist):
             codes_all = np.concatenate(tuple(codes_page), axis=0)
@@ -44,11 +41,13 @@ def vis_eigen_frame(eigvect_avg, eigv_avg, G, ref_code=None, figdir="", page_B=5
             mtg = build_montages(img_page, (256, 256), (rown, idx - csr + 1), transpose=transpose)[0]
             # Image.fromarray(np.uint8(mtg * 255.0)).show()
             # imsave(join(figdir, "%d-%d.jpg" % (csr, eigi)), np.uint8(mtg * 255.0))
-            imsave(join(figdir, "%d-%d_%.e~%.e.jpg" %
-                        (eiglist[csr]+1, eigi+1, eigv_avg[-eiglist[csr]-1], eigv_avg[-eigi])), np.uint8(mtg * 255.0))
+            imsave(join(figdir, "%s_%d-%d_%.e~%.e_%04d.jpg" %
+            (namestr, eiglist[csr]+1, eigi+1, eigv_avg[-eiglist[csr]-1], eigv_avg[-eigi], RND)), np.uint8(mtg * 255.0))
+            codes_col.append(codes_all)
             codes_page = []
             print("Finish printing page eigen %d-%d (%.1fs)"%(eiglist[csr], eigi, time()-t0))
             csr = idx
+    return mtg, codes_col
 #%%
 def vis_eigen_action(eigvec, ref_codes, G, figdir=figdir, page_B=50,
                     maxdist=120, rown=7, transpose=True, RND=None, namestr="", sphere=False):
@@ -59,6 +58,7 @@ def vis_eigen_action(eigvec, ref_codes, G, figdir=figdir, page_B=50,
     t0 = time()
     csr = 0
     codes_page = []
+    codes_col = []
     for idx, ref_code in enumerate(reflist):  # range(eig_rng[0]+1, eig_rng[1]+1):
         if sphere:
             interp_codes = LExpMap(ref_code, eigvec, rown, (-maxdist, maxdist))
@@ -71,12 +71,16 @@ def vis_eigen_action(eigvec, ref_codes, G, figdir=figdir, page_B=50,
             mtg = build_montages(img_page, (256, 256), (rown, idx - csr + 1), transpose=transpose)[0]
             imsave(join(figdir, "%s_ref_%d-%d_%d.jpg" %
                         (namestr, csr, idx, RND)), np.uint8(mtg * 255.0))
+            codes_col.append(codes_all)
             codes_page = []
             print("Finish printing page vector %d-%d (%.1fs)"%(csr, idx, time()-t0))
             csr = idx + 1
-    return mtg
-# imgs = visualize_np(G, interp_codes)
+    return mtg, codes_col
+#%% imgs = visualize_np(G, interp_codes)
 if __name__ == "__main__":
+    # %%
+    from lpips import LPIPS
+    ImDist = LPIPS(net="squeeze")
     #%% FC6 GAN on ImageNet
     G = upconvGAN("fc6")
     G.requires_grad_(False).cuda()  # this notation is incorrect in older pytorch
