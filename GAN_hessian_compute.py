@@ -55,7 +55,7 @@ if __name__ == "__main__":
     import sys
     from time import time
     import torch
-    from GAN_utils import loadBigBiGAN, loadStyleGAN, BigBiGAN_wrapper, StyleGAN_wrapper, loadBigGAN, BigGAN_wrapper
+    from GAN_utils import loadBigBiGAN, loadStyleGAN2, BigBiGAN_wrapper, StyleGAN2_wrapper, loadBigGAN, BigGAN_wrapper
     sys.path.append(r"/home/binxu/PerceptualSimilarity")
     sys.path.append(r"D:\Github\PerceptualSimilarity")
     sys.path.append(r"E:\Github_Projects\PerceptualSimilarity")
@@ -77,8 +77,8 @@ if __name__ == "__main__":
     hessian_compute(G, feat, ImDist, hessian_method="BP")
     print("%.2f sec" % (time() - T0))  # 16.22 sec
     #%% StyleGAN2
-    SGAN = loadStyleGAN("ffhq-512-avg-tpurun1.pt", size=512)
-    G = StyleGAN_wrapper(SGAN)
+    SGAN = loadStyleGAN2("ffhq-512-avg-tpurun1.pt", size=512)
+    G = StyleGAN2_wrapper(SGAN)
     feat = 0.5 * torch.randn(1, 512).detach().clone().cuda()
     EPS = 1E-2
     T0 = time()

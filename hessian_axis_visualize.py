@@ -16,7 +16,7 @@ from build_montages import build_montages, color_framed_montages
 from geometry_utils import SLERP, LERP, LExpMap
 from GAN_utils import upconvGAN
 #%%
-figdir = r"E:\OneDrive - Washington University in St. Louis\HessTune\HessEigVec"
+figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary"
 # go through spectrum in batch, and plot B number of axis in a row
 def vis_eigen_frame(eigvect_avg, eigv_avg, G, ref_code=None, figdir=figdir, page_B=50,
                     eig_rng=(0, 4096), eiglist=None, maxdist=120, rown=7, transpose=True):
@@ -68,150 +68,151 @@ def vis_eigen_action(eigvec, ref_codes, G, figdir=figdir, page_B=50,
             csr = idx + 1
     return mtg
 # imgs = visualize_np(G, interp_codes)
-#%% FC6 GAN on ImageNet
-G = upconvGAN("fc6")
-G.requires_grad_(False).cuda()  # this notation is incorrect in older pytorch
-#%% Average Hessian for the Pasupathy Patches
-out_dir = r"E:\OneDrive - Washington University in St. Louis\ref_img_fit\Pasupathy\Nullspace"
-with np.load(join(out_dir, "Pasu_Space_Avg_Hess.npz")) as data:
-    # H_avg = data["H_avg"]
-    eigvect_avg = data["eigvect_avg"]
-    eigv_avg = data["eigv_avg"]
-figdir = r"E:\OneDrive - Washington University in St. Louis\HessTune\HessEigVec"
-vis_eigen_frame(eigvect_avg, eigv_avg, figdir=figdir)
-#%% Average hessian for the evolved images
-out_dir = r"E:\OneDrive - Washington University in St. Louis\HessTune\NullSpace"
-with np.load(join(out_dir, "Evolution_Avg_Hess.npz")) as data:
-    # H_avg = data["H_avg"]
-    eigvect_avg = data["eigvect_avg"]
-    eigv_avg = data["eigv_avg"]
-figdir = r"E:\OneDrive - Washington University in St. Louis\HessTune\HessEigVec_Evol"
-vis_eigen_frame(eigvect_avg, eigv_avg, figdir=figdir)
-#%% use the initial gen as reference code, do the same thing
-out_dir = r"E:\OneDrive - Washington University in St. Louis\HessTune\NullSpace"
-with np.load(join(out_dir, "Texture_Avg_Hess.npz")) as data:
-    # H_avg = data["H_avg"]
-    eigvect_avg = data["eigvect_avg"]
-    eigv_avg = data["eigval_avg"]
-#%%
-code_path = r"D:\Generator_DB_Windows\init_population\texture_init_code.npz"
-with np.load(code_path) as data:
-    codes_all = data["codes"]
-ref_code = codes_all.mean(axis=0, keepdims=True)
-#%%
-figdir = r"E:\OneDrive - Washington University in St. Louis\HessTune\HessEigVec_Text"
-vis_eigen_frame(eigvect_avg, eigv_avg, figdir=figdir, ref_code=ref_code,
-                maxdist=120, rown=7, eig_rng=(0, 4096))
-#%%
+if __name__ == "__main__":
+    #%% FC6 GAN on ImageNet
+    G = upconvGAN("fc6")
+    G.requires_grad_(False).cuda()  # this notation is incorrect in older pytorch
+    #%% Average Hessian for the Pasupathy Patches
+    out_dir = r"E:\OneDrive - Washington University in St. Louis\ref_img_fit\Pasupathy\Nullspace"
+    with np.load(join(out_dir, "Pasu_Space_Avg_Hess.npz")) as data:
+        # H_avg = data["H_avg"]
+        eigvect_avg = data["eigvect_avg"]
+        eigv_avg = data["eigv_avg"]
+    figdir = r"E:\OneDrive - Washington University in St. Louis\HessTune\HessEigVec"
+    vis_eigen_frame(eigvect_avg, eigv_avg, figdir=figdir)
+    #%% Average hessian for the evolved images
+    out_dir = r"E:\OneDrive - Washington University in St. Louis\HessTune\NullSpace"
+    with np.load(join(out_dir, "Evolution_Avg_Hess.npz")) as data:
+        # H_avg = data["H_avg"]
+        eigvect_avg = data["eigvect_avg"]
+        eigv_avg = data["eigv_avg"]
+    figdir = r"E:\OneDrive - Washington University in St. Louis\HessTune\HessEigVec_Evol"
+    vis_eigen_frame(eigvect_avg, eigv_avg, figdir=figdir)
+    #%% use the initial gen as reference code, do the same thing
+    out_dir = r"E:\OneDrive - Washington University in St. Louis\HessTune\NullSpace"
+    with np.load(join(out_dir, "Texture_Avg_Hess.npz")) as data:
+        # H_avg = data["H_avg"]
+        eigvect_avg = data["eigvect_avg"]
+        eigv_avg = data["eigval_avg"]
+    #%%
+    code_path = r"D:\Generator_DB_Windows\init_population\texture_init_code.npz"
+    with np.load(code_path) as data:
+        codes_all = data["codes"]
+    ref_code = codes_all.mean(axis=0, keepdims=True)
+    #%%
+    figdir = r"E:\OneDrive - Washington University in St. Louis\HessTune\HessEigVec_Text"
+    vis_eigen_frame(eigvect_avg, eigv_avg, figdir=figdir, ref_code=ref_code,
+                    maxdist=120, rown=7, eig_rng=(0, 4096))
+    #%%
 
-figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\fc6GAN"
-vis_eigen_frame(eigvect_avg, eigv_avg, ref_code=None, figdir=figdir, page_B=50,
-                eiglist=[0,1,2,5,10,20,30,50,100,200,300,400,600,800,1000,2000,3000,4000], maxdist=240, rown=5,
-                transpose=False)
-#%%
-vis_eigen_action(eigvect_avg[:, -5], np.random.randn(10,4096), figdir=figdir, page_B=50,
-                    maxdist=20, rown=5, transpose=False)
-#%%
-vis_eigen_action(eigvect_avg[:, -5], None, figdir=figdir, page_B=50,
-                    maxdist=20, rown=5, transpose=False)
+    figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\fc6GAN"
+    vis_eigen_frame(eigvect_avg, eigv_avg, ref_code=None, figdir=figdir, page_B=50,
+                    eiglist=[0,1,2,5,10,20,30,50,100,200,300,400,600,800,1000,2000,3000,4000], maxdist=240, rown=5,
+                    transpose=False)
+    #%%
+    vis_eigen_action(eigvect_avg[:, -5], np.random.randn(10,4096), figdir=figdir, page_B=50,
+                        maxdist=20, rown=5, transpose=False)
+    #%%
+    vis_eigen_action(eigvect_avg[:, -5], None, figdir=figdir, page_B=50,
+                        maxdist=20, rown=5, transpose=False)
 
-#%% BigGAN on ImageNet Class Specific
-from GAN_utils import BigGAN_wrapper, loadBigGAN
-from pytorch_pretrained_biggan import BigGAN
-from torchvision.transforms import ToPILImage
-BGAN = loadBigGAN("biggan-deep-256").cuda()
-BG = BigGAN_wrapper(BGAN)
-EmbedMat = BG.BigGAN.embeddings.weight.cpu().numpy()
-#%%
-figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\BigGAN"
-Hessdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\BigGAN"
-data = np.load(join(Hessdir, "H_avg_1000cls.npz"))
-eva_BG = data['eigvals_avg']
-evc_BG = data['eigvects_avg']
-evc_nois = data['eigvects_nois_avg']
-evc_clas = data['eigvects_clas_avg']
-#%%
-imgs = BG.render(np.random.randn(1, 256)*0.06)
-#%%
-eigi = 5
-refvecs = np.vstack((EmbedMat[:,np.random.randint(0, 1000, 10)], 0.5*np.random.randn(128,10))).T
-vis_eigen_action(evc_BG[:, -eigi], refvecs, figdir=figdir, page_B=50, G=BG,
-                 maxdist=0.5, rown=5, transpose=False, namestr="eig%d"%eigi)
-#%% Effect of eigen vectors within the noise space
-eigi = 3
-tanvec = np.hstack((evc_nois[:, -eigi], np.zeros(128)))
-refvecs = np.vstack((EmbedMat[:,np.random.randint(0, 1000, 10)], 0.5*np.random.randn(128,10))).T
-vis_eigen_action(tanvec, refvecs, figdir=figdir, page_B=50, G=BG,
-                 maxdist=2, rown=5, transpose=False, namestr="eig_nois%d"%eigi)
-#%%
-eigi = 3
-tanvec = np.hstack((np.zeros(128), evc_clas[:, -eigi]))
-refvecs = np.vstack((EmbedMat[:,np.random.randint(0, 1000, 10)], 0.5*np.random.randn(128,10))).T
-vis_eigen_action(tanvec, refvecs, figdir=figdir, page_B=50, G=BG,
-                 maxdist=0.4, rown=5, transpose=False, namestr="eig_clas%d"%eigi)
-#%%
-eigi = 120
-tanvec = np.hstack((np.zeros(128), evc_clas[:, -eigi]))
-refvecs = np.vstack((EmbedMat[:, np.random.randint(0, 1000, 10)], 0.5*np.random.randn(128,10))).T
-vis_eigen_action(tanvec, refvecs, figdir=figdir, page_B=50, G=BG,
-                 maxdist=2, rown=5, transpose=False, namestr="eig_clas%d"%eigi)
+    #%% BigGAN on ImageNet Class Specific
+    from GAN_utils import BigGAN_wrapper, loadBigGAN
+    from pytorch_pretrained_biggan import BigGAN
+    from torchvision.transforms import ToPILImage
+    BGAN = loadBigGAN("biggan-deep-256").cuda()
+    BG = BigGAN_wrapper(BGAN)
+    EmbedMat = BG.BigGAN.embeddings.weight.cpu().numpy()
+    #%%
+    figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\BigGAN"
+    Hessdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\BigGAN"
+    data = np.load(join(Hessdir, "H_avg_1000cls.npz"))
+    eva_BG = data['eigvals_avg']
+    evc_BG = data['eigvects_avg']
+    evc_nois = data['eigvects_nois_avg']
+    evc_clas = data['eigvects_clas_avg']
+    #%%
+    imgs = BG.render(np.random.randn(1, 256)*0.06)
+    #%%
+    eigi = 5
+    refvecs = np.vstack((EmbedMat[:,np.random.randint(0, 1000, 10)], 0.5*np.random.randn(128,10))).T
+    vis_eigen_action(evc_BG[:, -eigi], refvecs, figdir=figdir, page_B=50, G=BG,
+                     maxdist=0.5, rown=5, transpose=False, namestr="eig%d"%eigi)
+    #%% Effect of eigen vectors within the noise space
+    eigi = 3
+    tanvec = np.hstack((evc_nois[:, -eigi], np.zeros(128)))
+    refvecs = np.vstack((EmbedMat[:,np.random.randint(0, 1000, 10)], 0.5*np.random.randn(128,10))).T
+    vis_eigen_action(tanvec, refvecs, figdir=figdir, page_B=50, G=BG,
+                     maxdist=2, rown=5, transpose=False, namestr="eig_nois%d"%eigi)
+    #%%
+    eigi = 3
+    tanvec = np.hstack((np.zeros(128), evc_clas[:, -eigi]))
+    refvecs = np.vstack((EmbedMat[:,np.random.randint(0, 1000, 10)], 0.5*np.random.randn(128,10))).T
+    vis_eigen_action(tanvec, refvecs, figdir=figdir, page_B=50, G=BG,
+                     maxdist=0.4, rown=5, transpose=False, namestr="eig_clas%d"%eigi)
+    #%%
+    eigi = 120
+    tanvec = np.hstack((np.zeros(128), evc_clas[:, -eigi]))
+    refvecs = np.vstack((EmbedMat[:, np.random.randint(0, 1000, 10)], 0.5*np.random.randn(128,10))).T
+    vis_eigen_action(tanvec, refvecs, figdir=figdir, page_B=50, G=BG,
+                     maxdist=2, rown=5, transpose=False, namestr="eig_clas%d"%eigi)
 
-#%% BigBiGAN on ImageNet
-from GAN_utils import BigBiGAN_wrapper, loadBigBiGAN
-from torchvision.transforms import ToPILImage
-BBGAN = loadBigBiGAN().cuda()
-BBG = BigBiGAN_wrapper(BBGAN)
-# EmbedMat = BG.BigGAN.embeddings.weight.cpu().numpy()
-#%%
-from lpips import LPIPS
-ImDist = LPIPS(net="squeeze")
-#%%
-from GAN_hessian_compute import hessian_compute, get_full_hessian
-from Hessian_analysis_tools import scan_hess_npz, compute_hess_corr, plot_spectra
-npzdir = r"E:\OneDrive - Washington University in St. Louis\HessGANCmp\BigBiGAN"
-eigval_col, eigvec_col, feat_col, meta = scan_hess_npz(npzdir, npzpat="Hess_norm9_(\d*).npz", evakey='eigvals', evckey='eigvects', featkey="vect")
-feat_arr = np.array(feat_col).squeeze()
-#%%
-eigid = 20
-figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\BigBiGAN"
-mtg = vis_eigen_action(eigvec=eigvec_col[12][:, -eigid-1], ref_codes=feat_arr[[12, 0, 2, 4, 6, 8, 10, 12, ], :], G=BBG, maxdist=2, rown=5, transpose=False, namestr="BigBiGAN_norm9_eig%d"%eigid, figdir=figdir)
-#%% StyleGAN2
-from GAN_hessian_compute import hessian_compute
-from GAN_utils import loadStyleGAN, StyleGAN_wrapper
-figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\StyleGAN2"
-#%% Cats
-modelname = "stylegan2-cat-config-f"
-npzdir = r"E:\Cluster_Backup\StyleGAN2\stylegan2-cat-config-f"
-SGAN = loadStyleGAN(modelname+".pt", size=256, channel_multiplier=2)  #
-G = StyleGAN_wrapper(SGAN)
-eigval_col, eigvec_col, feat_col, meta = scan_hess_npz(npzdir, npzpat="Hess_BP_(\d*).npz", evakey='eva_BP',
-                                                       evckey='evc_BP', featkey="feat")
-feat_arr = np.array(feat_col).squeeze()
-#%%
-eigid = 5
-mtg = vis_eigen_action(eigvec=eigvec_col[0][:, -eigid-1], ref_codes=feat_arr[[0, 2, 4, 6, 8, 10, 12, ], :],
-                       G=G, maxdist=3, rown=5, transpose=False, namestr="SG2_Cat_eig%d"%eigid, figdir=figdir)
-#%% Animation
-modelname = "2020-01-11-skylion-stylegan2-animeportraits"
-npzdir = r"E:\Cluster_Backup\StyleGAN2\2020-01-11-skylion-stylegan2-animeportraits"
-SGAN = loadStyleGAN(modelname+".pt", size=512, channel_multiplier=2)
-G = StyleGAN_wrapper(SGAN)
-eigval_col, eigvec_col, feat_col, meta = scan_hess_npz(npzdir, npzpat="Hess_BP_(\d*).npz", evakey='eva_BP',
-                                                       evckey='evc_BP', featkey="feat")
-feat_arr = np.array(feat_col).squeeze()
-#%%
-eigid = 3
-mtg = vis_eigen_action(eigvec=eigvec_col[0][:, -eigid-1], ref_codes=feat_arr[[0, 2, 4, 6, 8, 10, 12, ], :],
-                       G=G, maxdist=10, rown=5, transpose=False, namestr="SG2_anime_eig%d"%eigid, figdir=figdir)
-#%% Faces
-modelname = 'ffhq-256-config-e-003810'
-npzdir = r"E:\Cluster_Backup\StyleGAN2\ffhq-256-config-e-003810"
-SGAN = loadStyleGAN(modelname+".pt", size=256, channel_multiplier=1)  #
-G = StyleGAN_wrapper(SGAN)
-eigval_col, eigvec_col, feat_col, meta = scan_hess_npz(npzdir, npzpat="Hess_BP_(\d*).npz", evakey='eva_BP',
-                                                       evckey='evc_BP', featkey="feat")
-feat_arr = np.array(feat_col).squeeze()
-#%%
-eigid = 14
-mtg = vis_eigen_action(eigvec=eigvec_col[0][:, -eigid-1], ref_codes=feat_arr[[0, 2, 4, 6, 8, 10, 12, ], :],
-                       G=G, maxdist=10, rown=5, transpose=False, namestr="SG2_Face256_eig%d"%eigid, figdir=figdir)
+    #%% BigBiGAN on ImageNet
+    from GAN_utils import BigBiGAN_wrapper, loadBigBiGAN
+    from torchvision.transforms import ToPILImage
+    BBGAN = loadBigBiGAN().cuda()
+    BBG = BigBiGAN_wrapper(BBGAN)
+    # EmbedMat = BG.BigGAN.embeddings.weight.cpu().numpy()
+    #%%
+    from lpips import LPIPS
+    ImDist = LPIPS(net="squeeze")
+    #%%
+    from GAN_hessian_compute import hessian_compute, get_full_hessian
+    from Hessian_analysis_tools import scan_hess_npz, compute_hess_corr, plot_spectra
+    npzdir = r"E:\OneDrive - Washington University in St. Louis\HessGANCmp\BigBiGAN"
+    eigval_col, eigvec_col, feat_col, meta = scan_hess_npz(npzdir, npzpat="Hess_norm9_(\d*).npz", evakey='eigvals', evckey='eigvects', featkey="vect")
+    feat_arr = np.array(feat_col).squeeze()
+    #%%
+    eigid = 20
+    figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\BigBiGAN"
+    mtg = vis_eigen_action(eigvec=eigvec_col[12][:, -eigid-1], ref_codes=feat_arr[[12, 0, 2, 4, 6, 8, 10, 12, ], :], G=BBG, maxdist=2, rown=5, transpose=False, namestr="BigBiGAN_norm9_eig%d"%eigid, figdir=figdir)
+    #%% StyleGAN2
+    from GAN_hessian_compute import hessian_compute
+    from GAN_utils import loadStyleGAN2, StyleGAN2_wrapper
+    figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\StyleGAN2"
+    #%% Cats
+    modelname = "stylegan2-cat-config-f"
+    npzdir = r"E:\Cluster_Backup\StyleGAN2\stylegan2-cat-config-f"
+    SGAN = loadStyleGAN2(modelname+".pt", size=256, channel_multiplier=2)  #
+    G = StyleGAN2_wrapper(SGAN)
+    eigval_col, eigvec_col, feat_col, meta = scan_hess_npz(npzdir, npzpat="Hess_BP_(\d*).npz", evakey='eva_BP',
+                                                           evckey='evc_BP', featkey="feat")
+    feat_arr = np.array(feat_col).squeeze()
+    #%%
+    eigid = 5
+    mtg = vis_eigen_action(eigvec=eigvec_col[0][:, -eigid-1], ref_codes=feat_arr[[0, 2, 4, 6, 8, 10, 12, ], :],
+                           G=G, maxdist=3, rown=5, transpose=False, namestr="SG2_Cat_eig%d"%eigid, figdir=figdir)
+    #%% Animation
+    modelname = "2020-01-11-skylion-stylegan2-animeportraits"
+    npzdir = r"E:\Cluster_Backup\StyleGAN2\2020-01-11-skylion-stylegan2-animeportraits"
+    SGAN = loadStyleGAN2(modelname+".pt", size=512, channel_multiplier=2)
+    G = StyleGAN2_wrapper(SGAN)
+    eigval_col, eigvec_col, feat_col, meta = scan_hess_npz(npzdir, npzpat="Hess_BP_(\d*).npz", evakey='eva_BP',
+                                                           evckey='evc_BP', featkey="feat")
+    feat_arr = np.array(feat_col).squeeze()
+    #%%
+    eigid = 3
+    mtg = vis_eigen_action(eigvec=eigvec_col[0][:, -eigid-1], ref_codes=feat_arr[[0, 2, 4, 6, 8, 10, 12, ], :],
+                           G=G, maxdist=10, rown=5, transpose=False, namestr="SG2_anime_eig%d"%eigid, figdir=figdir)
+    #%% Faces
+    modelname = 'ffhq-256-config-e-003810'
+    npzdir = r"E:\Cluster_Backup\StyleGAN2\ffhq-256-config-e-003810"
+    SGAN = loadStyleGAN2(modelname+".pt", size=256, channel_multiplier=1)  #
+    G = StyleGAN2_wrapper(SGAN)
+    eigval_col, eigvec_col, feat_col, meta = scan_hess_npz(npzdir, npzpat="Hess_BP_(\d*).npz", evakey='eva_BP',
+                                                           evckey='evc_BP', featkey="feat")
+    feat_arr = np.array(feat_col).squeeze()
+    #%%
+    eigid = 14
+    mtg = vis_eigen_action(eigvec=eigvec_col[0][:, -eigid-1], ref_codes=feat_arr[[0, 2, 4, 6, 8, 10, 12, ], :],
+                           G=G, maxdist=10, rown=5, transpose=False, namestr="SG2_Face256_eig%d"%eigid, figdir=figdir)

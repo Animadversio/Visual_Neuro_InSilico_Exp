@@ -11,15 +11,15 @@ try:
 except:
     ImDist = lpips.PerceptualLoss(net="squeeze").cuda()
 from GAN_hessian_compute import hessian_compute
-from GAN_utils import loadStyleGAN, StyleGAN_wrapper
+from GAN_utils import loadStyleGAN2, StyleGAN2_wrapper
 modelname = "stylegan2-cat-config-f"
-SGAN = loadStyleGAN(modelname+".pt", size=256, channel_multiplier=2)  #
+SGAN = loadStyleGAN2(modelname+".pt", size=256, channel_multiplier=2)  #
 modelname = "ffhq-256-config-e-003810"  # 109 sec
-SGAN = loadStyleGAN(modelname+".pt", size=256, channel_multiplier=1)  # 491 sec per BP
+SGAN = loadStyleGAN2(modelname+".pt", size=256, channel_multiplier=1)  # 491 sec per BP
 modelname = "stylegan2-ffhq-config-f"
-SGAN = loadStyleGAN(modelname+".pt", size=1024, channel_multiplier=2)  # 491 sec per BP
+SGAN = loadStyleGAN2(modelname+".pt", size=1024, channel_multiplier=2)  # 491 sec per BP
 modelname = "2020-01-11-skylion-stylegan2-animeportraits"
-SGAN = loadStyleGAN(modelname+".pt", size=512, channel_multiplier=2)
+SGAN = loadStyleGAN2(modelname+".pt", size=512, channel_multiplier=2)
 #%%
 # for triali in range(1,16):
 #     feat = 0.5 * torch.randn(1, 512).detach().clone().cuda()
@@ -48,8 +48,8 @@ import os
 rootdir = r"E:\Cluster_Backup\StyleGAN2"
 
 modelname = "ffhq-256-config-e-003810"  # 109 sec
-SGAN = loadStyleGAN(modelname+".pt", size=256, channel_multiplier=1)  # 491 sec per BP
-G = StyleGAN_wrapper(SGAN)
+SGAN = loadStyleGAN2(modelname+".pt", size=256, channel_multiplier=1)  # 491 sec per BP
+G = StyleGAN2_wrapper(SGAN)
 savedir = join(rootdir, modelname)
 os.makedirs(savedir, exist_ok=True)
 for triali in range(150):
@@ -61,8 +61,8 @@ for triali in range(150):
     np.savez(join(savedir, "Hess_BP_%d.npz"%triali), eva_BP=eva_BP, evc_BP=evc_BP, H_BP=H_BP, feat=feat.detach().cpu().numpy())
 
 modelname = "stylegan2-cat-config-f"
-SGAN = loadStyleGAN(modelname+".pt", size=256, channel_multiplier=2)
-G = StyleGAN_wrapper(SGAN)
+SGAN = loadStyleGAN2(modelname+".pt", size=256, channel_multiplier=2)
+G = StyleGAN2_wrapper(SGAN)
 savedir = join(rootdir, modelname)
 os.makedirs(savedir, exist_ok=True)
 for triali in range(150):
@@ -74,8 +74,8 @@ for triali in range(150):
     np.savez(join(savedir, "Hess_BP_%d.npz"%triali), eva_BP=eva_BP, evc_BP=evc_BP, H_BP=H_BP, feat=feat.detach().cpu().numpy())
 
 modelname = "model.ckpt-533504"  # 109 sec
-SGAN = loadStyleGAN(modelname+".pt", size=512, channel_multiplier=2)
-G = StyleGAN_wrapper(SGAN)
+SGAN = loadStyleGAN2(modelname+".pt", size=512, channel_multiplier=2)
+G = StyleGAN2_wrapper(SGAN)
 savedir = join(rootdir, modelname)
 os.makedirs(savedir, exist_ok=True)
 for triali in range(50, 100):
@@ -87,11 +87,37 @@ for triali in range(50, 100):
     np.savez(join(savedir, "Hess_BP_%d.npz"%triali), eva_BP=eva_BP, evc_BP=evc_BP, H_BP=H_BP, feat=feat.detach().cpu().numpy())
 
 modelname = "2020-01-11-skylion-stylegan2-animeportraits"
-SGAN = loadStyleGAN(modelname+".pt", size=512, channel_multiplier=2)
-G = StyleGAN_wrapper(SGAN)
+SGAN = loadStyleGAN2(modelname+".pt", size=512, channel_multiplier=2)
+G = StyleGAN2_wrapper(SGAN)
 savedir = join(rootdir, modelname)
 os.makedirs(savedir, exist_ok=True)
 for triali in range(50, 100):
+    feat = torch.randn(1, 512).detach().clone().cuda()
+    T0 = time()
+    eva_BP, evc_BP, H_BP = hessian_compute(G, feat, ImDist, hessian_method="BP",
+                   preprocess=lambda img: F.interpolate(img, (256, 256), mode='bilinear', align_corners=True))
+    print("%.2f sec" % (time() - T0))  # 109 sec
+    np.savez(join(savedir, "Hess_BP_%d.npz"%triali), eva_BP=eva_BP, evc_BP=evc_BP, H_BP=H_BP, feat=feat.detach().cpu().numpy())
+#%%
+modelname = "ffhq-512-avg-tpurun1"
+SGAN = loadStyleGAN2(modelname+".pt", size=512, channel_multiplier=2)
+G = StyleGAN2_wrapper(SGAN)
+savedir = join(rootdir, modelname)
+os.makedirs(savedir, exist_ok=True)
+for triali in range(0, 100):
+    feat = torch.randn(1, 512).detach().clone().cuda()
+    T0 = time()
+    eva_BP, evc_BP, H_BP = hessian_compute(G, feat, ImDist, hessian_method="BP",
+                   preprocess=lambda img: F.interpolate(img, (256, 256), mode='bilinear', align_corners=True))
+    print("%.2f sec" % (time() - T0))  # 109 sec
+    np.savez(join(savedir, "Hess_BP_%d.npz"%triali), eva_BP=eva_BP, evc_BP=evc_BP, H_BP=H_BP, feat=feat.detach().cpu().numpy())
+
+modelname = "stylegan2-ffhq-config-f"
+SGAN = loadStyleGAN2(modelname+".pt", size=512, channel_multiplier=2)
+G = StyleGAN2_wrapper(SGAN)
+savedir = join(rootdir, modelname)
+os.makedirs(savedir, exist_ok=True)
+for triali in range(0, 100):
     feat = torch.randn(1, 512).detach().clone().cuda()
     T0 = time()
     eva_BP, evc_BP, H_BP = hessian_compute(G, feat, ImDist, hessian_method="BP",

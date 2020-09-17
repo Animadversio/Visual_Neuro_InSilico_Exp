@@ -7,7 +7,7 @@ from time import time
 import torch
 import numpy as np
 import matplotlib.pylab as plt
-from GAN_utils import loadBigBiGAN, loadStyleGAN, BigBiGAN_wrapper, StyleGAN_wrapper, loadBigGAN, BigGAN_wrapper
+from GAN_utils import loadBigBiGAN, loadStyleGAN2, BigBiGAN_wrapper, StyleGAN2_wrapper, loadBigGAN, BigGAN_wrapper
 # sys.path.append(r"/home/binxu/PerceptualSimilarity")
 # sys.path.append(r"D:\Github\PerceptualSimilarity")
 # sys.path.append(r"E:\Github_Projects\PerceptualSimilarity")
@@ -17,8 +17,8 @@ import lpips
 ImDist = lpips.LPIPS(net="squeeze").cuda()
 from GAN_hessian_compute import hessian_compute
 #%%
-SGAN = loadStyleGAN("ffhq-512-avg-tpurun1.pt", size=512)
-G = StyleGAN_wrapper(SGAN)
+SGAN = loadStyleGAN2("ffhq-512-avg-tpurun1.pt", size=512)
+G = StyleGAN2_wrapper(SGAN)
 #%% Accuracy dependency on the EPS value
 feat = 0.5 * torch.randn(1, 512).detach().clone().cuda()
 triali = 0

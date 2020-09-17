@@ -12,7 +12,7 @@ import lpips
 from GAN_hessian_compute import hessian_compute, get_full_hessian
 from torchvision.transforms import ToPILImage
 from torchvision.utils import make_grid
-from GAN_utils import loadBigGAN, loadStyleGAN, BigGAN_wrapper
+from GAN_utils import loadBigGAN, loadStyleGAN2, BigGAN_wrapper
 from Hessian_analysis_tools import plot_spectra, compute_hess_corr
 #%%
 BGAN = loadBigGAN()

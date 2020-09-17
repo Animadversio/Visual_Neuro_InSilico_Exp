@@ -351,7 +351,8 @@ else:
         ckpt_root = join(StyleGAN_root, 'checkpoint')
 sys.path.append(StyleGAN_root)
 
-def loadStyleGAN(ckpt_name="ffhq-512-avg-tpurun1.pt", channel_multiplier=2, n_mlp=8, latent=512, size=512, device="cpu"):
+def loadStyleGAN2(ckpt_name="ffhq-512-avg-tpurun1.pt", channel_multiplier=2, n_mlp=8, latent=512, size=512,
+                  device="cpu"):
     from model import Generator
     ckpt_path = join(ckpt_root, ckpt_name)
     g_ema = Generator(
@@ -365,7 +366,7 @@ def loadStyleGAN(ckpt_name="ffhq-512-avg-tpurun1.pt", channel_multiplier=2, n_ml
     g_ema.cuda()
     return g_ema
 
-class StyleGAN_wrapper():#nn.Module
+class StyleGAN2_wrapper():#nn.Module
     def __init__(self, StyleGAN, ):
         self.StyleGAN = StyleGAN
         truncation = 0.8  # Note these parameters could be tuned

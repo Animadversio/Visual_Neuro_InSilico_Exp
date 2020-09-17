@@ -16,10 +16,10 @@ except:
     ImDist = lpips.PerceptualLoss(net="squeeze").cuda()
 from GAN_hessian_compute import hessian_compute, get_full_hessian
 from Hessian_analysis_tools import compute_vector_hess_corr, compute_hess_corr, plot_layer_consistency_mat
-from GAN_utils import loadStyleGAN, StyleGAN_wrapper
+from GAN_utils import loadStyleGAN2, StyleGAN2_wrapper
 #%%
 modelname = "ffhq-256-config-e-003810"  # 109 sec
-SGAN = loadStyleGAN(modelname+".pt", size=256, channel_multiplier=1)  # 491 sec per BP
+SGAN = loadStyleGAN2(modelname+".pt", size=256, channel_multiplier=1)  # 491 sec per BP
 #%%
 L2dist_col = []
 def Hess_hook(module, fea_in, fea_out):

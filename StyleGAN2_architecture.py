@@ -14,9 +14,9 @@ from os.path import join
 from imageio import imwrite
 from build_montages import build_montages, color_framed_montages
 import torchvision.models as tv
-from GAN_utils import loadStyleGAN, StyleGAN_wrapper, ckpt_root
-g_ema = loadStyleGAN("stylegan2-cat-config-f.pt")
-G = StyleGAN_wrapper(g_ema)
+from GAN_utils import loadStyleGAN2, StyleGAN2_wrapper, ckpt_root
+g_ema = loadStyleGAN2("stylegan2-cat-config-f.pt")
+G = StyleGAN2_wrapper(g_ema)
 #%%
 paramnum = 0
 for name, param in g_ema.state_dict().items():
