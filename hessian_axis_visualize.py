@@ -30,7 +30,7 @@ def vis_eigen_frame(eigvect_avg, eigv_avg, G, ref_code=None, figdir="", RND=None
     codes_page = []
     codes_col = []
     for idx, eigi in enumerate(eiglist):  # range(eig_rng[0]+1, eig_rng[1]+1):
-        if sphere:
+        if not sphere:
             interp_codes = LExpMap(ref_code, eigvect_avg[:, -eigi-1], rown, (-maxdist, maxdist))
         else:
             interp_codes = SExpMap(ref_code, eigvect_avg[:, -eigi-1], rown, (-maxdist, maxdist))
@@ -48,6 +48,64 @@ def vis_eigen_frame(eigvect_avg, eigv_avg, G, ref_code=None, figdir="", RND=None
             print("Finish printing page eigen %d-%d (%.1fs)"%(eiglist[csr], eigi, time()-t0))
             csr = idx
     return mtg, codes_col
+
+def vis_eigen_explore(ref_code, eigvect_avg, eigv_avg, G, figdir="", RND=None, namestr="",
+     transpose=True, eiglist=[1,2,4,7,16], maxdist=120, rown=5, sphere=False, ImDist=None, distrown=19):
+    """This is small scale version of vis_eigen_frame + vis_distance_vector """
+    if RND is None: RND = np.random.randint(10000)
+    if eiglist is None: eiglist = list(range(len(eigv_avg)))
+    t0 = time()
+    codes_page = []
+    for idx, eigi in enumerate(eiglist):  # range(eig_rng[0]+1, eig_rng[1]+1):
+        if not sphere:
+            interp_codes = LExpMap(ref_code, eigvect_avg[:, -eigi-1], rown, (-maxdist, maxdist))
+        else:
+            interp_codes = SExpMap(ref_code, eigvect_avg[:, -eigi-1], rown, (-maxdist, maxdist))
+        codes_page.append(interp_codes)
+    codes_all = np.concatenate(tuple(codes_page), axis=0)
+    img_page = G.render(codes_all)
+    mtg = build_montages(img_page, (256, 256), (rown, len(eiglist)), transpose=transpose)[0]
+    imsave(join(figdir, "%s_%d-%d_%04d.jpg" % (namestr, eiglist[0]+1, eiglist[-1]+1, RND)), np.uint8(mtg * 255.0))
+    plt.imsave(join(figdir, "%s_%d-%d_%04d.pdf" % (namestr, eiglist[0]+1, eiglist[-1]+1, RND)), mtg, )
+    print("Finish printing page (%.1fs)" % (time() - t0))
+    if ImDist is not None: # if distance metric available then compute this
+        distmat, ticks, fig = vis_distance_curve(ref_code, eigvect_avg, eigv_avg, G, ImDist, eiglist=eiglist,
+	        maxdist=maxdist, rown=rown, distrown=distrown, sphere=sphere, figdir=figdir, RND=RND, namestr=namestr, )
+        return mtg, codes_all, distmat, fig
+    else:
+        return mtg, codes_all
+
+def vis_distance_curve(ref_code, eigvect_avg, eigvals_avg, G, ImDist, eiglist=[1,2,4,7,16],
+	    maxdist=0.3, rown=3, distrown=19, sphere=False, figdir="", RND=None, namestr="", ):
+    refimg = G.visualize_batch_np(ref_code)
+    if RND is None: RND = np.random.randint(10000)
+    codes_page = []
+    ticks = np.linspace(-maxdist, maxdist, distrown, endpoint=True)
+    visticks = np.linspace(-maxdist, maxdist, rown, endpoint=True)
+    for idx, eigi in enumerate(eiglist):  # range(eig_rng[0]+1, eig_rng[1]+1):
+        if not sphere:
+            interp_codes = LExpMap(ref_code, eigvect_avg[:, -eigi - 1], distrown, (-maxdist, maxdist))
+        else:
+            interp_codes = SExpMap(ref_code, eigvect_avg[:, -eigi - 1], distrown, (-maxdist, maxdist))
+        codes_page.append(interp_codes)
+        # if (idx == csr + page_B - 1) or idx + 1 == len(eiglist):
+    codes_all = np.concatenate(tuple(codes_page), axis=0)
+    img_page = G.visualize_batch_np(codes_all)
+    with torch.no_grad():
+        dist_all = ImDist(refimg, img_page).squeeze()
+    distmat = dist_all.reshape(-1, distrown).numpy()
+    fig = plt.figure(figsize=[5, 3])
+    for idx, eigi in enumerate(eiglist):
+        plt.plot(ticks, distmat[idx, :], label="eig%d %.E" % (eigi + 1, eigvals_avg[-eigi - 1]), lw=2.5, alpha=0.7)
+    plt.xticks(visticks)
+    plt.ylabel("Image distance")
+    plt.xlabel("L2 in latent space" if not sphere else "Angle (rad) in latent space")
+    plt.legend()
+    plt.savefig(join(figdir, "%s_imdistcrv_%04d.jpg" % (namestr, RND)) )
+    plt.savefig(join(figdir, "%s_imdistcrv_%04d.pdf" % (namestr, RND)) )
+    plt.subplots_adjust(left=0.06, bottom=0.05)
+    plt.show()
+    return distmat, ticks, fig
 #%%
 def vis_eigen_action(eigvec, ref_codes, G, figdir=figdir, page_B=50,
                     maxdist=120, rown=7, transpose=True, RND=None, namestr="", sphere=False):
@@ -60,7 +118,7 @@ def vis_eigen_action(eigvec, ref_codes, G, figdir=figdir, page_B=50,
     codes_page = []
     codes_col = []
     for idx, ref_code in enumerate(reflist):  # range(eig_rng[0]+1, eig_rng[1]+1):
-        if sphere:
+        if not sphere:
             interp_codes = LExpMap(ref_code, eigvec, rown, (-maxdist, maxdist))
         else:
             interp_codes = SExpMap(ref_code, eigvec, rown, (-maxdist, maxdist))
