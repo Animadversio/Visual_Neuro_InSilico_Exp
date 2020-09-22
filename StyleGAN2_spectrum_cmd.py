@@ -47,6 +47,7 @@ SGAN = loadStyleGAN2(modelname+".pt", size=512, channel_multiplier=2)
 #                                         eva_BP=eva_BP, evc_BP=evc_BP, H_BP=H_BP, feat=feat.detach().cpu().numpy())
 #     print("Save finished")
 #%%
+"""Compute spectrum for different models through CMD interface. """
 import torch.nn.functional as F
 import os
 rootdir = r"E:\Cluster_Backup\StyleGAN2"

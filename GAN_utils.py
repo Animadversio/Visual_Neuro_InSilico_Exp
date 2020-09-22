@@ -399,7 +399,9 @@ class StyleGAN2_wrapper():#nn.Module
         imgs = F.interpolate(imgs, size=(resolution, resolution), align_corners=True, mode='bilinear')
         return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
 
-    def visualize_batch_np(self, codes_all_arr, truncation, mean_latent, B=5):
+    def visualize_batch_np(self, codes_all_arr, truncation=None, mean_latent=None, B=15):
+        if truncation is None:  truncation = self.truncation
+        if mean_latent is None:  mean_latent = self.mean_latent
         csr = 0
         img_all = None
         imgn = codes_all_arr.shape[0]
@@ -414,8 +416,10 @@ class StyleGAN2_wrapper():#nn.Module
             progress_bar(csr_end, imgn, "ploting row of page: %d of %d" % (csr_end, imgn))
         return img_all
 
-    def render(self, codes_all_arr, truncation=0.7, B=15):
-        img_tsr = self.visualize_batch_np(codes_all_arr, truncation=self.truncation, mean_latent=self.mean_latent, B=B)
+    def render(self, codes_all_arr, truncation=None, mean_latent=None, B=15):
+        if truncation is None:  truncation = self.truncation
+        if mean_latent is None:  mean_latent = self.mean_latent
+        img_tsr = self.visualize_batch_np(codes_all_arr, truncation=truncation, mean_latent=mean_latent, B=B)
         return [img.permute([1,2,0]).numpy() for img in img_tsr]
 
 # G = BigGAN_wrapper(BGAN)
