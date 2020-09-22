@@ -54,6 +54,7 @@ def scan_hess_npz(Hdir, npzpat="Hess_BP_(\d*).npz", evakey='eva_BP', evckey='evc
     if featkey is None:
         return eigval_col, eigvec_col, meta
     else:
+        feat_col = np.array(tuple(feat_col)).squeeze()
         return eigval_col, eigvec_col, feat_col, meta
 #%%
 def average_H(eigval_col, eigvec_col):
@@ -246,7 +247,7 @@ def plot_consistency_example(eigval_col, eigvec_col, nsamp=5, titstr="GAN", figd
             else:
                 ax.scatter(np.log10(eigval_j), np.log10(vHv_ij), s=15, alpha=0.6)
                 ax.set_aspect(1, adjustable='datalim')
-            if axi == 4:
+            if axi == nsamp-1:
                 ax.set_xlabel("eigvals @ pos %d" % eigj)
             if axj == 0:
                 ax.set_ylabel("vHv eigvec @ pos %d" % eigi)
@@ -262,6 +263,7 @@ def plot_consistency_example(eigval_col, eigvec_col, nsamp=5, titstr="GAN", figd
     return fig
 #%%
 def plot_layer_consistency_mat(corr_mat_log, corr_mat_lin, corr_mat_vec, savelabel="", figdir="", titstr="GAN", layernames=None):
+    """How Hessian matrix in different layers correspond to each other. """
     posN = corr_mat_log.shape[0]
     corr_mat_log_nodiag = corr_mat_log.copy()
     corr_mat_lin_nodiag = corr_mat_lin.copy()
@@ -327,3 +329,48 @@ def plot_layer_consistency_mat(corr_mat_log, corr_mat_lin, corr_mat_vec, savelab
     plt.savefig(join(figdir, "Hess_%s_Layer_corrmat_vecH.pdf" % savelabel))
     plt.show()
     return fig1, fig2, fig3
+
+#%%
+def plot_layer_consistency_example(eigval_col, eigvec_col, layernames, layeridx=[0,1,-1], titstr="GAN", figdir="",
+                                   savelabel=""):
+    """
+    Note for scatter plot the aspect ratio is set fixed to one.
+    :param eigval_col:
+    :param eigvec_col:
+    :param nsamp:
+    :param titstr:
+    :param figdir:
+    :return:
+    """
+    nsamp = len(layeridx)
+    # Hnums = len(eigval_col)
+    # eiglist = sorted(np.random.choice(Hnums, nsamp, replace=False))  # range(5)
+    print("Plot hessian of layers : ", [layernames[idx] for idx in layeridx])
+    fig = plt.figure(figsize=[10, 10], constrained_layout=False)
+    spec = fig.add_gridspec(ncols=nsamp, nrows=nsamp, left=0.075, right=0.975, top=0.9, bottom=0.05)
+    for axi, Li in enumerate(layeridx):
+        eigval_i, eigvect_i = eigval_col[Li], eigvec_col[Li]
+        for axj, Lj in enumerate(layeridx):
+            eigval_j, eigvect_j = eigval_col[Lj], eigvec_col[Lj]
+            inpr = eigvect_i.T @ eigvect_j
+            vHv_ij = np.diag((inpr @ np.diag(eigval_j)) @ inpr.T)
+            ax = fig.add_subplot(spec[axi, axj])
+            if axi == axj:
+                ax.hist(np.log10(eigval_j), 20)
+            else:
+                ax.scatter(np.log10(eigval_j), np.log10(vHv_ij), s=15, alpha=0.6)
+                ax.set_aspect(1, adjustable='datalim')
+            if axi == nsamp-1:
+                ax.set_xlabel("eigvals @ %s" % layernames[Lj])
+            if axj == 0:
+                ax.set_ylabel("vHv eigvec @ %s" % layernames[Li])
+    ST = plt.suptitle("Consistency of %s Hessian Across Layers\n"
+                      "Cross scatter of EigenValues and vHv values for Hessian at %d Layers"%(titstr, nsamp),
+                      fontsize=18)
+    # plt.subplots_adjust(left=0.175, right=0.95 )
+    RND = np.random.randint(1000)
+    plt.savefig(join(figdir, "Hess_layer_consistency_example_%s_rnd%03d.jpg" % (savelabel, RND)),
+                bbox_extra_artists=[ST])  #
+    plt.savefig(join(figdir, "Hess_layer_consistency_example_%s_rnd%03d.pdf" % (savelabel, RND)),
+                bbox_extra_artists=[ST])  #
+    return fig

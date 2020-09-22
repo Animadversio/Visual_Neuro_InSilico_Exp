@@ -13,7 +13,7 @@ import matplotlib.pylab as plt
 import os
 import time
 import sys
-import utils
+# import utils
 import numpy as np
 from numpy.linalg import norm
 from numpy.random import randn

@@ -18,7 +18,7 @@ from GAN_utils import upconvGAN, loadBigGAN, loadBigBiGAN, loadStyleGAN2, BigGAN
 from GAN_hessian_compute import hessian_compute, get_full_hessian
 from hessian_analysis_tools import scan_hess_npz, compute_hess_corr, plot_spectra, average_H
 #%%
-figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary"
+# figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary"
 # go through spectrum in batch, and plot B number of axis in a row
 def vis_eigen_frame(eigvect_avg, eigv_avg, G, ref_code=None, figdir="", RND=None, namestr="", page_B=50, transpose=True,
                     eiglist=None, eig_rng=(0, 4096), maxdist=120, rown=7, sphere=False, ):
@@ -75,9 +75,41 @@ def vis_eigen_explore(ref_code, eigvect_avg, eigv_avg, G, figdir="", RND=None, n
     else:
         return mtg, codes_all
 
+def vis_eigen_explore_row(ref_code, eigvect_avg, eigv_avg, G, figdir="", RND=None, namestr="", indivimg=False,
+     transpose=True, eiglist=[1,2,4,7,16], maxdist=120, rown=5, sphere=False, ):  # ImDist=None, distrown=19
+    """This is small scale version of vis_eigen_frame + vis_distance_vector """
+    if RND is None: RND = np.random.randint(10000)
+    if eiglist is None: eiglist = list(range(len(eigv_avg)))
+    t0 = time()
+    codes_page = []
+    mtg_col = []
+    ticks = np.linspace(-maxdist, maxdist, rown)
+    for idx, eigi in enumerate(eiglist):  # range(eig_rng[0]+1, eig_rng[1]+1):
+        if not sphere:
+            interp_codes = LExpMap(ref_code, eigvect_avg[:, -eigi-1], rown, (-maxdist, maxdist))
+        else:
+            interp_codes = SExpMap(ref_code, eigvect_avg[:, -eigi-1], rown, (-maxdist, maxdist))
+        codes_page.append(interp_codes)
+        img_page = G.render(interp_codes)
+        mtg = build_montages(img_page, (256, 256), (rown, 1), transpose=transpose)[0]
+        imsave(join(figdir, "%s_eig%d_%04d.jpg" % (namestr, eigi+1, RND)), np.uint8(mtg * 255.0))
+        plt.imsave(join(figdir, "%s_eig%d_%04d.pdf" % (namestr, eigi+1, RND)), mtg, )
+        mtg_col.append(mtg)
+        if indivimg:
+            for deviation, img in zip(ticks, img_page):
+                imsave(join(figdir, "%s_eig%d_%.1e_%04d.jpg" % (namestr,eigi+1, deviation, RND)), np.uint8(img * 255.0))
+    codes_all = np.concatenate(tuple(codes_page), axis=0)
+    print("Finish printing page (%.1fs)" % (time() - t0))
+    # if ImDist is not None: # if distance metric available then compute this
+    #     distmat, ticks, fig = vis_distance_curve(ref_code, eigvect_avg, eigv_avg, G, ImDist, eiglist=eiglist,
+	#         maxdist=maxdist, rown=rown, distrown=distrown, sphere=sphere, figdir=figdir, RND=RND, namestr=namestr, )
+    #     return mtg, codes_all, distmat, fig
+    # else:
+    return mtg_col, codes_all
+
 def vis_distance_curve(ref_code, eigvect_avg, eigvals_avg, G, ImDist, eiglist=[1,2,4,7,16],
 	    maxdist=0.3, rown=3, distrown=19, sphere=False, figdir="", RND=None, namestr="", ):
-    refimg = G.visualize_batch_np(ref_code)
+    refimg = G.visualize_batch_np(ref_code.reshape(1, -1))
     if RND is None: RND = np.random.randint(10000)
     codes_page = []
     ticks = np.linspace(-maxdist, maxdist, distrown, endpoint=True)
@@ -101,16 +133,16 @@ def vis_distance_curve(ref_code, eigvect_avg, eigvals_avg, G, ImDist, eiglist=[1
     plt.ylabel("Image distance")
     plt.xlabel("L2 in latent space" if not sphere else "Angle (rad) in latent space")
     plt.legend()
+    plt.subplots_adjust(left=0.14, bottom=0.14)
     plt.savefig(join(figdir, "%s_imdistcrv_%04d.jpg" % (namestr, RND)) )
     plt.savefig(join(figdir, "%s_imdistcrv_%04d.pdf" % (namestr, RND)) )
-    plt.subplots_adjust(left=0.06, bottom=0.05)
     plt.show()
     return distmat, ticks, fig
 #%%
-def vis_eigen_action(eigvec, ref_codes, G, figdir=figdir, page_B=50,
+def vis_eigen_action(eigvec, ref_codes, G, figdir="", page_B=50,
                     maxdist=120, rown=7, transpose=True, RND=None, namestr="", sphere=False):
     if ref_codes is None:
-        ref_codes = np.zeros((1, 4096))
+        ref_codes = np.zeros(eigvec.size)
     if RND is None: RND = np.random.randint(10000)
     reflist = list(ref_codes)
     t0 = time()
@@ -127,13 +159,41 @@ def vis_eigen_action(eigvec, ref_codes, G, figdir=figdir, page_B=50,
             codes_all = np.concatenate(tuple(codes_page), axis=0)
             img_page = G.render(codes_all)
             mtg = build_montages(img_page, (256, 256), (rown, idx - csr + 1), transpose=transpose)[0]
-            imsave(join(figdir, "%s_ref_%d-%d_%d.jpg" %
+            imsave(join(figdir, "%s_ref_%d-%d_%04d.jpg" %
                         (namestr, csr, idx, RND)), np.uint8(mtg * 255.0))
             codes_col.append(codes_all)
             codes_page = []
             print("Finish printing page vector %d-%d (%.1fs)"%(csr, idx, time()-t0))
             csr = idx + 1
     return mtg, codes_col
+#%%
+def vis_eigen_action_row(eigvec, ref_codes, G, figdir="", indivimg=False,
+                    maxdist=120, rown=7, transpose=True, RND=None, namestr="", sphere=False):
+    if ref_codes is None:
+        ref_codes = np.zeros(eigvec.size)
+    if RND is None: RND = np.random.randint(10000)
+    reflist = list(ref_codes)
+    t0 = time()
+    codes_col = []
+    mtg_col = []
+    ticks = np.linspace(-maxdist, maxdist, rown)
+    for idx, ref_code in enumerate(reflist):  # range(eig_rng[0]+1, eig_rng[1]+1):
+        if not sphere:
+            interp_codes = LExpMap(ref_code, eigvec, rown, (-maxdist, maxdist))
+        else:
+            interp_codes = SExpMap(ref_code, eigvec, rown, (-maxdist, maxdist))
+        img_page = G.render(interp_codes)
+        mtg = build_montages(img_page, (256, 256), (rown, 1), transpose=transpose)[0]
+        imsave(join(figdir, "%s_ref_%d_%04d.jpg" %
+                    (namestr, idx, RND)), np.uint8(mtg * 255.0))
+        codes_col.append(interp_codes)
+        mtg_col.append(mtg)
+        if indivimg:
+            for div, img in zip(ticks, img_page):
+                imsave(join(figdir, "%s_ref_%d_%.1e_%04d.jpg" % (namestr, idx, div, RND)), np.uint8(img * 255.0))
+        print("Finish printing along vector %d (%.1fs)"%(idx, time()-t0))
+    return mtg_col, codes_col
+
 #%% imgs = visualize_np(G, interp_codes)
 if __name__ == "__main__":
     # %%

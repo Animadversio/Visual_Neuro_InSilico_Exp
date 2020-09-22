@@ -105,6 +105,7 @@ Hessdir = join(rootdir, 'StyleGAN2')
 dataroot = r"E:\Cluster_Backup\StyleGAN2"
 #%% Face 512 model
 modelnm = "ffhq-512-avg-tpurun1"
+modelsnm = "Face512"
 SGAN = loadStyleGAN2(modelnm+".pt")
 SG = StyleGAN2_wrapper(SGAN)
 eigval_col, eigvec_col, feat_col, meta = scan_hess_npz(join(dataroot, modelnm), "Hess_BP_(\d*).npz", featkey="feat")
@@ -115,30 +116,57 @@ np.savez(join(Hessdir, "H_avg_%s.npz"%modelnm), H_avg=H_avg, eva_avg=eva_avg, ev
 mtg,codes_all = vis_eigen_frame(evc_avg, eva_avg, SG, ref_code=feat_col[5,:], figdir=figdir,
                                 namestr="spect_avg_%s"%modelnm, eiglist=[1,2,4,6,8,10,15,20,30,40,60,80,120],
                                 maxdist=5.0, rown=5, transpose=True, sphere=False)
+#%%
+#%% Final Version
+veci = 5
+mtg,codes_all, distmat, fig = vis_eigen_explore(feat_col[veci,:], eigvec_col[veci], eigval_col[veci], SG, figdir=figdir,
+                    namestr="spect_indiv_lin_%s_%d"%(modelsnm, veci), ImDist=ImDist,
+                eiglist=[2,4,8,16,64], maxdist=4.5, rown=3, transpose=True, sphere=False)
+mtg,codes_all, distmat, fig = vis_eigen_explore(feat_col[veci,:], eigvec_col[veci], eigval_col[veci], SG, figdir=figdir,
+                    namestr="spect_indiv_lin5_%s_%d"%(modelsnm, veci), ImDist=ImDist,
+                eiglist=[2,4,8,16,64], maxdist=4.5, rown=5, transpose=True, sphere=False)
+mtg,codes_all, distmat, fig = vis_eigen_explore(feat_col[veci,:], eigvec_col[veci], eigval_col[veci], SG, figdir=figdir,
+                    namestr="spect_indiv_sph_%s_%d"%(modelsnm, veci), ImDist=ImDist,
+                eiglist=[2,4,8,16,32,64], maxdist=0.2, rown=3, transpose=True, sphere=True)
+print(["%.1e"%eig for eig in eigval_col[veci][-np.array([2,4,8,16,64])-1]])
 #%% Final Version
 veci = 5
 mtg,codes_all = vis_eigen_frame(eigvec_col[veci], eigval_col[veci], SG, ref_code=feat_col[veci,:], figdir=figdir,
-                    namestr="spect_indiv_sph_%s"%modelnm,
+                    namestr="spect_indiv_lin_%s_%d"%(modelsnm, veci),
                 eiglist=[2,4,8,16,64], maxdist=4.5, rown=3, transpose=True, sphere=False)
-plt.imsave(join(figdir, "spect_indiv_lin_Face512_%d_2-64.pdf") % veci, mtg,)
 mtg,codes_all = vis_eigen_frame(eigvec_col[veci], eigval_col[veci], SG, ref_code=feat_col[veci,:], figdir=figdir,
-                    namestr="spect_indiv_sph_%s"%modelnm,
+                    namestr="spect_indiv_lin5_%s_%d"%(modelsnm, veci),
                 eiglist=[2,4,8,16,64], maxdist=4.5, rown=5, transpose=True, sphere=False)
-plt.imsave(join(figdir, "spect_indiv_lin5_Face512_%d_2-64.pdf") % veci, mtg,)
 mtg,codes_all = vis_eigen_frame(eigvec_col[5], eigval_col[5], SG, ref_code=feat_col[5,:], figdir=figdir,
-                    namestr="spect_indiv_sph_%s"%modelnm,
+                    namestr="spect_indiv_sph_%s_%d"%(modelsnm, veci),
                 eiglist=[2,4,8,16,32,64], maxdist=0.2, rown=3, transpose=True, sphere=True)
-plt.imsave(join(figdir, "spect_indiv_sph_Face512_2-64.pdf"), mtg,)
 print(["%.1e"%eig for eig in eigval_col[veci][-np.array([2,4,8,16,64])-1]])
 # ['7.6e+00', '1.2e+00', '1.8e-01', '1.4e-02', '9.3e-05']
 #%% Cat Datasets
 modelnm = "stylegan2-cat-config-f"
+modelsnm = "Cat256"
 SGAN = loadStyleGAN2(modelnm+".pt", size=256,)
 SG = StyleGAN2_wrapper(SGAN, )
 eigval_col, eigvec_col, feat_col, meta = scan_hess_npz(join(dataroot, modelnm), "Hess_BP_(\d*).npz", featkey="feat")
 feat_col = np.array(feat_col).squeeze()
 H_avg, eva_avg, evc_avg = average_H(eigval_col, eigvec_col)
 np.savez(join(Hessdir, "H_avg_%s.npz"%modelnm), H_avg=H_avg, eva_avg=eva_avg, evc_avg=evc_avg, feats=feat_col)
+
+#%% Final Version
+veci = 40
+RND = np.random.randint(1E4)
+print(["%.1e"%eig for eig in eigval_col[veci][-np.array([2,4,8,16,64])-1]])
+# ['7.5e+01', '2.7e+01', '1.5e+00', '5.2e-02', '-1.3e-05']
+mtg,codes_all, distmat, fig = vis_eigen_explore(feat_col[veci,:], eigvec_col[veci], eigval_col[veci], SG, figdir=figdir,
+                    namestr="spect_indiv_lin_%s_%d"%(modelsnm, veci), ImDist=ImDist,
+                eiglist=[2,4,8,16,64], maxdist=2.5, rown=3, transpose=True, sphere=False)
+mtg,codes_all, distmat, fig = vis_eigen_explore(feat_col[veci,:], eigvec_col[veci], eigval_col[veci], SG, figdir=figdir,
+                    namestr="spect_indiv_lin5_%s_%d"%(modelsnm, veci), ImDist=ImDist,
+                eiglist=[2,4,8,16,64], maxdist=2.5, rown=5, transpose=True, sphere=False)
+mtg,codes_all, distmat, fig = vis_eigen_explore(feat_col[veci,:], eigvec_col[veci], eigval_col[veci], SG, figdir=figdir,
+                    namestr="spect_indiv_sph_%s_%d"%(modelsnm, veci), ImDist=ImDist,
+                eiglist=[2,4,8,16,64], maxdist=0.15, rown=3, transpose=True, sphere=True)
+
 #%% Final version
 veci = 40
 RND = np.random.randint(1E4)
@@ -159,6 +187,7 @@ plt.imsave(join(figdir, "spect_indiv_sph_Cat256_%d_2-64.pdf"%veci), mtg, )
 
 #%% Animation Portraits
 modelnm = "2020-01-11-skylion-stylegan2-animeportraits"
+modelsnm = "Anime512"
 SGAN = loadStyleGAN2(modelnm+".pt", size=512,)
 SG = StyleGAN2_wrapper(SGAN, )
 eigval_col, eigvec_col, feat_col, meta = scan_hess_npz(join(dataroot, modelnm), "Hess_BP_(\d*).npz", featkey="feat")
