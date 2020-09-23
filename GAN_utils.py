@@ -385,8 +385,22 @@ else:
 def loadStyleGAN2(ckpt_name="ffhq-512-avg-tpurun1.pt", channel_multiplier=2, n_mlp=8, latent=512, size=512,
                   device="cpu"):
     sys.path.append(StyleGAN2_root)
+    configtab = {"stylegan2-cat-config-f.pt": (256, 2),
+                 "ffhq-256-config-e-003810.pt": (256, 1),
+                 "ffhq-512-avg-tpurun1.pt": (512, 2),
+                 "stylegan2-ffhq-config-f.pt": (1024, 2),
+                 "2020-01-11-skylion-stylegan2-animeportraits.pt": (512, 2),
+                 "stylegan2-car-config-f.pt": (512, 2),
+                 "model.ckpt-533504.pt": (512, 2)}
     from model import Generator
     ckpt_path = join(ckpt_root, ckpt_name)
+    try:
+        size, channel_multiplier = configtab[ckpt_name]
+        print("Checkpoint name found, use config from memory.\nsize %d chan mult %d n mlp %d latent %d"%
+              (size, channel_multiplier, n_mlp, latent))
+    except KeyError:
+        print("Checkpoint name not found, use config from input.\nsize %d chan mult %d n mlp %d latent %d"%
+              (size, channel_multiplier, n_mlp, latent))
     g_ema = Generator(
         size, latent, n_mlp, channel_multiplier=channel_multiplier
     ).to(device)
@@ -400,7 +414,7 @@ def loadStyleGAN2(ckpt_name="ffhq-512-avg-tpurun1.pt", channel_multiplier=2, n_m
         param.requires_grad_(False)
     g_ema.cuda()
     return g_ema
-
+#%%
 class StyleGAN2_wrapper():#nn.Module
     def __init__(self, StyleGAN, ):
         self.StyleGAN = StyleGAN
@@ -434,6 +448,7 @@ class StyleGAN2_wrapper():#nn.Module
     def visualize_batch_np(self, codes_all_arr, truncation=None, mean_latent=None, B=15):
         if truncation is None:  truncation = self.truncation
         if mean_latent is None:  mean_latent = self.mean_latent
+        if self.StyleGAN.size == 1024:  B = round(B/4)
         csr = 0
         img_all = None
         imgn = codes_all_arr.shape[0]
@@ -491,7 +506,7 @@ class StyleGAN_wrapper():  # nn.Module
         sys.path.append(StyleGAN1_root)
         from generate import get_mean_style
         self.StyleGAN = StyleGAN
-        self.mean_style = get_mean_style(generator, "cuda")
+        self.mean_style = get_mean_style(StyleGAN, "cuda")
         self.step = int(math.log(resolution, 2)) - 2
 
     def visualize(self, code, scale=1.0, resolution=256, mean_style=None):

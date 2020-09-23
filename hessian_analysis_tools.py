@@ -220,6 +220,34 @@ def plot_consistentcy_mat(corr_mat_log, corr_mat_lin, savelabel="", figdir="", t
     plt.savefig(join(figdir, "Hess_%s_corrmat_lin.pdf"%savelabel))
     plt.show()
     return fig1, fig2
+#%%
+def histogram_corrmat(corr_mat_lin, log=True, GAN="GAN"):
+    fig = plt.figure(figsize=[4, 3])
+    plt.hist(corr_mat_lin.flatten()[~np.isnan(corr_mat_lin.flatten())], 60, density=True)
+    corr_mean = np.nanmean(corr_mat_lin)
+    corr_medi = np.nanmedian(corr_mat_lin)
+    _, YMAX = plt.ylim()
+    plt.vlines(corr_mean, 0, YMAX, linestyles="dashed", color="black")
+    plt.vlines(corr_medi, 0, YMAX, linestyles="dashed", color="red")
+    plt.xlabel("corr(log(V_iH_jV_i), log(Lambda_j))" if log else "corr(V_iH_jV_i, Lambda_j)")
+    plt.ylabel("density")
+    plt.title("Histogram of Non-Diag Correlation\n %s on %s scale\n mean %.3f median %.3f" %
+              (GAN, "log" if log else "lin", corr_mean, corr_medi))
+    plt.show()
+    return fig
+
+def plot_consistency_hist(corr_mat_log, corr_mat_lin, savelabel="", figdir="", titstr="GAN"):
+    """Histogram way to represent correlation instead of corr matrix, same interface as plot_consistentcy_mat"""
+    posN = corr_mat_log.shape[0]
+    fig1 = histogram_corrmat(corr_mat_log, log=True, GAN=titstr)
+    fig1.savefig(join(figdir, "Hess_%s_corr_mat_log_hist.jpg"%savelabel))
+    fig1.savefig(join(figdir, "Hess_%s_corr_mat_log_hist.pdf"%savelabel))
+    fig1.show()
+    fig2 = histogram_corrmat(corr_mat_lin, log=False, GAN=titstr)
+    fig2.savefig(join(figdir, "Hess_%s_corr_mat_lin_hist.jpg"%savelabel))
+    fig2.savefig(join(figdir, "Hess_%s_corr_mat_lin_hist.pdf"%savelabel))
+    fig2.show()
+    return fig1, fig2
 #%% Derive from BigBiGAN
 def plot_consistency_example(eigval_col, eigvec_col, nsamp=5, titstr="GAN", figdir="", savelabel=""):
     """
