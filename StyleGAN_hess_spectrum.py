@@ -14,6 +14,7 @@ from torchvision.utils import make_grid
 use_gpu = True if torch.cuda.is_available() else False
 ImDist = lpips.LPIPS(net='squeeze').cuda()
 #%%
+"""Torch Hub version, really heavy and cumbersum"""
 model = torch.hub.load('ndahlquist/pytorch-hub-stylegan:0.0.1', 'style_gan', pretrained=True)
 class StyleGAN_wrapper():  # nn.Module
     def __init__(self, StyleGAN, ):

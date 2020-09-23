@@ -15,15 +15,18 @@ from GAN_utils import loadBigGAN, loadStyleGAN2, BigGAN_wrapper
 from hessian_analysis_tools import plot_spectra, compute_hess_corr
 #%%
 BGAN = loadBigGAN()
+Ln = len(BGAN.generator.layers)
+G = BigGAN_wrapper(BGAN)
 #%% Load the real eigenvalues for the BigGAN + LPIPS
 figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\BigGAN"
+datadir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\BigGAN"
 data = np.load(join(figdir, "spectra_col.npz"))
 eigvals_col = data['eigval_col']
 eva_mean = eigvals_col.mean(axis=0)
+data = np.load(join(figdir, "H_avg_1000cls.npz"))
+eva_Havg, evc_Havg, Havg = data['eigvals_avg'], data['eigvects_avg'], data['H_avg']
 #%% BigGAN
-datadir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\BigGAN"
 plt.figure(figsize=[5, 4])
-Ln = len(BGAN.generator.layers)
 eva00 = np.load(join(datadir, "eig_gen_z.npz"))["eva"]  #, H=H00, eva=eva00, evc=evc00)
 plt.plot(np.log10(eva00 / eva00.max())[::-1], label="gen_z")
 for blocki in range(Ln):
@@ -43,7 +46,8 @@ plt.savefig(join(figdir, "spectrum_med_Layers_norm_cmp.pdf"))
 plt.show()
 #%% Collect the H and eva evc into list.
 npzlabel = ["gen_z"]+["genBlock%02d"%blocki for blocki in range(Ln)]
-layernames = ["gen_z"] + [("GenBlock%02d" % blocki) if blocki!=8 else "SelfAttention" for blocki in range(Ln)]
+layernames = ["gen_z"] + [("GenBlock%02d" % blocki) if blocki!=8 else "SelfAttention" for blocki in range(Ln)] \
+                + ["Full"]
 H_col = []
 evc_col = []
 eva_col = []
@@ -52,6 +56,14 @@ for label in npzlabel:
     H_col.append(data["H"])
     evc_col.append(data["evc"])
     eva_col.append(data["eva"])
+H_col.append(Havg)
+eva_col.append(eva_Havg)
+evc_col.append(evc_Havg)
+#%%
+from hessian_analysis_tools import plot_layer_consistency_example
+fig = plot_layer_consistency_example(eva_col, evc_col, layernames, layeridx=[1, 9, 13, -1], figdir=figdir,
+                                    titstr="BigGAN", savelabel="BigGAN")
+fig.show()
 #%%
 i, j = 1, 13
 vHv = np.diag(evc_col[i].T @ H_col[j] @ evc_col[i])
@@ -66,7 +78,12 @@ i, j = 1, 12
 vHv = np.diag(evc_col[i].T @ H_col[j] @ evc_col[i])
 np.polyfit(np.log10(eva_col[i]), np.log10(vHv), 1)
 #%%
-# from hessian_analysis_tools import plot_layer_consistency_example
-fig=plot_layer_consistency_example(eva_col, evc_col, layernames, layeridx=[1, 2, 3, -1], figdir=figdir, titstr="BigGAN",
-                                   savelabel="BigGAN")
-fig.show()
+embedmat = BGAN.embeddings.weight.cpu().numpy()
+#%%
+from pytorch_pretrained_biggan import truncated_noise_sample
+from hessian_axis_visualize import vis_eigen_explore_row
+classid = 287
+# noisevec = truncated_noise_sample(1, 128, 0.6)
+# ref_code = np.concatenate((noisevec, embedmat[:, classid:classid+1].T), axis=1)
+vis_eigen_explore_row(ref_code, evc_Havg, eva_Havg, G, figdir=figdir, namestr="BigGAN_cls%d"%classid, indivimg=True,
+     eiglist=[9,16,64], maxdist=0.2, rown=5, sphere=True, )
