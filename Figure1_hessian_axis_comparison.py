@@ -94,15 +94,14 @@ mtg, codes_all = vis_eigen_frame(evc_BG, eva_BG, BG, ref_code=refvec, figdir=fig
                 eiglist=[1,2,4,6,8,10,15,20,30,40,60,80,120], maxdist=0.3, rown=5, transpose=True)
 
 
-
-
-
 #%% StyleGAN2
 """StyleGAN2 model"""
 from hessian_analysis_tools import scan_hess_npz, average_H
 figdir = join(rootdir, 'StyleGAN2')
 Hessdir = join(rootdir, 'StyleGAN2')
 dataroot = r"E:\Cluster_Backup\StyleGAN2"
+
+
 #%% Face 512 model
 modelnm = "ffhq-512-avg-tpurun1"
 modelsnm = "Face512"
@@ -142,7 +141,7 @@ mtg,codes_all = vis_eigen_frame(eigvec_col[5], eigval_col[5], SG, ref_code=feat_
                 eiglist=[2,4,8,16,32,64], maxdist=0.2, rown=3, transpose=True, sphere=True)
 print(["%.1e"%eig for eig in eigval_col[veci][-np.array([2,4,8,16,64])-1]])
 # ['7.6e+00', '1.2e+00', '1.8e-01', '1.4e-02', '9.3e-05']
-#%% Cat Datasets
+#%% Cat Datasets StyleGAN2
 modelnm = "stylegan2-cat-config-f"
 modelsnm = "Cat256"
 SGAN = loadStyleGAN2(modelnm+".pt", size=256,)
@@ -210,3 +209,16 @@ mtg, codes_all = vis_eigen_frame(eigvec_col[veci], eigval_col[veci], SG, ref_cod
                 namestr="spect_indiv_sph_%s"%modelnm, eiglist=[2,4,8,16,64], maxdist=0.15, rown=3, transpose=True,
                                 sphere=True)
 plt.imsave(join(figdir, "spect_indiv_sph_Anime512_%d_2-64.pdf"%veci), mtg, )
+#%%
+#%% Face1024
+Hessdir = join(rootdir, 'StyleGAN2')
+modelnm = "2020-01-11-skylion-stylegan2-animeportraits"
+modelsnm = "Face1024"
+SGAN = loadStyleGAN2(modelnm+".pt", size=1024,)
+SG = StyleGAN2_wrapper(SGAN, )
+eigval_col, eigvec_col, feat_col, meta = scan_hess_npz(join(dataroot, modelnm), "Hess_BP_(\d*).npz", featkey="feat")
+feat_col = np.array(feat_col).squeeze()
+H_avg, eva_avg, evc_avg = average_H(eigval_col, eigvec_col)
+np.savez(join(Hessdir, "H_avg_%s.npz"%modelnm), H_avg=H_avg, eva_avg=eva_avg, evc_avg=evc_avg, feats=feat_col)
+
+

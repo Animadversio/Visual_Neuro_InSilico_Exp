@@ -44,3 +44,6 @@ data = np.load(join(Hessdir, "H_avg_1000cls.npz"))
 eva_BG = data['eigvals_avg']
 evc_BG = data['eigvects_avg']
 H_BG = data['H_avg']
+
+
+
