@@ -16,7 +16,7 @@ class DCGAN_wrapper():  # nn.Module
     def __init__(self, DCGAN, ):
         self.DCGAN = DCGAN
 
-    def visualize(self, code, scale=1):
+    def visualize(self, code, scale=1.0):
         imgs = self.DCGAN(code,)  # Matlab version default to 0.7
         return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
 

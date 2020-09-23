@@ -2,6 +2,12 @@
 Native torch version of fc6 GANs. Support deployment on any machine, since the weights are publicly hosted online.
 The motivation is to get rid of dependencies on Caffe framework totally.
 """
+"""
+Wrapper and loader of various GANs are listed, currently we have
+* BigGAN
+* BigBiGAN
+* StyleGAN2
+"""
 #%%
 # import torch
 # torch.save(G, r"E:\Monkey_Data\Generator_DB_Windows\nets\upconv\fc6\fc6GAN.pt")
@@ -313,46 +319,60 @@ class BigBiGAN_wrapper():#nn.Module
         imgs = F.interpolate(imgs, size=(resolution, resolution), align_corners=True, mode='bilinear')
         return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
 
-    def render(self, codes_all_arr, B=15, scale=1.0, resolution=256):
-        img_tsr = None
-        imgn = codes_all_arr.shape[0]
+    def visualize_batch_np(self, codes_all_arr, B=15, scale=1.0, resolution=256):
         csr = 0
+        img_all = None
+        imgn = codes_all_arr.shape[0]
         with torch.no_grad():
             while csr < imgn:
                 csr_end = min(csr + B, imgn)
                 code_batch = torch.from_numpy(codes_all_arr[csr:csr_end, :]).float().cuda()
                 img_list = self.visualize(code_batch, scale=scale, resolution=resolution).cpu()
-                img_tsr = img_list if img_tsr is None else torch.cat((img_tsr, img_list), dim=0)
+                img_all = img_list if img_all is None else torch.cat((img_all, img_list), dim=0)
                 csr = csr_end
-        return [img.permute([1,2,0]).numpy() for img in img_tsr]
+                # clear_output(wait=True)
+                # progress_bar(csr_end, imgn, "ploting row of page: %d of %d" % (csr_end, imgn))
+        return img_all
+
+    def render(self, codes_all_arr, B=15, resolution=256, scale=1.0, ):
+        img_tsr = self.visualize_batch_np(codes_all_arr, scale=scale, resolution=resolution, B=B)
+        return [img.permute([1,2,0]).numpy() for img in img_tsr]    
+
+    # def render(self, codes_all_arr, B=15, scale=1.0, resolution=256):
+    #     img_tsr = None
+    #     imgn = codes_all_arr.shape[0]
+    #     csr = 0
+    #     with torch.no_grad():
+    #         while csr < imgn:
+    #             csr_end = min(csr + B, imgn)
+    #             code_batch = torch.from_numpy(codes_all_arr[csr:csr_end, :]).float().cuda()
+    #             img_list = self.visualize(code_batch, scale=scale, resolution=resolution).cpu()
+    #             img_tsr = img_list if img_tsr is None else torch.cat((img_tsr, img_list), dim=0)
+    #             csr = csr_end
+    #     return [img.permute([1,2,0]).numpy() for img in img_tsr]
 #%% StyleGAN2 wrapper for ease of usage
 import sys
 if platform == "linux":  # CHPC cluster
-    StyleGAN_root = r"/home/binxu/stylegan2-pytorch"
+    StyleGAN2_root = r"/home/binxu/stylegan2-pytorch"
     ckpt_root = "/scratch/binxu/torch/StyleGANckpt"
 else:
     if os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':  # PonceLab-Desktop 3
-        StyleGAN_root = r"D:\Github\stylegan2-pytorch"
-        ckpt_root = join(StyleGAN_root, 'checkpoint')
+        StyleGAN2_root = r"D:\Github\stylegan2-pytorch"
+        ckpt_root = join(StyleGAN2_root, 'checkpoint')
     elif os.environ['COMPUTERNAME'] == 'DESKTOP-MENSD6S':  # Home_WorkStation
-        StyleGAN_root = r"E:\DL_Projects\Vision\stylegan2-pytorch"
-        ckpt_root = join(StyleGAN_root, 'checkpoint')
+        StyleGAN2_root = r"E:\DL_Projects\Vision\stylegan2-pytorch"
+        ckpt_root = join(StyleGAN2_root, 'checkpoint')
     # elif os.environ['COMPUTERNAME'] == 'PONCELAB-ML2C':  # PonceLab-Desktop Victoria
-    #     homedir = r"C:\Users\ponce\Documents\Generator_DB_Windows"
-    #     netsdir = os.path.join(homedir, 'nets')
     # elif os.environ['COMPUTERNAME'] == 'PONCELAB-ML2B':
-    #     homedir = r"C:\Users\Ponce lab\Documents\Python\Generator_DB_Windows"
-    #     netsdir = os.path.join(homedir, 'nets')
     # elif os.environ['COMPUTERNAME'] == 'PONCELAB-ML2A':
-    #     homedir = r"C:\Users\Poncelab-ML2a\Documents\Python\Generator_DB_Windows"
-    #     netsdir = os.path.join(homedir, 'nets')
     else:
-        StyleGAN_root = r"E:\DL_Projects\Vision\stylegan2-pytorch"
-        ckpt_root = join(StyleGAN_root, 'checkpoint')
-sys.path.append(StyleGAN_root)
+        StyleGAN2_root = r"E:\DL_Projects\Vision\stylegan2-pytorch"
+        ckpt_root = join(StyleGAN2_root, 'checkpoint')
+
 
 def loadStyleGAN2(ckpt_name="ffhq-512-avg-tpurun1.pt", channel_multiplier=2, n_mlp=8, latent=512, size=512,
                   device="cpu"):
+    sys.path.append(StyleGAN2_root)
     from model import Generator
     ckpt_path = join(ckpt_root, ckpt_name)
     g_ema = Generator(
@@ -422,7 +442,155 @@ class StyleGAN2_wrapper():#nn.Module
         img_tsr = self.visualize_batch_np(codes_all_arr, truncation=truncation, mean_latent=mean_latent, B=B)
         return [img.permute([1,2,0]).numpy() for img in img_tsr]
 
-# G = BigGAN_wrapper(BGAN)
+
+#%%
+import sys
+if platform == "linux":  # CHPC cluster
+    StyleGAN1_root = r"/home/binxu/stylegan2-pytorch"
+else:
+    if os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':  # PonceLab-Desktop 3
+        StyleGAN1_root = r"D:\Github\style-based-gan-pytorch"
+    elif os.environ['COMPUTERNAME'] == 'DESKTOP-MENSD6S':  # Home_WorkStation
+        StyleGAN1_root = r"E:\Github_Projects\style-based-gan-pytorch"
+    # elif os.environ['COMPUTERNAME'] == 'PONCELAB-ML2C':  # PonceLab-Desktop Victoria
+    # elif os.environ['COMPUTERNAME'] == 'PONCELAB-ML2B':
+    # elif os.environ['COMPUTERNAME'] == 'PONCELAB-ML2A':
+    else:
+        StyleGAN1_root = r"E:\Github_Projects\style-based-gan-pytorch"
+        
+
+def loadStyleGAN():
+    sys.path.append(StyleGAN1_root)
+    ckpt_root = join(StyleGAN1_root, 'checkpoint')
+    from model import StyledGenerator
+    from generate import get_mean_style
+    import math
+    generator = StyledGenerator(512).to("cuda")
+    # generator.load_state_dict(torch.load(r"E:\Github_Projects\style-based-gan-pytorch\checkpoint\stylegan-256px-new.model")['g_running'])
+    generator.load_state_dict(torch.load(join(StyleGAN1_root, "checkpoint\stylegan-256px-new.model"))[
+                                  'g_running'])
+    generator.eval()
+    for param in generator.parameters():
+        param.requires_grad_(False)
+    return generator
+
+class StyleGAN_wrapper():  # nn.Module
+    def __init__(self, StyleGAN, resolution=256):
+        sys.path.append(StyleGAN1_root)
+        from generate import get_mean_style
+        self.StyleGAN = StyleGAN
+        self.mean_style = get_mean_style(generator, "cuda")
+        self.step = int(math.log(resolution, 2)) - 2
+
+    def visualize(self, code, scale=1.0, resolution=256, mean_style=None):
+        # if step is None: step = self.step
+        step = int(math.log(resolution, 2)) - 2
+        if mean_style is None: mean_style = self.mean_style
+        imgs = self.StyleGAN(
+            code,
+            step=step,
+            alpha=1,
+            mean_style=mean_style,
+            style_weight=0.7,
+        )  
+        return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
+
+    def visualize_batch_np(self, codes_all_arr, resolution=256, mean_style=None, B=15):
+        csr = 0
+        img_all = None
+        imgn = codes_all_arr.shape[0]
+        while csr < imgn:
+            csr_end = min(csr + B, imgn)
+            with torch.no_grad():
+                img_list = self.visualize(torch.from_numpy(codes_all_arr[csr:csr_end, :]).float().cuda(),
+                                       resolution=resolution, mean_style=mean_style).cpu()
+            img_all = img_list if img_all is None else torch.cat((img_all, img_list), dim=0)
+            csr = csr_end
+            # clear_output(wait=True)
+            # progress_bar(csr_end, imgn, "ploting row of page: %d of %d" % (csr_end, imgn))
+        return img_all
+
+    def render(self, codes_all_arr, resolution=256, mean_style=None, B=15):
+        img_tsr = self.visualize_batch_np(codes_all_arr, resolution=resolution, mean_style=mean_style, B=B)
+        return [img.permute([1,2,0]).numpy() for img in img_tsr]
+# G = StyleGAN_wrapper(generator)
+#%% PGGAN load 
+def loadPGGAN(onlyG=True): 
+    model = torch.hub.load('facebookresearch/pytorch_GAN_zoo:hub',
+                       'PGAN', model_name='celebAHQ-256',
+                       pretrained=True, useGPU=True)
+    if onlyG:
+        return model.avgG
+    else:
+        return model 
+
+class PGGAN_wrapper():  # nn.Module
+    """
+    model = loadPGGAN(onlyG=False)
+    G = PGGAN_wrapper(model.avgG)
+
+    model = loadPGGAN()
+    G = PGGAN_wrapper(model)
+    """
+    def __init__(self, PGGAN, ):
+        self.PGGAN = PGGAN
+
+    def visualize(self, code, scale=1.0):
+        imgs = self.PGGAN.forward(code,)  # Matlab version default to 0.7
+        return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
+
+    def visualize_batch_np(self, codes_all_arr, scale=1.0, B=50):
+        csr = 0
+        img_all = None
+        imgn = codes_all_arr.shape[0]
+        while csr < imgn:
+            csr_end = min(csr + B, imgn)
+            with torch.no_grad():
+                img_list = self.visualize(torch.from_numpy(codes_all_arr[csr:csr_end, :]).float().cuda()
+                        scale=scale).cpu()
+            img_all = img_list if img_all is None else torch.cat((img_all, img_list), dim=0)
+            csr = csr_end
+        return img_all
+
+    def render(self, codes_all_arr, scale=1.0, B=50):
+        img_tsr = self.visualize_batch_np(codes_all_arr, scale=scale, B=B)
+        return [img.permute([1,2,0]).numpy() for img in img_tsr]
+# G = PGGAN_wrapper(model.avgG)
+
+
+#%% DCGAN load 
+def loadPGGAN(onlyG=True): 
+    model = torch.hub.load('facebookresearch/pytorch_GAN_zoo:hub', 
+            'DCGAN', pretrained=True, useGPU=True)
+    if onlyG:
+        return model.avgG
+    else:
+        return model 
+
+class DCGAN_wrapper():  # nn.Module
+    def __init__(self, DCGAN, ):
+        self.DCGAN = DCGAN
+
+    def visualize(self, code, scale=1.0):
+        imgs = self.DCGAN(code,)  # Matlab version default to 0.7
+        return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
+
+    def visualize_batch_np(self, codes_all_arr, scale=1.0, B=50):
+        csr = 0
+        img_all = None
+        imgn = codes_all_arr.shape[0]
+        while csr < imgn:
+            csr_end = min(csr + B, imgn)
+            with torch.no_grad():
+                img_list = self.visualize(torch.from_numpy(codes_all_arr[csr:csr_end, :]).float().cuda()
+                        scale=scale).cpu()
+            img_all = img_list if img_all is None else torch.cat((img_all, img_list), dim=0)
+            csr = csr_end
+        return img_all
+
+    def render(self, codes_all_arr, scale=1.0, B=50):
+        img_tsr = self.visualize_batch_np(codes_all_arr, scale=scale, B=B)
+        return [img.permute([1,2,0]).numpy() for img in img_tsr]
 # # layer name translation
 # # "defc7.weight", "defc7.bias", "defc6.weight", "defc6.bias", "defc5.weight", "defc5.bias".
 # # "defc7.1.weight", "defc7.1.bias", "defc6.1.weight", "defc6.1.bias", "defc5.1.weight", "defc5.1.bias".
@@ -432,6 +600,8 @@ class StyleGAN2_wrapper():#nn.Module
 #     name = name.replace(".1.", ".")
 #     SDnew[name] = W
 # UCG.G.load_state_dict(SDnew)
+
+
 #%% The first time to run this you need these modules
 if __name__ == "__main__":
     import sys
