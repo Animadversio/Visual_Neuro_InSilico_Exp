@@ -1,5 +1,5 @@
 from hessian_axis_visualize import vis_eigen_frame, vis_eigen_action, vis_distance_curve, vis_eigen_explore
-from hessian_analysis_tools import scan_hess_npz, plot_spectra
+from hessian_analysis_tools import scan_hess_npz, average_H, compute_hess_corr, plot_consistentcy_mat, plot_consistency_example, plot_spectra
 from GAN_utils import loadBigGAN, loadBigBiGAN, loadStyleGAN2, BigGAN_wrapper, BigBiGAN_wrapper, StyleGAN2_wrapper, upconvGAN
 
 import torch
@@ -229,6 +229,20 @@ fig3 = plot_consistency_example(eigval_col, eigvec_col, figdir=figdir, nsamp=5, 
 Hessdir = join(rootdir, 'StyleGAN2')
 modelnm = "model.ckpt-533504"
 modelsnm = "ImageNet512"
+# SGAN = loadStyleGAN2(modelnm+".pt", size=512,)
+# SG = StyleGAN2_wrapper(SGAN, )
+eigval_col, eigvec_col, feat_col, meta = scan_hess_npz(join(dataroot, modelnm), "Hess_BP_(\d*).npz", featkey="feat")
+feat_col = np.array(feat_col).squeeze()
+H_avg, eva_avg, evc_avg = average_H(eigval_col, eigvec_col)
+np.savez(join(Hessdir, "H_avg_%s.npz"%modelnm), H_avg=H_avg, eva_avg=eva_avg, evc_avg=evc_avg, feats=feat_col)
+fig0 = plot_spectra(eigval_col=eigval_col, savename="%s_spectrum"%modelnm)
+corr_mat_log, corr_mat_lin = compute_hess_corr(eigval_col, eigvec_col, figdir=figdir, use_cuda=True, savelabel=modelnm)
+fig1, fig2 = plot_consistentcy_mat(corr_mat_log, corr_mat_lin, figdir=figdir, titstr="StyleGAN2 %s"%modelnm, savelabel=modelnm)
+fig3 = plot_consistency_example(eigval_col, eigvec_col, figdir=figdir, nsamp=5, titstr="StyleGAN2 %s"%modelnm, savelabel=modelnm)
+#%% "Face256"
+Hessdir = join(rootdir, 'StyleGAN2')
+modelnm = "ffhq-256-config-e-003810"
+modelsnm = "Face256"
 # SGAN = loadStyleGAN2(modelnm+".pt", size=512,)
 # SG = StyleGAN2_wrapper(SGAN, )
 eigval_col, eigvec_col, feat_col, meta = scan_hess_npz(join(dataroot, modelnm), "Hess_BP_(\d*).npz", featkey="feat")
