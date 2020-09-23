@@ -14,8 +14,16 @@ from torchvision.utils import make_grid
 from GAN_utils import loadBigGAN, loadStyleGAN2, BigGAN_wrapper
 from hessian_analysis_tools import plot_spectra, compute_hess_corr
 from lpips import LPIPS
+import os
 ImDist = LPIPS(net="squeeze")
 datadir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\BigGAN"
+def Hess_hook(module, fea_in, fea_out):
+    print("hooker on %s"%module.__class__)
+    ref_feat = fea_out.detach().clone()
+    ref_feat.requires_grad_(False)
+    L2dist = torch.pow(fea_out - ref_feat, 2).sum()
+    L2dist_col.append(L2dist)
+    return None
 #%%
 BGAN = loadBigGAN()
 SD = BGAN.state_dict()
@@ -37,13 +45,7 @@ img = BGAN_sf.generator(torch.randn(1, 256).cuda()*0.05, 0.7).cpu()
 ToPILImage()((1+img[0])/2).show()
 #%%
 #%%
-def Hess_hook(module, fea_in, fea_out):
-    print("hooker on %s"%module.__class__)
-    ref_feat = fea_out.detach().clone()
-    ref_feat.requires_grad_(False)
-    L2dist = torch.pow(fea_out - ref_feat, 2).sum()
-    L2dist_col.append(L2dist)
-    return None
+
 triali = 0
 savedir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\BigGAN\ctrl_Hessians"
 for triali in tqdm(range(1, 100)):
@@ -66,3 +68,37 @@ for triali in tqdm(range(1, 100)):
                  feat=feat.cpu().detach().numpy())
 
 #%%
+from pytorch_pretrained_biggan import truncated_noise_sample
+BGAN = loadBigGAN()
+G = BigGAN_wrapper(BGAN)
+triali = 0
+savedir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\BigGAN\real_Hessians"
+for triali in tqdm(range(50)):
+    noisevec = torch.from_numpy(truncated_noise_sample(1, 128, 0.6)).cuda()
+    feat = torch.cat((noisevec, BGAN.embeddings.weight[:, triali:triali+1].clone().T), dim=1)
+    eigvals, eigvects, H = hessian_compute(G, feat, ImDist, hessian_method="BP", )
+    np.savez(join(savedir, "eig_full_trial%d.npz"%(triali)), H=H, eva=eigvals, evc=eigvects,
+                 feat=feat.cpu().detach().numpy())
+    feat.requires_grad_(True)
+    L2dist_col = []
+    torch.cuda.empty_cache()
+    H1 = BGAN.generator.gen_z.register_forward_hook(Hess_hook)
+    img = BGAN.generator(feat, 0.7)
+    H1.remove()
+    T0 = time()
+    H00 = get_full_hessian(L2dist_col[0], feat)
+    eva00, evc00 = np.linalg.eigh(H00)
+    print("Spent %.2f sec computing" % (time() - T0))
+    np.savez(join(datadir, "eig_gen_z_trial%d.npz"%triali), H=H00, eva=eva00, evc=evc00,feat=feat.cpu().detach().numpy())
+    for blocki in [0, 3, 5, 8, 10, 12]:
+        L2dist_col = []
+        torch.cuda.empty_cache()
+        H1 = BGAN.generator.layers[blocki].register_forward_hook(Hess_hook)
+        img = BGAN.generator(feat, 0.7)
+        H1.remove()
+        T0 = time()
+        H00 = get_full_hessian(L2dist_col[0], feat)
+        eva00, evc00 = np.linalg.eigh(H00)
+        print("Spent %.2f sec computing" % (time() - T0))
+        np.savez(join(savedir, "eig_genBlock%02d_trial%d.npz"%(blocki, triali)), H=H00, eva=eva00, evc=evc00,
+                 feat=feat.cpu().detach().numpy())
