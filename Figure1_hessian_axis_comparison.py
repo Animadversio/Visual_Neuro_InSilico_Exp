@@ -1,5 +1,6 @@
 from hessian_axis_visualize import vis_eigen_frame, vis_eigen_action, vis_distance_curve, vis_eigen_explore
-from hessian_analysis_tools import scan_hess_npz, average_H, compute_hess_corr, plot_consistentcy_mat, plot_consistency_example, plot_spectra
+from hessian_analysis_tools import scan_hess_npz, average_H, compute_hess_corr, plot_consistentcy_mat, \
+    plot_consistency_hist, plot_consistency_example, plot_spectra
 from GAN_utils import loadBigGAN, loadBigBiGAN, loadStyleGAN2, BigGAN_wrapper, BigBiGAN_wrapper, StyleGAN2_wrapper, upconvGAN
 
 import torch
@@ -255,8 +256,19 @@ fig1, fig2 = plot_consistentcy_mat(corr_mat_log, corr_mat_lin, figdir=figdir, ti
 fig3 = plot_consistency_example(eigval_col, eigvec_col, figdir=figdir, nsamp=5, titstr="StyleGAN2 %s"%modelnm, savelabel=modelnm)
 
 #%%
-modelname = "stylegan2-car-config-f"
+dataroot = r"E:\Cluster_Backup\StyleGAN2"
+modelnm = "stylegan2-car-config-f"
 modelsnm = "Car512"
-SGAN = loadStyleGAN2(modelname+".pt", size=512, channel_multiplier=2)
-SG = StyleGAN2_wrapper(SGAN)
+# SGAN = loadStyleGAN2(modelname+".pt", size=512, channel_multiplier=2)
+# SG = StyleGAN2_wrapper(SGAN)
+eigval_col, eigvec_col, feat_col, meta = scan_hess_npz(join(dataroot, modelnm), "Hess_BP_(\d*).npz", featkey="feat")
+feat_col = np.array(feat_col).squeeze()
+H_avg, eva_avg, evc_avg = average_H(eigval_col, eigvec_col)
+np.savez(join(Hessdir, "H_avg_%s.npz"%modelnm), H_avg=H_avg, eva_avg=eva_avg, evc_avg=evc_avg, feats=feat_col)
+fig0 = plot_spectra(eigval_col=eigval_col, savename="%s_spectrum"%modelnm)
+corr_mat_log, corr_mat_lin = compute_hess_corr(eigval_col, eigvec_col, figdir=figdir, use_cuda=True, savelabel=modelnm)
+fig1, fig2 = plot_consistentcy_mat(corr_mat_log, corr_mat_lin, figdir=figdir, titstr="StyleGAN2 %s"%modelnm, savelabel=modelnm)
+fig11, fig22 = plot_consistency_hist(corr_mat_log, corr_mat_lin, figdir=figdir, titstr="StyleGAN2 %s"%modelnm,
+                                    savelabel=modelnm)
+fig3 = plot_consistency_example(eigval_col, eigvec_col, figdir=figdir, nsamp=5, titstr="StyleGAN2 %s"%modelnm, savelabel=modelnm)
 

@@ -209,19 +209,24 @@ for triali in tqdm(range(300)):
     np.savez(join(datadir, "Hessian_rand_%d.npz" % triali), eva_BP=eva_BP, evc_BP=evc_BP, H_BP=H_BP,
         feat=feat.detach().cpu().numpy())
 #%%
-eva_col = []
-evc_col = []
-for triali in tqdm(range(300)):
-    data = np.load(join(datadir, "Hessian_rand_%d.npz" % triali))
-    eva_col.append(data["eva_BP"])
-    evc_col.append(data["evc_BP"])
-#%%
-eva_col = np.array(eva_col)
-#%%
-import os
+# eva_col = []
+# evc_col = []
+# for triali in tqdm(range(300)):
+#     data = np.load(join(datadir, "Hessian_rand_%d.npz" % triali))
+#     eva_col.append(data["eva_BP"])
+#     evc_col.append(data["evc_BP"])
+# #%%
+# eva_col = np.array(eva_col)
+datadir = r"E:\Cluster_Backup\StyleGAN"
 figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\StyleGAN"
+import os
 os.makedirs(figdir, exist_ok=True)
-from hessian_analysis_tools import plot_spectra, compute_hess_corr, plot_consistency_example, plot_consistentcy_mat
+from hessian_analysis_tools import plot_spectra, compute_hess_corr, plot_consistency_example, plot_consistentcy_mat, average_H, scan_hess_npz
+eva_col, evc_col, feat_col, meta = scan_hess_npz(datadir, "Hessian_rand_(\d*).npz", featkey="feat")
+feat_col = np.array(feat_col).squeeze()
+H_avg, eva_avg, evc_avg = average_H(eva_col, evc_col)
+np.savez(join(figdir, "H_avg_%s.npz"%"StyleGAN"), H_avg=H_avg, eva_avg=eva_avg, evc_avg=evc_avg, feats=feat_col)
+#%%
 fig = plot_spectra(eva_col, figdir=figdir, titstr="StyleGAN", )
 #%%
 corr_mat_log, corr_mat_lin = compute_hess_corr(eva_col, evc_col, figdir=figdir, use_cuda=True)

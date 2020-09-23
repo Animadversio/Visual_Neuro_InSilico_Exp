@@ -8,6 +8,7 @@ import lpips
 from GAN_hessian_compute import hessian_compute
 from torchvision.transforms import ToPILImage
 from torchvision.utils import make_grid
+#%%
 ImDist = lpips.LPIPS(net='squeeze').cuda()
 use_gpu = True if torch.cuda.is_available() else False
 model = torch.hub.load('facebookresearch/pytorch_GAN_zoo:hub',
@@ -93,7 +94,7 @@ fig = plot_spectra(eva_col, figdir=figdir, titstr="PGGAN", )
 #%%
 corr_mat_log, corr_mat_lin = compute_hess_corr(eva_col, evc_col, figdir=figdir, use_cuda=True)
 # without cuda 12:11 mins, with cuda 8:21
-corr_mat_log, corr_mat_lin = compute_hess_corr(eva_col, evc_col, figdir=figdir, use_cuda=False)
+# corr_mat_log, corr_mat_lin = compute_hess_corr(eva_col, evc_col, figdir=figdir, use_cuda=False)
 #%%
 fig1, fig2 = plot_consistentcy_mat(corr_mat_log, corr_mat_lin, figdir=figdir, titstr="PGGAN")
 #%%

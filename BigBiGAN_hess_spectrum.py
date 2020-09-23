@@ -316,3 +316,18 @@ ST = plt.suptitle("Consistency of Hessian Across Vectors\n"
 plt.savefig(join(figdir, "Hess_consistency_example_rnd%03d.jpg"%np.random.randint(1000)), bbox_extra_artists=[ST]) #
 # this is working.
 # plt.show()
+#%%
+datadir = r"E:\OneDrive - Washington University in St. Louis\HessGANCmp\BigBiGAN"
+figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\BigBiGAN"
+from hessian_analysis_tools import plot_spectra, compute_hess_corr, plot_consistency_example, plot_consistentcy_mat, average_H, scan_hess_npz
+eva_col, evc_col, feat_col, meta = scan_hess_npz(datadir, "Hess_norm(\d.*)_(\d\d\d)", featkey='vect',
+                                                 evakey="eigvals", evckey="eigvects")
+feat_col = np.array(feat_col).squeeze()
+H_avg, eva_avg, evc_avg = average_H(eva_col, evc_col)
+np.savez(join(figdir, "H_avg_%s.npz"%"BigBiGAN"), H_avg=H_avg, eva_avg=eva_avg, evc_avg=evc_avg, feats=feat_col)
+#%%
+fig = plot_spectra(eva_col, figdir=figdir, titstr="BigBiGAN", )
+#%
+corr_mat_log, corr_mat_lin = compute_hess_corr(eva_col, evc_col, figdir=figdir, use_cuda=False)
+fig1, fig2 = plot_consistentcy_mat(corr_mat_log, corr_mat_lin, figdir=figdir, titstr="BigBiGAN")
+fig3 = plot_consistency_example(eva_col, evc_col, figdir=figdir, nsamp=5, titstr="BigBiGAN",)

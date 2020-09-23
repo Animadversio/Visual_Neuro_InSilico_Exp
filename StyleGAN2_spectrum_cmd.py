@@ -16,13 +16,21 @@ except:
     ImDist = lpips.PerceptualLoss(net="squeeze").cuda()
 from GAN_hessian_compute import hessian_compute
 from GAN_utils import loadStyleGAN2, StyleGAN2_wrapper
+rootdir = r"E:\Cluster_Backup\StyleGAN2"
+#%% Configurations for different checkpoints
 modelname = "stylegan2-cat-config-f"
 SGAN = loadStyleGAN2(modelname+".pt", size=256, channel_multiplier=2)  #
 modelname = "ffhq-256-config-e-003810"  # 109 sec
 SGAN = loadStyleGAN2(modelname+".pt", size=256, channel_multiplier=1)  # 491 sec per BP
+modelname = "ffhq-512-avg-tpurun1"
+SGAN = loadStyleGAN2(modelname+".pt", size=512, channel_multiplier=2)
 modelname = "stylegan2-ffhq-config-f"
 SGAN = loadStyleGAN2(modelname+".pt", size=1024, channel_multiplier=2)  # 491 sec per BP
 modelname = "2020-01-11-skylion-stylegan2-animeportraits"
+SGAN = loadStyleGAN2(modelname+".pt", size=512, channel_multiplier=2)
+modelname = "stylegan2-car-config-f"
+SGAN = loadStyleGAN2(modelname+".pt", size=512, channel_multiplier=2)
+modelname = "model.ckpt-533504"  # 109 sec
 SGAN = loadStyleGAN2(modelname+".pt", size=512, channel_multiplier=2)
 #%%
 # for triali in range(1,16):
@@ -48,9 +56,6 @@ SGAN = loadStyleGAN2(modelname+".pt", size=512, channel_multiplier=2)
 #     print("Save finished")
 #%%
 """Compute spectrum for different models through CMD interface. """
-import torch.nn.functional as F
-import os
-rootdir = r"E:\Cluster_Backup\StyleGAN2"
 
 modelname = "ffhq-256-config-e-003810"  # 109 sec
 SGAN = loadStyleGAN2(modelname+".pt", size=256, channel_multiplier=1)  # 491 sec per BP
