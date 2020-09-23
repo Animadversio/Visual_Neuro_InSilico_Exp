@@ -72,24 +72,28 @@ for EPS in [1E-5, 1E-4, 1E-3, 1E-2, 1E-1, 1, 2, 10]:
 #%% Visualize Spectra
 figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\PGGAN"
 savedir = r"E:\Cluster_Backup\PGGAN"
-eva_col = []
-evc_col = []
-for triali in tqdm(range(400)):
-    data = np.load(join(savedir, "Hessian_cmp_%d.npz" % triali))
-    eva_BP = data["eva_BP"]
-    evc_BP = data["evc_BP"]
-    eva_col.append(eva_BP)
-    evc_col.append(evc_BP)
+# eva_col = []
+# evc_col = []
+# for triali in tqdm(range(400)):
+#     data = np.load(join(savedir, "Hessian_cmp_%d.npz" % triali))
+#     eva_BP = data["eva_BP"]
+#     evc_BP = data["evc_BP"]
+#     eva_col.append(eva_BP)
+#     evc_col.append(evc_BP)
+#
+# eva_col = np.array(eva_col)
 
-eva_col = np.array(eva_col)
+from hessian_analysis_tools import plot_spectra, compute_hess_corr, plot_consistency_example, plot_consistentcy_mat, average_H, scan_hess_npz
+eva_col, evc_col, feat_col, meta = scan_hess_npz(savedir, "Hessian_cmp_(\d*).npz", featkey="feat")
+feat_col = np.array(feat_col).squeeze()
+H_avg, eva_avg, evc_avg = average_H(eva_col, evc_col)
+np.savez(join(figdir, "H_avg_%s.npz"%"PGGAN"), H_avg=H_avg, eva_avg=eva_avg, evc_avg=evc_avg, feats=feat_col)
 #%%
-from hessian_analysis_tools import plot_spectra, compute_hess_corr, plot_consistency_example, plot_consistentcy_mat
 fig = plot_spectra(eva_col, figdir=figdir, titstr="PGGAN", )
 #%%
 corr_mat_log, corr_mat_lin = compute_hess_corr(eva_col, evc_col, figdir=figdir, use_cuda=True)
 # without cuda 12:11 mins, with cuda 8:21
 corr_mat_log, corr_mat_lin = compute_hess_corr(eva_col, evc_col, figdir=figdir, use_cuda=False)
-
 #%%
 fig1, fig2 = plot_consistentcy_mat(corr_mat_log, corr_mat_lin, figdir=figdir, titstr="PGGAN")
 #%%
