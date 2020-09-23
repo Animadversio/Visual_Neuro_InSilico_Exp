@@ -571,7 +571,7 @@ class PGGAN_wrapper():  # nn.Module
 
 
 #%% DCGAN load 
-def loadPGGAN(onlyG=True): 
+def loadDCGAN(onlyG=True): 
     model = torch.hub.load('facebookresearch/pytorch_GAN_zoo:hub', 
             'DCGAN', pretrained=True, useGPU=True)
     if onlyG:
