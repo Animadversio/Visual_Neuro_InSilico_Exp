@@ -308,9 +308,9 @@ else:
         BigBiGAN_root = r"E:\Github_Projects\BigGANsAreWatching"
     else:
         BigBiGAN_root = r"D:\Github\BigGANsAreWatching"
-sys.path.append(BigBiGAN_root)
 # the model is on cuda from this.
 def loadBigBiGAN(weightpath=None):
+    sys.path.append(BigBiGAN_root)
     from BigGAN.gan_load import UnconditionalBigGAN, make_big_gan
     # from BigGAN.model.BigGAN import Generator
     if weightpath is None:
@@ -456,7 +456,7 @@ class StyleGAN2_wrapper():#nn.Module
 
 
 #%%
-import sys
+import math
 if platform == "linux":  # CHPC cluster
     StyleGAN1_root = r"/home/binxu/stylegan2-pytorch"
 else:
@@ -558,7 +558,7 @@ class PGGAN_wrapper():  # nn.Module
         while csr < imgn:
             csr_end = min(csr + B, imgn)
             with torch.no_grad():
-                img_list = self.visualize(torch.from_numpy(codes_all_arr[csr:csr_end, :]).float().cuda()
+                img_list = self.visualize(torch.from_numpy(codes_all_arr[csr:csr_end, :]).float().cuda(),
                         scale=scale).cpu()
             img_all = img_list if img_all is None else torch.cat((img_all, img_list), dim=0)
             csr = csr_end
@@ -594,7 +594,7 @@ class DCGAN_wrapper():  # nn.Module
         while csr < imgn:
             csr_end = min(csr + B, imgn)
             with torch.no_grad():
-                img_list = self.visualize(torch.from_numpy(codes_all_arr[csr:csr_end, :]).float().cuda()
+                img_list = self.visualize(torch.from_numpy(codes_all_arr[csr:csr_end, :]).float().cuda(),
                         scale=scale).cpu()
             img_all = img_list if img_all is None else torch.cat((img_all, img_list), dim=0)
             csr = csr_end

@@ -96,7 +96,7 @@ mtg, codes_all = vis_eigen_frame(evc_BG, eva_BG, BG, ref_code=refvec, figdir=fig
 
 #%% StyleGAN2
 """StyleGAN2 model"""
-from hessian_analysis_tools import scan_hess_npz, average_H
+from hessian_analysis_tools import scan_hess_npz, average_H, compute_hess_corr, plot_consistentcy_mat, plot_consistency_example
 figdir = join(rootdir, 'StyleGAN2')
 Hessdir = join(rootdir, 'StyleGAN2')
 dataroot = r"E:\Cluster_Backup\StyleGAN2"
@@ -209,16 +209,40 @@ mtg, codes_all = vis_eigen_frame(eigvec_col[veci], eigval_col[veci], SG, ref_cod
                 namestr="spect_indiv_sph_%s"%modelnm, eiglist=[2,4,8,16,64], maxdist=0.15, rown=3, transpose=True,
                                 sphere=True)
 plt.imsave(join(figdir, "spect_indiv_sph_Anime512_%d_2-64.pdf"%veci), mtg, )
-#%%
+
+
 #%% Face1024
 Hessdir = join(rootdir, 'StyleGAN2')
-modelnm = "2020-01-11-skylion-stylegan2-animeportraits"
+modelnm = "stylegan2-ffhq-config-f"
 modelsnm = "Face1024"
-SGAN = loadStyleGAN2(modelnm+".pt", size=1024,)
-SG = StyleGAN2_wrapper(SGAN, )
+# SGAN = loadStyleGAN2(modelnm+".pt", size=1024,)
+# SG = StyleGAN2_wrapper(SGAN, )
 eigval_col, eigvec_col, feat_col, meta = scan_hess_npz(join(dataroot, modelnm), "Hess_BP_(\d*).npz", featkey="feat")
 feat_col = np.array(feat_col).squeeze()
 H_avg, eva_avg, evc_avg = average_H(eigval_col, eigvec_col)
 np.savez(join(Hessdir, "H_avg_%s.npz"%modelnm), H_avg=H_avg, eva_avg=eva_avg, evc_avg=evc_avg, feats=feat_col)
+fig0 = plot_spectra(eigval_col=eigval_col, savename="%s_spectrum"%modelnm)
+corr_mat_log, corr_mat_lin = compute_hess_corr(eigval_col, eigvec_col, figdir=figdir, use_cuda=False, savelabel=modelnm, )
+fig1, fig2 = plot_consistentcy_mat(corr_mat_log, corr_mat_lin, figdir=figdir, titstr="StyleGAN2 %s"%modelnm, savelabel=modelnm)
+fig3 = plot_consistency_example(eigval_col, eigvec_col, figdir=figdir, nsamp=5, titstr="StyleGAN2 %s"%modelnm, savelabel=modelnm)
+#%% "ImageNet512"
+Hessdir = join(rootdir, 'StyleGAN2')
+modelnm = "model.ckpt-533504"
+modelsnm = "ImageNet512"
+# SGAN = loadStyleGAN2(modelnm+".pt", size=512,)
+# SG = StyleGAN2_wrapper(SGAN, )
+eigval_col, eigvec_col, feat_col, meta = scan_hess_npz(join(dataroot, modelnm), "Hess_BP_(\d*).npz", featkey="feat")
+feat_col = np.array(feat_col).squeeze()
+H_avg, eva_avg, evc_avg = average_H(eigval_col, eigvec_col)
+np.savez(join(Hessdir, "H_avg_%s.npz"%modelnm), H_avg=H_avg, eva_avg=eva_avg, evc_avg=evc_avg, feats=feat_col)
+fig0 = plot_spectra(eigval_col=eigval_col, savename="%s_spectrum"%modelnm)
+corr_mat_log, corr_mat_lin = compute_hess_corr(eigval_col, eigvec_col, figdir=figdir, use_cuda=True, savelabel=modelnm)
+fig1, fig2 = plot_consistentcy_mat(corr_mat_log, corr_mat_lin, figdir=figdir, titstr="StyleGAN2 %s"%modelnm, savelabel=modelnm)
+fig3 = plot_consistency_example(eigval_col, eigvec_col, figdir=figdir, nsamp=5, titstr="StyleGAN2 %s"%modelnm, savelabel=modelnm)
 
+#%%
+modelname = "stylegan2-car-config-f"
+modelsnm = "Car512"
+SGAN = loadStyleGAN2(modelname+".pt", size=512, channel_multiplier=2)
+SG = StyleGAN2_wrapper(SGAN)
 

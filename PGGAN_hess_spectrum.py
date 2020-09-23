@@ -91,7 +91,7 @@ corr_mat_log, corr_mat_lin = compute_hess_corr(eva_col, evc_col, figdir=figdir, 
 corr_mat_log, corr_mat_lin = compute_hess_corr(eva_col, evc_col, figdir=figdir, use_cuda=False)
 
 #%%
-fig1, fig2 = plot_consistentcy_mat(corr_mat_log, corr_mat_lin, posN=300, figdir=figdir, titstr="PGGAN")
+fig1, fig2 = plot_consistentcy_mat(corr_mat_log, corr_mat_lin, figdir=figdir, titstr="PGGAN")
 #%%
 fig3 = plot_consistency_example(eva_col, evc_col, figdir=figdir, nsamp=5, titstr="PGGAN",)
 fig3.show()

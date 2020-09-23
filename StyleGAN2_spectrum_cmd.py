@@ -103,7 +103,7 @@ for triali in range(50, 100):
                    preprocess=lambda img: F.interpolate(img, (256, 256), mode='bilinear', align_corners=True))
     print("%.2f sec" % (time() - T0))  # 109 sec
     np.savez(join(savedir, "Hess_BP_%d.npz"%triali), eva_BP=eva_BP, evc_BP=evc_BP, H_BP=H_BP, feat=feat.detach().cpu().numpy())
-#%%
+#%% "ffhq-512-avg-tpurun1"
 modelname = "ffhq-512-avg-tpurun1"
 SGAN = loadStyleGAN2(modelname+".pt", size=512, channel_multiplier=2)
 G = StyleGAN2_wrapper(SGAN)
@@ -116,8 +116,23 @@ for triali in range(0, 100):
                    preprocess=lambda img: F.interpolate(img, (256, 256), mode='bilinear', align_corners=True))
     print("%.2f sec" % (time() - T0))  # 109 sec
     np.savez(join(savedir, "Hess_BP_%d.npz"%triali), eva_BP=eva_BP, evc_BP=evc_BP, H_BP=H_BP, feat=feat.detach().cpu().numpy())
-#%%
+#%% "stylegan2-ffhq-config-f"
 modelname = "stylegan2-ffhq-config-f"
+SGAN = loadStyleGAN2(modelname+".pt", size=1024, channel_multiplier=2)
+G = StyleGAN2_wrapper(SGAN)
+savedir = join(rootdir, modelname)
+os.makedirs(savedir, exist_ok=True)
+for triali in range(0, 100):
+    feat = torch.randn(1, 512).detach().clone().cuda()
+    T0 = time()
+    eva_BP, evc_BP, H_BP = hessian_compute(G, feat, ImDist, hessian_method="BP",
+                   preprocess=lambda img: F.interpolate(img, (256, 256), mode='bilinear', align_corners=True))
+    print("%.2f sec" % (time() - T0))  # 109 sec
+    np.savez(join(savedir, "Hess_BP_%d.npz"%triali), eva_BP=eva_BP, evc_BP=evc_BP, H_BP=H_BP, feat=feat.detach().cpu().numpy())
+#%%
+#%% "stylegan2-ffhq-config-f"
+modelname = "stylegan2-car-config-f"
+modelsnm = "Car512"
 SGAN = loadStyleGAN2(modelname+".pt", size=512, channel_multiplier=2)
 G = StyleGAN2_wrapper(SGAN)
 savedir = join(rootdir, modelname)
