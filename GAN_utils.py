@@ -212,6 +212,17 @@ class upconvGAN(nn.Module):
                 img_all = imgs if img_all is None else torch.cat((img_all, imgs), dim=0)
                 csr = csr_end
         return img_all
+
+
+# # layer name translation
+# # "defc7.weight", "defc7.bias", "defc6.weight", "defc6.bias", "defc5.weight", "defc5.bias".
+# # "defc7.1.weight", "defc7.1.bias", "defc6.1.weight", "defc6.1.bias", "defc5.1.weight", "defc5.1.bias".
+# SD = G.state_dict()
+# SDnew = OrderedDict()
+# for name, W in SD.items():
+#     name = name.replace(".1.", ".")
+#     SDnew[name] = W
+# UCG.G.load_state_dict(SDnew)
 #%% Very useful function to visualize output
 import numpy as np
 from PIL import Image
@@ -242,6 +253,7 @@ def visualize_np(G, code, layout=None, show=True):
                 Image.fromarray(np.uint8(mtg*255.0)).show()
     return imgs
 
+#%% Other GAN wrappers below.
 #%% BigGAN wrapper for ease of usage
 def loadBigGAN(version="biggan-deep-256"):
     from pytorch_pretrained_biggan import BigGAN, truncated_noise_sample, BigGANConfig
@@ -591,16 +603,6 @@ class DCGAN_wrapper():  # nn.Module
     def render(self, codes_all_arr, scale=1.0, B=50):
         img_tsr = self.visualize_batch_np(codes_all_arr, scale=scale, B=B)
         return [img.permute([1,2,0]).numpy() for img in img_tsr]
-# # layer name translation
-# # "defc7.weight", "defc7.bias", "defc6.weight", "defc6.bias", "defc5.weight", "defc5.bias".
-# # "defc7.1.weight", "defc7.1.bias", "defc6.1.weight", "defc6.1.bias", "defc5.1.weight", "defc5.1.bias".
-# SD = G.state_dict()
-# SDnew = OrderedDict()
-# for name, W in SD.items():
-#     name = name.replace(".1.", ".")
-#     SDnew[name] = W
-# UCG.G.load_state_dict(SDnew)
-
 
 #%% The first time to run this you need these modules
 if __name__ == "__main__":
