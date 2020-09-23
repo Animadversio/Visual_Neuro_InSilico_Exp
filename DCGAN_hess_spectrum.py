@@ -8,6 +8,7 @@ import lpips
 from GAN_hessian_compute import hessian_compute
 from torchvision.transforms import ToPILImage
 from torchvision.utils import make_grid
+#%%
 use_gpu = True if torch.cuda.is_available() else False
 model = torch.hub.load('facebookresearch/pytorch_GAN_zoo:hub', 'DCGAN', pretrained=True, useGPU=use_gpu)
 ImDist = lpips.LPIPS(net='squeeze').cuda()
@@ -98,12 +99,21 @@ for triali in tqdm(range(300)):
 
 eva_col = np.array(eva_col)
 #%%
-from hessian_analysis_tools import plot_spectra, compute_hess_corr, plot_consistentcy_mat, plot_consistency_example
+figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\DCGAN"
+savedir = r"E:\Cluster_Backup\DCGAN"
+from hessian_analysis_tools import plot_spectra, compute_hess_corr, plot_consistency_example, plot_consistentcy_mat, \
+    plot_consistency_hist, average_H, scan_hess_npz
+eva_col, evc_col, feat_col, meta = scan_hess_npz(savedir, "Hessian_cmp_(\d*).npz", featkey="feat")
+feat_col = np.array(feat_col).squeeze()
+H_avg, eva_avg, evc_avg = average_H(eva_col, evc_col)
+np.savez(join(figdir, "H_avg_%s.npz"%"DCGAN"), H_avg=H_avg, eva_avg=eva_avg, evc_avg=evc_avg, feats=feat_col)
+#%%
 fig = plot_spectra(eva_col, figdir=figdir, titstr="DCGAN", )
 #%%
 corr_mat_log, corr_mat_lin = compute_hess_corr(eva_col, evc_col, figdir=figdir, use_cuda=False)
 # without cuda 2:12 mins, with cuda 6:55
 #%%
-fig1, fig2 = plot_consistentcy_mat(corr_mat_log, corr_mat_lin, posN=300, figdir=figdir, titstr="DCGAN")
+fig1, fig2 = plot_consistentcy_mat(corr_mat_log, corr_mat_lin, figdir=figdir, titstr="DCGAN")
+fig11, fig22 = plot_consistency_hist(corr_mat_log, corr_mat_lin, figdir=figdir, titstr="DCGAN")
 #%%
 fig3 = plot_consistency_example(eva_col, evc_col, figdir=figdir, nsamp=5, titstr="DCGAN",)

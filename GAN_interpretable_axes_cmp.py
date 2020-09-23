@@ -76,7 +76,7 @@ data = np.load(join(rootdir, "PGGAN", "H_avg_%s.npz"%"PGGAN"))#, H_avg=H_avg, ev
 H_avg = data["H_avg"]
 eva_avg = data["eva_avg"]
 evc_avg = data["evc_avg"]
-#%%
+#%
 RND = np.random.randint(1E4)
 ref_codes = np.random.randn(8, 512)
 for eigidx in range(40):
@@ -112,15 +112,34 @@ data = np.load(join(rootdir, "BigBiGAN", "H_avg_%s.npz"%"BigBiGAN"))
 H_avg, eva_avg, evc_avg = data["H_avg"], data["eva_avg"], data["evc_avg"]
 
 RND = np.random.randint(1E4)
-ref_codes = np.random.randn(8, 120)
+ref_codes = np.random.randn(10, 120)
 for eigidx in range(60):
 	vis_eigen_action(evc_avg[:, -eigidx-1], ref_codes, BBG, figdir=figdir, namestr="BBG_eig%d_lin"%(eigidx+1),
-				maxdist=0.5, rown=7, sphere=False, transpose=False, RND=RND)
-	break
+				maxdist=2, rown=7, sphere=False, transpose=False, RND=RND)
+	# if eigidx==10:break
 for eigidx in range(60):
 	vis_eigen_action(evc_avg[:, -eigidx-1], ref_codes, BBG, figdir=figdir, namestr="BBG_eig%d_sph"%(eigidx+1),
-				maxdist=0.2, rown=7, sphere=True, transpose=False, RND=RND)
-	break
+				maxdist=0.4, rown=7, sphere=True, transpose=False, RND=RND)
+	# if eigidx==10:break
 
 #%% BigGAN
 
+#%% DCGAN
+DCGAN = loadDCGAN()
+DCG = DCGAN_wrapper(DCGAN)
+figdir = join(axesdir, "DCGAN")
+os.makedirs(figdir, exist_ok=True)
+data = np.load(join(rootdir, "DCGAN", "H_avg_%s.npz"%"DCGAN"))
+H_avg, eva_avg, evc_avg = data["H_avg"], data["eva_avg"], data["evc_avg"]
+#%%
+RND = np.random.randint(1E4)
+ref_codes = np.random.randn(10, 120)
+for eigidx in range(60):
+	vis_eigen_action(evc_avg[:, -eigidx-1], ref_codes, DCG, figdir=figdir, namestr="DCG_eig%d_lin"%(eigidx+1),
+				maxdist=4.5, rown=7, sphere=False, transpose=False, RND=RND)
+	# if eigidx==10:break
+
+for eigidx in range(60):
+	vis_eigen_action(evc_avg[:, -eigidx-1], ref_codes, DCG, figdir=figdir, namestr="DCG_eig%d_sph"%(eigidx+1),
+				maxdist=1, rown=7, sphere=True, transpose=False, RND=RND)
+	# if eigidx==10:break
