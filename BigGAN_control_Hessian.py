@@ -15,6 +15,7 @@ from GAN_utils import loadBigGAN, loadStyleGAN2, BigGAN_wrapper
 from hessian_analysis_tools import plot_spectra, compute_hess_corr
 from lpips import LPIPS
 import os
+#%%
 ImDist = LPIPS(net="squeeze")
 datadir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\BigGAN"
 def Hess_hook(module, fea_in, fea_out):
@@ -44,8 +45,6 @@ G_sf = BigGAN_wrapper(BGAN_sf)
 img = BGAN_sf.generator(torch.randn(1, 256).cuda()*0.05, 0.7).cpu()
 ToPILImage()((1+img[0])/2).show()
 #%%
-#%%
-
 triali = 0
 savedir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\BigGAN\ctrl_Hessians"
 for triali in tqdm(range(1, 100)):
@@ -66,6 +65,27 @@ for triali in tqdm(range(1, 100)):
         print("Spent %.2f sec computing" % (time() - T0))
         np.savez(join(savedir, "eig_genBlock%02d_trial%d.npz"%(blocki, triali)), H=H00, eva=eva00, evc=evc00,
                  feat=feat.cpu().detach().numpy())
+#%%
+from hessian_analysis_tools import scan_hess_npz, plot_spectra, compute_hess_corr, plot_consistentcy_mat, plot_consistency_example, plot_consistency_hist, average_H
+savedir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\BigGAN\ctrl_Hessians"
+figdir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\BigGAN"
+
+modelnm = "BigGAN_shuffle"
+# Load the Hessian NPZ
+eva_ctrl, evc_ctrl, feat_ctrl, meta = scan_hess_npz(savedir, "eig_full_trial(\d*).npz", evakey='eva', evckey='evc', featkey="feat")
+# compute the Mean Hessian and save
+H_avg, eva_avg, evc_avg = average_H(eva_ctrl, evc_ctrl)
+np.savez(join(figdir, "H_avg_%s.npz"%modelnm), H_avg=H_avg, eva_avg=eva_avg, evc_avg=evc_avg, feats=feat_ctrl)
+# compute and plot spectra
+fig0 = plot_spectra(eigval_col=eva_ctrl, savename="%s_spectrum"%modelnm, figdir=figdir)
+np.savez(join(figdir, "spectra_col_%s.npz"%modelnm), eigval_col=eva_ctrl, )
+# compute and plot the correlation between hessian at different points
+corr_mat_log, corr_mat_lin = compute_hess_corr(eva_ctrl, evc_ctrl, figdir=figdir, use_cuda=False, savelabel=modelnm)
+fig1, fig2 = plot_consistentcy_mat(corr_mat_log, corr_mat_lin, figdir=figdir, titstr="%s"%modelnm, savelabel=modelnm)
+fig11, fig22 = plot_consistency_hist(corr_mat_log, corr_mat_lin, figdir=figdir, titstr="%s"%modelnm,
+                                    savelabel=modelnm)
+fig3 = plot_consistency_example(eva_ctrl, evc_ctrl, figdir=figdir, nsamp=5, titstr="%s"%modelnm, savelabel=modelnm)
+
 
 #%%
 from pytorch_pretrained_biggan import truncated_noise_sample
@@ -102,3 +122,36 @@ for triali in tqdm(range(50)):
         print("Spent %.2f sec computing" % (time() - T0))
         np.savez(join(savedir, "eig_genBlock%02d_trial%d.npz"%(blocki, triali)), H=H00, eva=eva00, evc=evc00,
                  feat=feat.cpu().detach().numpy())
+#%%
+savedir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\BigGAN\real_Hessians"
+modelnm = "BigGAN_real"
+# Load the Hessian NPZ
+eva_real, evc_real, feat_real, meta = scan_hess_npz(savedir, "eig_full_trial(\d*).npz", evakey='eva', evckey='evc', featkey="feat")
+# compute the Mean Hessian and save
+H_avg, eva_avg, evc_avg = average_H(eva_real, evc_real)
+np.savez(join(figdir, "H_avg_%s.npz"%modelnm), H_avg=H_avg, eva_avg=eva_avg, evc_avg=evc_avg, feats=feat_ctrl)
+# compute and plot spectra
+fig0 = plot_spectra(eigval_col=eva_real, savename="%s_spectrum"%modelnm, figdir=figdir)
+np.savez(join(figdir, "spectra_col_%s.npz"%modelnm), eigval_col=eva_real, )
+# compute and plot the correlation between hessian at different points
+corr_mat_log, corr_mat_lin = compute_hess_corr(eva_real, evc_real, figdir=figdir, use_cuda=False, savelabel=modelnm)
+fig1, fig2 = plot_consistentcy_mat(corr_mat_log, corr_mat_lin, figdir=figdir, titstr="%s"%modelnm, savelabel=modelnm)
+fig11, fig22 = plot_consistency_hist(corr_mat_log, corr_mat_lin, figdir=figdir, titstr="%s"%modelnm,
+                                    savelabel=modelnm)
+fig3 = plot_consistency_example(eva_real, evc_real, figdir=figdir, nsamp=5, titstr="%s"%modelnm, savelabel=modelnm)
+#%% Comparison plot
+#  Spectrum comparison
+fig0 = plot_spectra(eva_real, savename="BigGAN_spectrum_shuffle_cmp", figdir=figdir, abs=True,
+            titstr="BigGAN cmp", label="real", fig=None)
+fig0 = plot_spectra(eva_ctrl, savename="BigGAN_spectrum_shuffle_cmp", figdir=figdir, abs=True,
+            titstr="BigGAN cmp", label="shuffled", fig=fig0)
+#%%  Correlation of Hessian plot
+with np.load(join(figdir, "Hess_BigGAN_real_corr_mat.npz")) as data:
+    corr_mat_log, corr_mat_lin = data["corr_mat_log"], data["corr_mat_lin"]
+fig11, fig22 = plot_consistency_hist(corr_mat_log, corr_mat_lin, figdir=figdir, titstr="%s"%"real",
+                                    savelabel="BigGAN_shuffle_cmp")
+with np.load(join(figdir, "Hess_BigGAN_shuffle_corr_mat.npz")) as data:
+    corr_mat_log, corr_mat_lin = data["corr_mat_log"], data["corr_mat_lin"]
+
+fig11, fig22 = plot_consistency_hist(corr_mat_log, corr_mat_lin, figdir=figdir, titstr="%s"%"shuffle",
+                                    savelabel="BigGAN_shuffle_cmp", figs=(fig11,fig22))

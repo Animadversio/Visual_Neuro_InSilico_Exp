@@ -70,6 +70,26 @@ for blocki in range(len(SGAN.convs)):
     plt.savefig(join(datadir, "spectrum_genBlock%d_latent.png" % (blocki)))
     # plt.show()
 #%%
+def plot_layer_spectra(eva_col, layernames=None, titstr="GAN", namestr="all_layers", figdir=datadir,
+                       normalize=False, cmap=cm.jet):
+    Ln = len(eva_col)
+    if layernames is None: layernames = ["Module %d"%i for i in range(Ln)]
+    fig = plt.figure(figsize=[7, 8])
+    for blocki, eva00 in enumerate(eva_col):
+        norm = eva00.max() if normalize else 1
+        plt.plot(np.log10(eva00 / norm)[::-1], color=cmap((blocki+1) / Ln),
+                     label=layernames[blocki])
+    plt.xlim([0, len(eva00)])
+    plt.xlabel("eigenvalue rank")
+    plt.ylabel("log(eig value)")
+    plt.title("%s Hessian Spectra of Intermediate Layers Compared"%titstr)
+    plt.subplots_adjust(top=0.9)
+    plt.legend()
+    plt.savefig(join(figdir, "spectrum_%s_cmp.png"%namestr))
+    plt.savefig(join(figdir, "spectrum_%s_cmp.pdf"%namestr))
+    plt.show()
+    return fig
+
 from hessian_analysis_tools import plot_consistentcy_mat, compute_hess_corr, compute_vector_hess_corr, plot_layer_consistency_mat
 datadir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\StyleGAN2"
 layernames = [("StyleBlock%02d" % blocki) for blocki in range(12)] # if blocki!=8 else "SelfAttention"
@@ -106,22 +126,4 @@ corr_mat_vec = compute_vector_hess_corr(eva_col, evc_col, savelabel="StyleGAN2_z
 fig1, fig2, fig3 = plot_layer_consistency_mat(corr_mat_log, corr_mat_lin, corr_mat_vec, savelabel="StyleGAN2_zspace",
                                       figdir=datadir, titstr="StyleGAN2", layernames=layernames)
 #%%
-def plot_layer_spectra(eva_col, layernames=None, titstr="GAN", namestr="all_layers", figdir=datadir,
-                       normalize=False, cmap=cm.jet):
-    Ln = len(eva_col)
-    if layernames is None: layernames = ["Module %d"%i for i in range(Ln)]
-    fig = plt.figure(figsize=[7, 8])
-    for blocki, eva00 in enumerate(eva_col):
-        norm = eva00.max() if normalize else 1
-        plt.plot(np.log10(eva00 / norm)[::-1], color=cmap((blocki+1) / Ln),
-                     label=layernames[blocki])
-    plt.xlim([0, len(eva00)])
-    plt.xlabel("eigenvalue rank")
-    plt.ylabel("log(eig value)")
-    plt.title("%s Hessian Spectra of Intermediate Layers Compared"%titstr)
-    plt.subplots_adjust(top=0.9)
-    plt.legend()
-    plt.savefig(join(figdir, "spectrum_%s_cmp.png"%namestr))
-    plt.savefig(join(figdir, "spectrum_%s_cmp.pdf"%namestr))
-    plt.show()
-    return fig
+
