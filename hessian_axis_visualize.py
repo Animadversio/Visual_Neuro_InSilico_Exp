@@ -22,7 +22,7 @@ from hessian_analysis_tools import scan_hess_npz, compute_hess_corr, plot_spectr
 # go through spectrum in batch, and plot B number of axis in a row
 def vis_eigen_frame(eigvect_avg, eigv_avg, G, ref_code=None, figdir="", RND=None, namestr="", page_B=50, transpose=True,
                     eiglist=None, eig_rng=(0, 4096), maxdist=120, rown=7, sphere=False, ):
-    if ref_code is None: ref_code = np.zeros((1, 4096))
+    if ref_code is None: ref_code = np.zeros((1, eigvect_avg.shape[0]))
     if RND is None: RND = np.random.randint(10000)
     if eiglist is None: eiglist = list(range(eig_rng[0], eig_rng[1]))
     t0 = time()
@@ -46,7 +46,7 @@ def vis_eigen_frame(eigvect_avg, eigv_avg, G, ref_code=None, figdir="", RND=None
             codes_col.append(codes_all)
             codes_page = []
             print("Finish printing page eigen %d-%d (%.1fs)"%(eiglist[csr], eigi, time()-t0))
-            csr = idx
+            csr = idx + 1
     return mtg, codes_col
 
 def vis_eigen_explore(ref_code, eigvect_avg, eigv_avg, G, figdir="", RND=None, namestr="",

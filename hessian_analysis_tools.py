@@ -221,9 +221,12 @@ def plot_consistentcy_mat(corr_mat_log, corr_mat_lin, savelabel="", figdir="", t
     plt.show()
     return fig1, fig2
 #%%
-def histogram_corrmat(corr_mat_lin, log=True, GAN="GAN"):
-    fig = plt.figure(figsize=[4, 3])
-    plt.hist(corr_mat_lin.flatten()[~np.isnan(corr_mat_lin.flatten())], 60, density=True)
+def histogram_corrmat(corr_mat_lin, log=True, GAN="GAN", fig=None):
+    if fig is None:
+        fig = plt.figure(figsize=[4, 3])
+    else:
+        plt.figure(num=fig.number)
+    plt.hist(corr_mat_lin.flatten()[~np.isnan(corr_mat_lin.flatten())], 60, density=True, alpha=0.7)
     corr_mean = np.nanmean(corr_mat_lin)
     corr_medi = np.nanmedian(corr_mat_lin)
     _, YMAX = plt.ylim()
@@ -233,20 +236,23 @@ def histogram_corrmat(corr_mat_lin, log=True, GAN="GAN"):
     plt.ylabel("density")
     plt.title("Histogram of Non-Diag Correlation\n %s on %s scale\n mean %.3f median %.3f" %
               (GAN, "log" if log else "lin", corr_mean, corr_medi))
-    plt.show()
+    # plt.show()
     return fig
 
-def plot_consistency_hist(corr_mat_log, corr_mat_lin, savelabel="", figdir="", titstr="GAN"):
+def plot_consistency_hist(corr_mat_log, corr_mat_lin, savelabel="", figdir="", titstr="GAN", figs=(None, None)):
     """Histogram way to represent correlation instead of corr matrix, same interface as plot_consistentcy_mat"""
     posN = corr_mat_log.shape[0]
-    fig1 = histogram_corrmat(corr_mat_log, log=True, GAN=titstr)
+    np.fill_diagonal(corr_mat_lin, np.nan)
+    np.fill_diagonal(corr_mat_log, np.nan)
+    if figs is not None: fig1, fig2 = figs
+    fig1 = histogram_corrmat(corr_mat_log, log=True, GAN=titstr, fig=fig1)
     fig1.savefig(join(figdir, "Hess_%s_corr_mat_log_hist.jpg"%savelabel))
     fig1.savefig(join(figdir, "Hess_%s_corr_mat_log_hist.pdf"%savelabel))
-    fig1.show()
-    fig2 = histogram_corrmat(corr_mat_lin, log=False, GAN=titstr)
+    # fig1.show()
+    fig2 = histogram_corrmat(corr_mat_lin, log=False, GAN=titstr, fig=fig2)
     fig2.savefig(join(figdir, "Hess_%s_corr_mat_lin_hist.jpg"%savelabel))
     fig2.savefig(join(figdir, "Hess_%s_corr_mat_lin_hist.pdf"%savelabel))
-    fig2.show()
+    # fig2.show()
     return fig1, fig2
 #%% Derive from BigBiGAN
 def plot_consistency_example(eigval_col, eigvec_col, nsamp=5, titstr="GAN", figdir="", savelabel=""):
