@@ -484,7 +484,21 @@ else:
     # elif os.environ['COMPUTERNAME'] == 'PONCELAB-ML2A':
     else:
         StyleGAN1_root = r"E:\Github_Projects\style-based-gan-pytorch"
-        
+
+def loadStyleGAN():
+    sys.path.append(StyleGAN1_root)
+    ckpt_root = join(StyleGAN1_root, 'checkpoint')
+    from model import StyledGenerator
+    from generate import get_mean_style
+    import math
+    generator = StyledGenerator(512).to("cuda")
+    # generator.load_state_dict(torch.load(r"E:\Github_Projects\style-based-gan-pytorch\checkpoint\stylegan-256px-new.model")['g_running'])
+    generator.load_state_dict(torch.load(join(StyleGAN1_root, "checkpoint\stylegan-256px-new.model"))[
+                                  'g_running'])
+    generator.eval()
+    for param in generator.parameters():
+        param.requires_grad_(False)
+    return generator
 
 class StyleGAN_wrapper():  # nn.Module
     def __init__(self, StyleGAN, resolution=256):
