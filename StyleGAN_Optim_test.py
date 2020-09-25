@@ -1,8 +1,5 @@
-from GAN_utils import BigBiGAN_wrapper, loadBigBiGAN
 from GAN_utils import loadBigGAN, loadStyleGAN2, loadStyleGAN, StyleGAN_wrapper, BigGAN_wrapper, StyleGAN2_wrapper, \
-    loadPGGAN, \
-    PGGAN_wrapper, \
-    loadBigBiGAN, BigBiGAN_wrapper
+    loadPGGAN,  PGGAN_wrapper,  loadBigBiGAN, BigBiGAN_wrapper
 from hessian_analysis_tools import plot_spectra, compute_hess_corr
 import torch
 import torch.nn.functional as F

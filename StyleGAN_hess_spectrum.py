@@ -301,3 +301,51 @@ plt.savefig(join(figdir, "StyleGAN_BP-FI-HessCorr-cmp.png"))
 plt.savefig(join(figdir, "StyleGAN_BP-FI-HessCorr-cmp.pdf"))
 plt.show()
 #%%
+""" modern API. Analyze the W space geometry """
+from hessian_analysis_tools import scan_hess_npz, compute_hess_corr, compute_vector_hess_corr, average_H, \
+    plot_consistentcy_mat, plot_consistency_hist, plot_spectra
+from GAN_utils import loadStyleGAN, StyleGAN_wrapper
+SGAN = loadStyleGAN()
+SG = StyleGAN_wrapper(SGAN)
+SG.wspace = True
+#%%
+imgs = SG.visualize(SG.mean_style + torch.randn(8, 512).cuda() * 0.15)
+ToPILImage()(make_grid(imgs).cpu()).show()
+#%%
+imgs = SG.visualize(SG.mean_style + SG.StyleGAN.style(torch.randn(8, 512).cuda()) * 0.6)
+ToPILImage()(make_grid(imgs).cpu()).show()
+
+#%%
+SG.wspace = True
+mean_style = SG.mean_style
+datadir = r"E:\Cluster_Backup\StyleGAN_wspace"
+os.makedirs(datadir, exist_ok=True)
+for triali in tqdm(range(80)):
+    feat_z = torch.randn(1, 512).cuda()
+    feat = mean_style + 0.7 * SG.StyleGAN.style(feat_z) # torch.randn(1, 512,).to("cuda")
+    T0 = time()
+    eva_BP, evc_BP, H_BP = hessian_compute(SG, feat, ImDist, hessian_method="BP")
+    print("%.2f sec" % (time() - T0))  # 120 sec
+    np.savez(join(datadir, "Hessian_rand_0_7_%03d.npz" % triali), eva_BP=eva_BP, evc_BP=evc_BP, H_BP=H_BP,
+        feat=feat.detach().cpu().numpy(), feat_z=feat_z.detach().cpu().numpy())
+
+figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\StyleGAN_wspace"
+modelnm = "StyleGAN_Wspace"
+eva_col, evc_col, feat_col, meta = scan_hess_npz(savedir, "Hessian_rand_0_7_(\d*).npz", featkey="feat")
+# compute the Mean Hessian and save
+H_avg, eva_avg, evc_avg = average_H(eva_col, evc_col)
+np.savez(join(figdir, "H_avg_%s.npz"%modelnm), H_avg=H_avg, eva_avg=eva_avg, evc_avg=evc_avg, feats=feat_col)
+# compute and plot spectra
+fig0 = plot_spectra(eigval_col=eva_col, savename="%s_spectrum"%modelnm, figdir=figdir)
+fig0 = plot_spectra(eigval_col=eva_col, savename="%s_spectrum_med"%modelnm, figdir=figdir, median=True)
+np.savez(join(figdir, "spectra_col_%s.npz"%modelnm), eigval_col=eva_col, )
+# compute and plot the correlation between hessian at different points
+corr_mat_log, corr_mat_lin = compute_hess_corr(eva_col, evc_col, figdir=figdir, use_cuda=True,
+                                                         savelabel=modelnm)
+corr_mat_vec = compute_vector_hess_corr(eva_col, evc_col, figdir=figdir, use_cuda=True,
+                                                         savelabel=modelnm)
+fig1, fig2 = plot_consistentcy_mat(corr_mat_log, corr_mat_lin, figdir=figdir, titstr="%s"%modelnm,
+                                   savelabel=modelnm)
+fig11, fig22 = plot_consistency_hist(corr_mat_log, corr_mat_lin, figdir=figdir, titstr="%s"%modelnm,
+                                    savelabel=modelnm)
+fig3 = plot_consistency_example(eva_col, evc_col, figdir=figdir, nsamp=5, titstr="%s"%modelnm, savelabel=modelnm)
