@@ -87,7 +87,7 @@ fig1, fig2 = plot_consistentcy_mat(corr_mat_log_ctrl, corr_mat_lin_ctrl, figdir=
 fig11, fig22 = plot_consistency_hist(corr_mat_log_ctrl, corr_mat_lin_ctrl, figdir=figdir, titstr="%s"%modelnm,
                                     savelabel=modelnm)
 fig3 = plot_consistency_example(eva_ctrl, evc_ctrl, figdir=figdir, nsamp=5, titstr="%s"%modelnm, savelabel=modelnm)
-#%%
+#%% Comparison plot with real GANs: spectra
 realfigdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\StyleGAN2"
 with np.load(join(figdir, "spectra_col_%s.npz"%"StyleGAN2_Face512_shuffle")) as data:
     eva_ctrl = data["eigval_col"]
@@ -97,7 +97,7 @@ fig0 = plot_spectra(eva_real, savename="StyleGAN2_Face512_shuffle_spectrum_cmp",
             titstr="StyleGAN2_Face512 cmp", label="real", fig=None)
 fig0 = plot_spectra(eva_ctrl, savename="StyleGAN2_Face512_shuffle_spectrum_cmp", figdir=figdir, abs=True,
             titstr="StyleGAN2_Face512 cmp", label="shuffled", fig=fig0)
-#%%
+#%% Comparison plot with real GANs: correlation
 with np.load(join(realfigdir, "Hess_ffhq-512-avg-tpurun1_corr_mat.npz")) as data:
     corr_mat_log, corr_mat_lin = data["corr_mat_log"], data["corr_mat_lin"]
 with np.load(join(figdir, "Hess_%s_corr_mat.npz"%"StyleGAN2_Face512_shuffle")) as data:
