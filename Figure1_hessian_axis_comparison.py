@@ -210,8 +210,8 @@ mtg, codes_all = vis_eigen_frame(eigvec_col[veci], eigval_col[veci], SG, ref_cod
                 namestr="spect_indiv_sph_%s"%modelnm, eiglist=[2,4,8,16,64], maxdist=0.15, rown=3, transpose=True,
                                 sphere=True)
 plt.imsave(join(figdir, "spect_indiv_sph_Anime512_%d_2-64.pdf"%veci), mtg, )
-
-
+#%%
+"""Analyze the other GANs and make basic figures on them"""
 #%% Face1024
 Hessdir = join(rootdir, 'StyleGAN2')
 modelnm = "stylegan2-ffhq-config-f"
