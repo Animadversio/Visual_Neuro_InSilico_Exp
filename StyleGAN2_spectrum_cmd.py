@@ -168,16 +168,19 @@ img = G.visualize(G.StyleGAN.get_latent(torch.randn(5, 512).cuda()))
 ToPILImage()(make_grid(img).cpu()).show()
 #%%
 for triali in range(0, 50):
-    feat = torch.randn(1, 512).detach().clone().cuda()
+    feat_z = torch.randn(1, 512).cuda()
+    feat = G.StyleGAN.get_latent(feat_z)
     T0 = time()
     eva_BP, evc_BP, H_BP = hessian_compute(G, feat, ImDist, hessian_method="BP",
                     preprocess=lambda img:img)
                    #preprocess=lambda img: F.interpolate(img, (256, 256), mode='bilinear', align_corners=True))
     print("%.2f sec" % (time() - T0))  # 109 sec
-    np.savez(join(savedir, "Hess_BP_%03d.npz"%triali), eva_BP=eva_BP, evc_BP=evc_BP, H_BP=H_BP, feat=feat.detach().cpu().numpy())
+    np.savez(join(savedir, "Hess_BP_%03d.npz"%triali), eva_BP=eva_BP, evc_BP=evc_BP, H_BP=H_BP,
+             feat=feat.detach().cpu().numpy(), feat_z=feat_z.detach().cpu().numpy())
 
-
+#%
 figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\StyleGAN2_wspace"
+os.makedirs(figdir, exist_ok=True)
 # Load the Hessian NPZ
 eva_col, evc_col, feat_col, meta = scan_hess_npz(savedir, "Hess_BP_(\d*).npz", featkey="feat")
 # compute the Mean Hessian and save
@@ -205,13 +208,15 @@ G.use_wspace(True)
 savedir = join(rootdir, modelname+"_wspace")
 os.makedirs(savedir, exist_ok=True)
 for triali in range(0, 50):
-    feat = torch.randn(1, 512).detach().clone().cuda()
+    feat_z = torch.randn(1, 512).cuda()
+    feat = G.StyleGAN.get_latent(feat_z)
     T0 = time()
     eva_BP, evc_BP, H_BP = hessian_compute(G, feat, ImDist, hessian_method="BP",
-                   preprocess=lambda img: F.interpolate(img, (256, 256), mode='bilinear', align_corners=True))
+                    preprocess=lambda img:img)
+                   # preprocess=lambda img: F.interpolate(img, (256, 256), mode='bilinear', align_corners=True))
     print("%.2f sec" % (time() - T0))  # 109 sec
-    np.savez(join(savedir, "Hess_BP_%d.npz"%triali), eva_BP=eva_BP, evc_BP=evc_BP, H_BP=H_BP, feat=feat.detach().cpu().numpy())
-
+    np.savez(join(savedir, "Hess_BP_%d.npz"%triali), eva_BP=eva_BP, evc_BP=evc_BP, H_BP=H_BP,
+             feat=feat.detach().cpu().numpy(), feat_z=feat_z.detach().cpu().numpy())
 
 figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\StyleGAN2_wspace"
 # Load the Hessian NPZ
