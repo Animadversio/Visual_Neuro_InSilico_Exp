@@ -505,22 +505,26 @@ class StyleGAN_wrapper():  # nn.Module
         sys.path.append(StyleGAN1_root)
         from generate import get_mean_style
         self.StyleGAN = StyleGAN
-        self.mean_style = get_mean_style(StyleGAN, "cuda")
+        self.mean_style = get_mean_style(StyleGAN, "cuda")  # note this is a stochastic process so can differ from
+                                                            # init to init.
         self.step = int(math.log(resolution, 2)) - 2
+        self.wspace = False
+
+    def use_wspace(self, wspace=True):
+        self.wspace = wspace
 
     def visualize(self, code, scale=1.0, resolution=256, mean_style=None, wspace=False, noise=None):
         # if step is None: step = self.step
         step = int(math.log(resolution, 2)) - 2
-        if not wspace:
+        if not wspace and not self.wspace:
             if mean_style is None: mean_style = self.mean_style
-            imgs = self.StyleGAN(
-                code, step=step, alpha=1,
+            imgs = self.StyleGAN(code, step=step, alpha=1,
                 mean_style=mean_style, style_weight=0.7,
             )
         else: # code ~ 0.2 * torch.randn(1, 1, 512)
             if noise is None:
                 noise = [torch.randn(code.shape[0], 1, 4 * 2 ** i, 4 * 2 ** i, device="cuda") for i in range(step + 1)]
-            G.StyleGAN.generator(code.unsqueeze(1), noise, step=step)
+            imgs = self.StyleGAN.generator([code], noise, step=step)
         return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
 
     def visualize_batch_np(self, codes_all_arr, resolution=256, mean_style=None, B=15, wspace=False, noise=None):

@@ -29,7 +29,7 @@ evc, eva = data["evc_avg"], data["eva_avg"],
 evc_tsr = torch.from_numpy(evc).cuda().float()
 eva_tsr = torch.from_numpy(eva).cuda().float()
 #%%
-from torch.optim import Adam
+from torch.optim import Adam, SGD
 SGAN = loadStyleGAN()
 G = StyleGAN_wrapper(SGAN)
 #%%
@@ -83,50 +83,38 @@ ToPILImage()(make_grid(imgcmp).cpu()).show()
 # None basis
 # step 490 L1 ['0.11', '0.12', '0.11', '0.12'] dsim ['0.14', '0.17', '0.14', '0.17']
 #%%
+"""Try out W space """
 step = 6
-img = G.StyleGAN.generator(0.2*torch.randn(1, 1, 512).cuda(), [torch.randn(1, 1, 4*2**i, 4*2**i, device="cuda") for
-                                                                i in range(step+1)], step=step)
-ToPILImage()(torch.clamp(img[0,:].cpu()+1/2,0,1)).show()
+img = G.StyleGAN.generator([0.1*torch.randn(1, 512).cuda() for i in range(5)],
+                           [0.5*torch.randn(5, 1, 4*2**i, 4*2**i, device="cuda") for i in range(step+1)], step=step)
+ToPILImage()(make_grid(torch.clamp(img+1/2,0,1).cpu())).show()
 #%%
-class StyleGAN_wrapper():  # nn.Module
-    def __init__(self, StyleGAN, resolution=256):
-        sys.path.append(StyleGAN1_root)
-        from generate import get_mean_style
-        self.StyleGAN = StyleGAN
-        self.mean_style = get_mean_style(StyleGAN, "cuda")
-        self.step = int(math.log(resolution, 2)) - 2
-
-    def visualize(self, code, scale=1.0, resolution=256, mean_style=None, wspace=False, noise=None):
-        # if step is None: step = self.step
-        step = int(math.log(resolution, 2)) - 2
-        if not wspace:
-            if mean_style is None: mean_style = self.mean_style
-            imgs = self.StyleGAN(
-                code, step=step, alpha=1,
-                mean_style=mean_style, style_weight=0.7,
-            )
-        else: # code ~ 0.2 * torch.randn(1, 1, 512)
-            if noise is None:
-                noise = [torch.randn(code.shape[0], 1, 4 * 2 ** i, 4 * 2 ** i, device="cuda") for i in range(step + 1)]
-            G.StyleGAN.generator(code.unsqueeze(1), noise, step=step)
-        return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
-
-    def visualize_batch_np(self, codes_all_arr, resolution=256, mean_style=None, B=15, wspace=False, noise=None):
-        csr = 0
-        img_all = None
-        imgn = codes_all_arr.shape[0]
-        while csr < imgn:
-            csr_end = min(csr + B, imgn)
-            with torch.no_grad():
-                img_list = self.visualize(torch.from_numpy(codes_all_arr[csr:csr_end, :]).float().cuda(),
-                                       resolution=resolution, mean_style=mean_style, wspace=wspace, noise=noise).cpu()
-            img_all = img_list if img_all is None else torch.cat((img_all, img_list), dim=0)
-            csr = csr_end
-            # clear_output(wait=True)
-            # progress_bar(csr_end, imgn, "ploting row of page: %d of %d" % (csr_end, imgn))
-        return img_all
-
-    def render(self, codes_all_arr, resolution=256, mean_style=None, B=15, wspace=False, noise=None):
-        img_tsr = self.visualize_batch_np(codes_all_arr, resolution=resolution, mean_style=mean_style, B=B,
-                                          wspace=wspace, noise=noise)
-        return [img.permute([1,2,0]).numpy() for img in img_tsr]
+"""Try out W space """
+step = 6
+img = G.StyleGAN.generator([0.1*torch.randn(1, 512).cuda(), 0.2*torch.randn(1, 512).cuda(),],
+                           [0.5*torch.randn(2, 1, 4*2**i, 4*2**i, device="cuda") for i in range(step+1)], step=step)
+ToPILImage()(make_grid(torch.clamp(img+1/2,0,1).cpu())).show()
+#%%
+tmpimg = G.visualize(0.15*torch.randn(5, 512).cuda(), wspace=True)
+ToPILImage()(make_grid(tmpimg).cpu()).show()
+#%%
+# basis = evc_tsr
+basis = torch.eye(512).float().cuda()
+#%%
+fitvec = 0.15*torch.randn(4, 512).cuda()
+fitproj = fitvec @ basis
+fitproj.requires_grad_(True)
+optimizer = SGD([fitproj], lr=2.5e-3, )
+for step in range(150):
+    fitimg = G.visualize(fitproj @ basis.T, wspace=True)
+    dsim = ImDist(fitimg, refimg)
+    L1 = L1loss(fitimg, refimg)
+    loss = L1.sum() + dsim.sum()
+    loss.backward()
+    optimizer.step()
+    if step%10==0:
+        print("step %d L1 %s dsim %s"%(step, ["%.2f"%d for d in L1.tolist()], ["%.2f"%d for d in dsim.squeeze(
+             ).tolist()]))
+imgcmp = torch.cat((refimg, fitimg))
+ToPILImage()(make_grid(imgcmp).cpu()).show()
+# step 140 L1 ['0.16', '0.15', '0.16', '0.17'] dsim ['0.27', '0.23', '0.23', '0.24']
