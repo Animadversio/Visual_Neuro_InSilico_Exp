@@ -430,18 +430,14 @@ class StyleGAN2_wrapper():#nn.Module
         mean_latent = self.StyleGAN.mean_latent(truncation_mean)
         self.mean_latent = mean_latent
 
-    def select_space(self, wspace=False):
+    def use_wspace(self, wspace=True):
         self.wspace = wspace
 
-    def visualize(self, code, scale=1.0, resolution=256, truncation=1, mean_latent=None, preset=True, wspace=False):
-        if preset:
-            imgs, _ = self.StyleGAN([code], truncation=self.truncation, truncation_latent=self.mean_latent, input_is_latent=self.wspace)
-        else:
-            if truncation is None:
-                imgs, _ = self.StyleGAN([code], truncation=self.truncation, truncation_latent=self.mean_latent,
-                                        input_is_latent=wspace)
-            else:
-                imgs, _ = self.StyleGAN([code], truncation=truncation, truncation_latent=mean_latent, input_is_latent=wspace)
+    def visualize(self, code, scale=1.0, resolution=256, truncation=1, mean_latent=None, wspace=None):
+        if truncation is None:  truncation = self.truncation
+        if mean_latent is None:  mean_latent = self.mean_latent
+        if wspace is None:  wspace = self.wspace
+        imgs, _ = self.StyleGAN([code], truncation=truncation, truncation_latent=mean_latent, input_is_latent=wspace)
         imgs = F.interpolate(imgs, size=(resolution, resolution), align_corners=True, mode='bilinear')
         return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
 
@@ -456,7 +452,7 @@ class StyleGAN2_wrapper():#nn.Module
             csr_end = min(csr + B, imgn)
             with torch.no_grad():
                 img_list = self.visualize(torch.from_numpy(codes_all_arr[csr:csr_end, :]).float().cuda(),
-                                       truncation=truncation, mean_latent=mean_latent, preset=False).cpu()
+                                       truncation=truncation, mean_latent=mean_latent, ).cpu()
             img_all = img_list if img_all is None else torch.cat((img_all, img_list), dim=0)
             csr = csr_end
             clear_output(wait=True)
