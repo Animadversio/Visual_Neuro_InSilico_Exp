@@ -49,18 +49,20 @@ def vis_eigen_frame(eigvect_avg, eigv_avg, G, ref_code=None, figdir="", RND=None
             csr = idx + 1
     return mtg, codes_col
 
-def vis_eigen_explore(ref_code, eigvect_avg, eigv_avg, G, figdir="", RND=None, namestr="",
-     transpose=True, eiglist=[1,2,4,7,16], maxdist=120, rown=5, sphere=False, ImDist=None, distrown=19):
+def vis_eigen_explore(ref_code, eigvect_avg, eigv_avg, G, figdir="", RND=None, namestr="", transpose=True,
+                      eiglist=[1,2,4,7,16], maxdist=120, rown=5, sphere=False, ImDist=None, distrown=19, scaling=None):
     """This is small scale version of vis_eigen_frame + vis_distance_vector """
     if RND is None: RND = np.random.randint(10000)
     if eiglist is None: eiglist = list(range(len(eigv_avg)))
+    if scaling is None: scaling = np.ones(len(eigv_avg))
     t0 = time()
     codes_page = []
     for idx, eigi in enumerate(eiglist):  # range(eig_rng[0]+1, eig_rng[1]+1):
+        scaler = scaling[idx]
         if not sphere:
-            interp_codes = LExpMap(ref_code, eigvect_avg[:, -eigi-1], rown, (-maxdist, maxdist))
+            interp_codes = LExpMap(ref_code, eigvect_avg[:, -eigi-1], rown, (-maxdist*scaler, maxdist*scaler))
         else:
-            interp_codes = SExpMap(ref_code, eigvect_avg[:, -eigi-1], rown, (-maxdist, maxdist))
+            interp_codes = SExpMap(ref_code, eigvect_avg[:, -eigi-1], rown, (-maxdist*scaler, maxdist*scaler))
         codes_page.append(interp_codes)
     codes_all = np.concatenate(tuple(codes_page), axis=0)
     img_page = G.render(codes_all)

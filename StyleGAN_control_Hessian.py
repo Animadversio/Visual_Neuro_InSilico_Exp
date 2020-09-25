@@ -48,7 +48,7 @@ def Hess_hook(module, fea_in, fea_out):
 
 savedir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\StyleGAN\ctrl_Hessians"
 os.makedirs(savedir, exist_ok=True)
-for triali in tqdm(range(0, 100)):
+for triali in tqdm(range(38, 50)):
     feat = torch.randn(1,512).cuda()
     eigvals, eigvects, H = hessian_compute(G_sf, feat, ImDist, hessian_method="BP", )
     np.savez(join(savedir, "eig_full_trial%d.npz"%(triali)), H=H, eva=eigvals, evc=eigvects,
@@ -90,7 +90,7 @@ fig3 = plot_consistency_example(eva_ctrl, evc_ctrl, figdir=figdir, nsamp=5, tits
 #%%
 with np.load(join(figdir, "spectra_col_%s.npz"%modelnm)) as data:
     eva_ctrl = data["eigval_col"]
-with np.load(join(realfigdir, "spectra_col_BP.npz")) as data:
+with np.load(join(realfigdir, "spectra_col_face256_BP.npz")) as data:
     eva_real = data["eigval_col"]
 fig0 = plot_spectra(eva_real, savename="StyleGAN_shuffle_spectrum_cmp", figdir=figdir, abs=True,
             titstr="StyleGAN cmp", label="real", fig=None)
