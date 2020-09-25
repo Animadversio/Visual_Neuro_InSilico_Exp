@@ -486,21 +486,6 @@ else:
         StyleGAN1_root = r"E:\Github_Projects\style-based-gan-pytorch"
         
 
-def loadStyleGAN():
-    sys.path.append(StyleGAN1_root)
-    ckpt_root = join(StyleGAN1_root, 'checkpoint')
-    from model import StyledGenerator
-    from generate import get_mean_style
-    import math
-    generator = StyledGenerator(512).to("cuda")
-    # generator.load_state_dict(torch.load(r"E:\Github_Projects\style-based-gan-pytorch\checkpoint\stylegan-256px-new.model")['g_running'])
-    generator.load_state_dict(torch.load(join(StyleGAN1_root, "checkpoint\stylegan-256px-new.model"))[
-                                  'g_running'])
-    generator.eval()
-    for param in generator.parameters():
-        param.requires_grad_(False)
-    return generator
-
 class StyleGAN_wrapper():  # nn.Module
     def __init__(self, StyleGAN, resolution=256):
         sys.path.append(StyleGAN1_root)
@@ -509,20 +494,22 @@ class StyleGAN_wrapper():  # nn.Module
         self.mean_style = get_mean_style(StyleGAN, "cuda")
         self.step = int(math.log(resolution, 2)) - 2
 
-    def visualize(self, code, scale=1.0, resolution=256, mean_style=None):
+    def visualize(self, code, scale=1.0, resolution=256, mean_style=None, wspace=False, noise=None):
         # if step is None: step = self.step
         step = int(math.log(resolution, 2)) - 2
-        if mean_style is None: mean_style = self.mean_style
-        imgs = self.StyleGAN(
-            code,
-            step=step,
-            alpha=1,
-            mean_style=mean_style,
-            style_weight=0.7,
-        )  
+        if not wspace:
+            if mean_style is None: mean_style = self.mean_style
+            imgs = self.StyleGAN(
+                code, step=step, alpha=1,
+                mean_style=mean_style, style_weight=0.7,
+            )
+        else: # code ~ 0.2 * torch.randn(1, 1, 512)
+            if noise is None:
+                noise = [torch.randn(code.shape[0], 1, 4 * 2 ** i, 4 * 2 ** i, device="cuda") for i in range(step + 1)]
+            G.StyleGAN.generator(code.unsqueeze(1), noise, step=step)
         return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
 
-    def visualize_batch_np(self, codes_all_arr, resolution=256, mean_style=None, B=15):
+    def visualize_batch_np(self, codes_all_arr, resolution=256, mean_style=None, B=15, wspace=False, noise=None):
         csr = 0
         img_all = None
         imgn = codes_all_arr.shape[0]
@@ -530,15 +517,16 @@ class StyleGAN_wrapper():  # nn.Module
             csr_end = min(csr + B, imgn)
             with torch.no_grad():
                 img_list = self.visualize(torch.from_numpy(codes_all_arr[csr:csr_end, :]).float().cuda(),
-                                       resolution=resolution, mean_style=mean_style).cpu()
+                                       resolution=resolution, mean_style=mean_style, wspace=wspace, noise=noise).cpu()
             img_all = img_list if img_all is None else torch.cat((img_all, img_list), dim=0)
             csr = csr_end
             # clear_output(wait=True)
             # progress_bar(csr_end, imgn, "ploting row of page: %d of %d" % (csr_end, imgn))
         return img_all
 
-    def render(self, codes_all_arr, resolution=256, mean_style=None, B=15):
-        img_tsr = self.visualize_batch_np(codes_all_arr, resolution=resolution, mean_style=mean_style, B=B)
+    def render(self, codes_all_arr, resolution=256, mean_style=None, B=15, wspace=False, noise=None):
+        img_tsr = self.visualize_batch_np(codes_all_arr, resolution=resolution, mean_style=mean_style, B=B,
+                                          wspace=wspace, noise=noise)
         return [img.permute([1,2,0]).numpy() for img in img_tsr]
 # G = StyleGAN_wrapper(generator)
 #%% PGGAN load 
