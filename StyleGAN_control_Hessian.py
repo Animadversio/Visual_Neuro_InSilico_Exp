@@ -106,3 +106,30 @@ fig11, fig22 = plot_consistency_hist(corr_mat_log_ctrl, corr_mat_lin_ctrl, figdi
 #%%
 # eva_col, evc_col, meta = scan_hess_npz(r"E:\Cluster_Backup\StyleGAN2\ffhq-512-avg-tpurun1")
 # np.savez(join(realfigdir, "spectra_col_%s.npz"%"ffhq-512-avg-tpurun1"), eigval_col=eva_col)
+#%%
+"""Compute the Hessian correlation in W space for shuffled GAN."""
+StyleGAN_sf = loadStyleGAN()
+StyleGAN_sf.load_state_dict(torch.load(join(datadir, "StyleGAN_shuffle.pt")))
+G_sf = StyleGAN_wrapper(StyleGAN_sf)
+G_sf.use_wspace(True)
+fixednoise = G_sf.fix_noise(None)
+savedir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\StyleGAN\ctrl_Hessians_wspace"
+os.makedirs(savedir, exist_ok=True)
+#%%
+img = G_sf.visualize(G_sf.StyleGAN.style(torch.randn(5, 512).cuda()))
+ToPILImage()(make_grid(img).cpu()).show()
+#%%
+for triali in range(0, 70):
+    feat_z = torch.randn(1, 512).cuda()
+    feat = G_sf.StyleGAN.style(feat_z)
+    T0 = time()
+    eva_BP, evc_BP, H_BP = hessian_compute(G_sf, feat, ImDist, hessian_method="BP",
+                    preprocess=lambda img:img)
+                   #preprocess=lambda img: F.interpolate(img, (256, 256), mode='bilinear', align_corners=True))
+    print("%.2f sec" % (time() - T0))  # 109 sec
+    np.savez(join(savedir, "Hess_BP_%03d.npz"%triali), eva_BP=eva_BP, evc_BP=evc_BP, H_BP=H_BP,
+             feat=feat.detach().cpu().numpy(), feat_z=feat_z.detach().cpu().numpy())
+
+plt.plot(eva_BP)
+plt.plot(np.log10(eva_BP))
+plt.show()

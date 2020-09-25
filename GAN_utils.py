@@ -505,6 +505,13 @@ class StyleGAN_wrapper():  # nn.Module
                                                             # init to init.
         self.step = int(math.log(resolution, 2)) - 2
         self.wspace = False
+        self.random = True
+
+    def fix_noise(self, noise=None):
+        self.random = False
+        if noise is None: noise = [torch.randn(1, 1, 4 * 2 ** i, 4 * 2 ** i, device="cuda") for i in range(self.step + 1)]
+        self.fixed_noise = noise
+        return self.fixed_noise
 
     def use_wspace(self, wspace=True):
         self.wspace = wspace
@@ -512,14 +519,16 @@ class StyleGAN_wrapper():  # nn.Module
     def visualize(self, code, scale=1.0, resolution=256, mean_style=None, wspace=False, noise=None):
         # if step is None: step = self.step
         step = int(math.log(resolution, 2)) - 2
+        if not self.random:
+            noise = [noise_l.repeat(code.shape[0], 1, 1, 1) for noise_l in self.fixed_noise]
+        elif self.random and noise is None:
+            noise = [torch.randn(code.shape[0], 1, 4 * 2 ** i, 4 * 2 ** i, device="cuda") for i in range(step + 1)]
         if not wspace and not self.wspace:
             if mean_style is None: mean_style = self.mean_style
-            imgs = self.StyleGAN(code, step=step, alpha=1,
+            imgs = self.StyleGAN(code, noise=noise, step=step, alpha=1,
                 mean_style=mean_style, style_weight=0.7,
             )
         else: # code ~ 0.2 * torch.randn(1, 1, 512)
-            if noise is None:
-                noise = [torch.randn(code.shape[0], 1, 4 * 2 ** i, 4 * 2 ** i, device="cuda") for i in range(step + 1)]
             imgs = self.StyleGAN.generator([code], noise, step=step)
         return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
 
