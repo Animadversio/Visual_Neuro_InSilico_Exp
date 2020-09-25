@@ -69,12 +69,13 @@ def average_H(eigval_col, eigvec_col):
     eva_avg, evc_avg = np.linalg.eigh(H_avg)
     return H_avg, eva_avg, evc_avg
 #%%
-def plot_spectra(eigval_col, savename="spectrum_all", figdir="", abs=True,
+def plot_spectra(eigval_col, savename="spectrum_all", figdir="", abs=True, median=False,
                  titstr="GAN", label="all", fig=None):
     """A local function to compute these figures for different subspaces. """
     if abs:
         eigval_col = np.abs(eigval_col)
-    eigmean = eigval_col.mean(axis=0)
+    if median: eigmean = np.nanmedian(eigval_col, axis=0)
+    else: eigmean = np.nanmean(eigval_col, axis=0)
     eiglim = np.percentile(eigval_col, [5, 95], axis=0)
     sortIdx = np.argsort(-np.abs(eigmean))
     eigmean = eigmean[sortIdx]
@@ -97,7 +98,8 @@ def plot_spectra(eigval_col, savename="spectrum_all", figdir="", abs=True,
     plt.ylabel("eigenvalue(log)")
     plt.xlabel("eig id")
     plt.legend()
-    st = plt.suptitle("Hessian Spectrum of %s\n (error bar for [5,95] percentile among all samples)"%(titstr))
+    st = plt.suptitle("Hessian Spectrum of %s\n (error bar for [5,95] percentile %s)"%(titstr,
+                      "median as curve" if median else "mean as curve"))
     plt.savefig(join(figdir, savename+".png"), bbox_extra_artists=[st]) # this is working.
     plt.savefig(join(figdir, savename+".pdf"), bbox_extra_artists=[st])  # this is working.
     # plt.show()
