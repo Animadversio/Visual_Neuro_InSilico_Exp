@@ -15,6 +15,7 @@ export TORCH_HOME="/scratch/binxu/torch"
 param_list='--modelname ffhq-256-config-e-003810 --fixed True
 --modelname ffhq-512-avg-tpurun1 --fixed True
 --modelname stylegan2-cat-config-f --fixed True
+
 --modelname ffhq-256-config-e-003810 --fixed True --wspace True
 --modelname ffhq-512-avg-tpurun1 --fixed True --wspace True
 --modelname stylegan2-cat-config-f --fixed True --wspace True'
@@ -28,4 +29,6 @@ export csr_lim="$(echo "$param_list" | head -n $PBS_ARRAYID | tail -1)"
 
 cd ~/Visual_Neuro_InSilico_Exp/
 python StyleGAN2_spectrum_cluster.py $csr_lim
+python StyleGAN2_spectrum_cluster.py --modelname ffhq-512-avg-tpurun1 --fixed True
+python StyleGAN2_spectrum_cluster.py --modelname ffhq-512-avg-tpurun1 --fixed True --wspace True
 

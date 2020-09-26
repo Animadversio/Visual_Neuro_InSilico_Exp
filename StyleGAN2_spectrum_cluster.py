@@ -41,7 +41,7 @@ G = StyleGAN2_wrapper(SGAN)
 if args.wspace: G.use_wspace(True)
 if args.fixed: G.random = False
 if args.shuffled:
-    G.StyleGAN.load_state_dict(join(ckpt_root, modelname+"_shuffle.pt"))
+    G.StyleGAN.load_state_dict(torch.load(join(ckpt_root, modelname+"_shuffle.pt")))
 
 savedir = join(saveroot, label)
 os.makedirs(savedir, exist_ok=True)
