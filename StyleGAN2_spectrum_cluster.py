@@ -11,7 +11,7 @@ import sys
 from GAN_hessian_compute import hessian_compute, get_full_hessian
 from torchvision.transforms import ToPILImage
 from torchvision.utils import make_grid
-from GAN_utils import loadBigGAN, BigGAN_wrapper, loadStyleGAN2, StyleGAN2_wrapper
+from GAN_utils import loadBigGAN, BigGAN_wrapper, loadStyleGAN2, StyleGAN2_wrapper, ckpt_root
 from hessian_analysis_tools import plot_spectra, compute_hess_corr
 from hessian_analysis_tools import scan_hess_npz, average_H, plot_consistentcy_mat, plot_consistency_hist, plot_consistency_example, compute_vector_hess_corr, compute_hess_corr
 from lpips import LPIPS
@@ -33,13 +33,15 @@ args = parser.parse_args()#['--modelname', "ffhq-256-config-e-003810", "--fixed"
 
 modelname = args.modelname  # "model.ckpt-533504"  # 109 sec
 label = modelname + ("_W" if args.wspace else "") \
-				  + ("_fix" if args.fixed else "") \
-				  + ("_ctrl" if args.shuffled else "")
+                  + ("_fix" if args.fixed else "") \
+                  + ("_ctrl" if args.shuffled else "")
 
 SGAN = loadStyleGAN2(modelname+".pt")
 G = StyleGAN2_wrapper(SGAN)
 if args.wspace: G.use_wspace(True)
 if args.fixed: G.random = False
+if args.shuffled:
+    G.StyleGAN.load_state_dict(join(ckpt_root, modelname+"_shuffle.pt"))
 
 savedir = join(saveroot, label)
 os.makedirs(savedir, exist_ok=True)
@@ -53,7 +55,7 @@ for triali in range(2, 80):
     np.savez(join(savedir, "Hess_BP_%d.npz"%triali), eva_BP=eva_BP, evc_BP=evc_BP, H_BP=H_BP, feat=feat.detach().cpu().numpy())
 
 
-figdir = join(savedir, "summary", label)
+figdir = join(saveroot, "summary", label) # saveroot
 os.makedirs(figdir, exist_ok=True)
 # modelnm = "StyleGAN_wspace_shuffle"
 # Load the Hessian NPZ

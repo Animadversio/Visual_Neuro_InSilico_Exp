@@ -18,15 +18,23 @@ from hessian_analysis_tools import scan_hess_npz, average_H, plot_consistentcy_m
 from lpips import LPIPS
 ImDist = LPIPS(net="squeeze")
 datadir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\StyleGAN2"
+def shuffle_state_dict(SD, mask=lambda name:False):
+    shuffled_SD = {}
+    for name, Weight in SD.items():
+        if mask(name):
+            print("skip shuffling %s"%name)
+            shuffled_SD[name] = Weight
+            continue
+        else:
+            idx = torch.randperm(Weight.numel())
+            W_shuf = Weight.view(-1)[idx].view(Weight.shape)
+            shuffled_SD[name] = W_shuf
+    return shuffled_SD
 #%%
 SGAN = loadStyleGAN2('ffhq-512-avg-tpurun1.pt')
-SD = SGAN.state_dict()
+
 #%%
-shuffled_SD = {}
-for name, Weight in SD.items():
-    idx = torch.randperm(Weight.numel())
-    W_shuf = Weight.view(-1)[idx].view(Weight.shape)
-    shuffled_SD[name] = W_shuf
+shuffled_SD = shuffle_state_dict(SGAN.state_dict())
 #%%
 torch.save(shuffled_SD, join(datadir, "StyleGAN2_ffhq-512-avg-tpurun1_shuffle.pt"))
     # print(name, Weight.shape, Weight.mean().item(), Weight.std().item())
@@ -117,3 +125,26 @@ feat = torch.randn(1, 512).cuda()
 img1 = G.visualize(feat)
 img2 = G.visualize(feat)
 print((img1-img2).abs().max())
+#%%
+"""Precise control of shuffling and its effect on the image"""
+from os.path import join
+import torch
+from torchvision.transforms import ToPILImage
+from torchvision.utils import make_grid
+from GAN_utils import loadBigGAN, BigGAN_wrapper, loadStyleGAN2, StyleGAN2_wrapper, ckpt_root
+# modelnm = "ffhq-512-avg-tpurun1"
+#%%
+maskfun = lambda name: False#"style." in name or "convs." in name
+for modelnm in ["ffhq-512-avg-tpurun1", "ffhq-256-config-e-003810", "stylegan2-cat-config-f", "model.ckpt-533504"]:
+    SGAN = loadStyleGAN2(modelnm+'.pt')
+    shuf_SD = shuffle_state_dict(SGAN.state_dict(), maskfun)
+    torch.save(shuf_SD, join(ckpt_root, modelnm+"_shuffle.pt"), )
+    feat = torch.randn(5, 512).cuda()
+    G = StyleGAN2_wrapper(SGAN)
+    img = G.visualize(feat)
+    G.StyleGAN.load_state_dict(shuf_SD)
+    img_sf = G.visualize(feat)
+    mtg = ToPILImage()(make_grid(torch.cat((img, img_sf)),nrow=5).cpu())
+    mtg.show()
+    mtg.save(join(ckpt_root, modelnm+"_shuffle.png"))
+#%%
