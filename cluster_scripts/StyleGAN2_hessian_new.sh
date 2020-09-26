@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #PBS -N StyleGAN2_hessian
-#PBS -l nodes=1:ppn=1:gpus=1:V100,walltime=12:00:00,mem=10gb
+#PBS -l nodes=1:ppn=1:gpus=1:V100,walltime=4:00:00,mem=10gb
 
 # Specify the default queue for the fastest nodes
 #PBS -m be
