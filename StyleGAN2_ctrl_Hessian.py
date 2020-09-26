@@ -84,8 +84,7 @@ np.savez(join(figdir, "spectra_col_%s.npz"%modelnm), eigval_col=eva_ctrl, )
 # compute and plot the correlation between hessian at different points
 corr_mat_log_ctrl, corr_mat_lin_ctrl = compute_hess_corr(eva_ctrl, evc_ctrl, figdir=figdir, use_cuda=True, savelabel=modelnm)
 fig1, fig2 = plot_consistentcy_mat(corr_mat_log_ctrl, corr_mat_lin_ctrl, figdir=figdir, titstr="%s"%modelnm, savelabel=modelnm)
-fig11, fig22 = plot_consistency_hist(corr_mat_log_ctrl, corr_mat_lin_ctrl, figdir=figdir, titstr="%s"%modelnm,
-                                    savelabel=modelnm)
+fig11, fig22 = plot_consistency_hist(corr_mat_log_ctrl, corr_mat_lin_ctrl, figdir=figdir, titstr="%s"%modelnm, savelabel=modelnm)
 fig3 = plot_consistency_example(eva_ctrl, evc_ctrl, figdir=figdir, nsamp=5, titstr="%s"%modelnm, savelabel=modelnm)
 #%% Comparison plot with real GANs: spectra
 realfigdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\StyleGAN2"
@@ -109,3 +108,12 @@ fig11, fig22 = plot_consistency_hist(corr_mat_log_ctrl, corr_mat_lin_ctrl, figdi
 #%%
 eva_col, evc_col, meta = scan_hess_npz(r"E:\Cluster_Backup\StyleGAN2\ffhq-512-avg-tpurun1")
 np.savez(join(realfigdir, "spectra_col_%s.npz"%"ffhq-512-avg-tpurun1"), eigval_col=eva_col)
+#%%
+SGAN = loadStyleGAN2('ffhq-512-avg-tpurun1.pt')
+G = StyleGAN2_wrapper(SGAN)
+#%%
+G.random = False
+feat = torch.randn(1, 512).cuda()
+img1 = G.visualize(feat)
+img2 = G.visualize(feat)
+print((img1-img2).abs().max())

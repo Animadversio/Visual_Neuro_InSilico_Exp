@@ -134,3 +134,38 @@ plt.plot(eva_BP)
 plt.plot(np.log10(eva_BP))
 plt.show()
 #%%
+from hessian_analysis_tools import scan_hess_npz, average_H, plot_consistentcy_mat, plot_consistency_hist, plot_consistency_example, compute_vector_hess_corr, compute_hess_corr
+figdir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\StyleGAN"
+modelnm = "StyleGAN_wspace_shuffle"
+# Load the Hessian NPZ
+eva_ctrl, evc_ctrl, feat_ctrl, meta = scan_hess_npz(savedir, "Hess_BP_(\d*).npz", evakey='eva_BP', evckey='evc_BP', featkey="feat")
+# compute the Mean Hessian and save
+H_avg, eva_avg, evc_avg = average_H(eva_ctrl, evc_ctrl)
+np.savez(join(figdir, "H_avg_%s.npz"%modelnm), H_avg=H_avg, eva_avg=eva_avg, evc_avg=evc_avg, feats=feat_ctrl)
+# compute and plot spectra
+fig0 = plot_spectra(eigval_col=eva_ctrl, savename="%s_spectrum"%modelnm, figdir=figdir)
+np.savez(join(figdir, "spectra_col_%s.npz"%modelnm), eigval_col=eva_ctrl, )
+# compute and plot the correlation between hessian at different points
+corr_mat_log_ctrl, corr_mat_lin_ctrl = compute_hess_corr(eva_ctrl, evc_ctrl, figdir=figdir, use_cuda=True, savelabel=modelnm)
+fig1, fig2 = plot_consistentcy_mat(corr_mat_log_ctrl, corr_mat_lin_ctrl, figdir=figdir, titstr="%s"%modelnm, savelabel=modelnm)
+fig11, fig22 = plot_consistency_hist(corr_mat_log_ctrl, corr_mat_lin_ctrl, figdir=figdir, titstr="%s"%modelnm, savelabel=modelnm)
+fig3 = plot_consistency_example(eva_ctrl, evc_ctrl, figdir=figdir, nsamp=5, titstr="%s"%modelnm, savelabel=modelnm)
+fig3 = plot_consistency_example(eva_ctrl, evc_ctrl, figdir=figdir, nsamp=3, titstr="%s"%modelnm, savelabel=modelnm)
+#%%
+#%%
+realfigdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\StyleGAN_wspace"
+with np.load(join(figdir, "spectra_col_%s.npz"%modelnm)) as data:
+    eva_ctrl = data["eigval_col"]
+with np.load(join(realfigdir, "spectra_col_StyleGAN_Wspace.npz")) as data:
+    eva_real = data["eigval_col"]
+fig0 = plot_spectra(eva_real, savename="StyleGAN_shuffle_spectrum_cmp", figdir=figdir, abs=True,
+            titstr="StyleGAN cmp", label="real", fig=None)
+fig0 = plot_spectra(eva_ctrl, savename="StyleGAN_shuffle_spectrum_cmp", figdir=figdir, abs=True,
+            titstr="StyleGAN cmp", label="shuffled", fig=fig0)
+#%%
+with np.load(join(realfigdir, "Hess_StyleGAN_Wspace_corr_mat.npz")) as data:
+    corr_mat_log, corr_mat_lin = data["corr_mat_log"], data["corr_mat_lin"]
+fig11, fig22 = plot_consistency_hist(corr_mat_log, corr_mat_lin, figdir=figdir, titstr="%s"%"real",
+                                    savelabel="StyleGAN_shuffle_cmp")
+fig11, fig22 = plot_consistency_hist(corr_mat_log_ctrl, corr_mat_lin_ctrl, figdir=figdir, titstr="%s"%"shuffle", savelabel="StyleGAN_shuffle_cmp", figs=(fig11, fig22))
+#%%

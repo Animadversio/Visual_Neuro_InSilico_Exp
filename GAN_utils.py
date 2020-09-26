@@ -424,17 +424,16 @@ class StyleGAN2_wrapper():#nn.Module
         self.truncation = truncation
         self.mean_latent = mean_latent
         self.wspace = False
+        self.random = True
 
     def select_trunc(self, truncation, truncation_mean=4096):
         self.truncation = truncation
         mean_latent = self.StyleGAN.mean_latent(truncation_mean)
         self.mean_latent = mean_latent
 
-    def fix_noise(self, noise=None):
+    def fix_noise(self, random=False):
         self.random = False
-        if noise is None: noise = [torch.randn(1, 1, 4 * 2 ** i, 4 * 2 ** i, device="cuda") for i in range(self.step + 1)]
-        self.fixed_noise = noise
-        return self.fixed_noise
+        return self.StyleGAN.noise
 
     def use_wspace(self, wspace=True):
         self.wspace = wspace
@@ -443,10 +442,7 @@ class StyleGAN2_wrapper():#nn.Module
         if truncation is None:  truncation = self.truncation
         if mean_latent is None:  mean_latent = self.mean_latent
         if wspace is None:  wspace = self.wspace
-        if not self.random:
-            imgs, _ = self.StyleGAN([code], truncation=truncation, truncation_latent=mean_latent, input_is_latent=wspace)
-        else:
-            imgs, _ = self.StyleGAN([code], truncation=truncation, truncation_latent=mean_latent, input_is_latent=wspace)
+        imgs, _ = self.StyleGAN([code], truncation=truncation, truncation_latent=mean_latent, input_is_latent=wspace, randomize_noise=self.random)
         imgs = F.interpolate(imgs, size=(resolution, resolution), align_corners=True, mode='bilinear')
         return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
 
