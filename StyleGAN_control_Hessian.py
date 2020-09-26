@@ -133,3 +133,4 @@ for triali in range(0, 70):
 plt.plot(eva_BP)
 plt.plot(np.log10(eva_BP))
 plt.show()
+#%%

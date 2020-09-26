@@ -5,12 +5,16 @@ import numpy as np
 import matplotlib.pylab as plt
 from tqdm import tqdm
 from time import time
+import os
 from os.path import join
 import sys
 import lpips
 from GAN_hessian_compute import hessian_compute
 from torchvision.transforms import ToPILImage
 from torchvision.utils import make_grid
+from hessian_analysis_tools import plot_spectra, compute_hess_corr, compute_vector_hess_corr,\
+    plot_consistency_example, plot_consistentcy_mat, average_H, scan_hess_npz
+
 use_gpu = True if torch.cuda.is_available() else False
 ImDist = lpips.LPIPS(net='squeeze').cuda()
 #%%
@@ -219,9 +223,8 @@ for triali in tqdm(range(300)):
 # eva_col = np.array(eva_col)
 datadir = r"E:\Cluster_Backup\StyleGAN"
 figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\StyleGAN"
-import os
+
 os.makedirs(figdir, exist_ok=True)
-from hessian_analysis_tools import plot_spectra, compute_hess_corr, plot_consistency_example, plot_consistentcy_mat, average_H, scan_hess_npz
 eva_col, evc_col, feat_col, meta = scan_hess_npz(datadir, "Hessian_rand_(\d*).npz", featkey="feat")
 feat_col = np.array(feat_col).squeeze()
 H_avg, eva_avg, evc_avg = average_H(eva_col, evc_col)
@@ -320,7 +323,7 @@ SG.wspace = True
 mean_style = SG.mean_style
 datadir = r"E:\Cluster_Backup\StyleGAN_wspace"
 os.makedirs(datadir, exist_ok=True)
-for triali in tqdm(range(80)):
+for triali in tqdm(range(80, 150)):
     feat_z = torch.randn(1, 512).cuda()
     feat = mean_style + 0.7 * SG.StyleGAN.style(feat_z) # torch.randn(1, 512,).to("cuda")
     T0 = time()
@@ -328,10 +331,11 @@ for triali in tqdm(range(80)):
     print("%.2f sec" % (time() - T0))  # 120 sec
     np.savez(join(datadir, "Hessian_rand_0_7_%03d.npz" % triali), eva_BP=eva_BP, evc_BP=evc_BP, H_BP=H_BP,
         feat=feat.detach().cpu().numpy(), feat_z=feat_z.detach().cpu().numpy())
-
+#%%
+datadir = r"E:\Cluster_Backup\StyleGAN_wspace"
 figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\StyleGAN_wspace"
 modelnm = "StyleGAN_Wspace"
-eva_col, evc_col, feat_col, meta = scan_hess_npz(savedir, "Hessian_rand_0_7_(\d*).npz", featkey="feat")
+eva_col, evc_col, feat_col, meta = scan_hess_npz(datadir, "Hessian_rand_0_7_(\d*).npz", featkey="feat")
 # compute the Mean Hessian and save
 H_avg, eva_avg, evc_avg = average_H(eva_col, evc_col)
 np.savez(join(figdir, "H_avg_%s.npz"%modelnm), H_avg=H_avg, eva_avg=eva_avg, evc_avg=evc_avg, feats=feat_col)
@@ -349,3 +353,4 @@ fig1, fig2 = plot_consistentcy_mat(corr_mat_log, corr_mat_lin, figdir=figdir, ti
 fig11, fig22 = plot_consistency_hist(corr_mat_log, corr_mat_lin, figdir=figdir, titstr="%s"%modelnm,
                                     savelabel=modelnm)
 fig3 = plot_consistency_example(eva_col, evc_col, figdir=figdir, nsamp=5, titstr="%s"%modelnm, savelabel=modelnm)
+fig3 = plot_consistency_example(eva_col, evc_col, figdir=figdir, nsamp=3, titstr="%s"%modelnm, savelabel=modelnm)
