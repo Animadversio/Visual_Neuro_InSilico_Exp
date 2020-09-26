@@ -28,8 +28,8 @@ parser.add_argument('--method', type=str, default="BP", help='Method of computin
                                                              '`ForwardIter` `BackwardIter` ')
 parser.add_argument('--wspace', type=bool, default=False, help='resolution of generated image')
 parser.add_argument('--fixed', type=bool, default=False, help='number of repititions')
-parser.add_argument('--shuffled', type=bool, default=False, nargs="+")
-args = parser.parse_args()
+parser.add_argument('--shuffled', type=bool, default=False, )#nargs="+"
+args = parser.parse_args()#['--modelname', "ffhq-256-config-e-003810", "--fixed", "True"])
 
 modelname = args.modelname  # "model.ckpt-533504"  # 109 sec
 label = modelname + ("_W" if args.wspace else "") \
@@ -43,7 +43,8 @@ if args.fixed: G.random = False
 
 savedir = join(saveroot, label)
 os.makedirs(savedir, exist_ok=True)
-for triali in range(0, 80):
+print(savedir)
+for triali in range(2, 80):
     feat = torch.randn(1, 512).detach().clone().cuda()
     T0 = time()
     eva_BP, evc_BP, H_BP = hessian_compute(G, feat, ImDist, hessian_method="BP",
