@@ -382,7 +382,7 @@ for unitstr in unit_bothspace[11:]:
         mtg_all = Image.fromarray(np.hstack((mtg2, mtg3),))
         mtg_all.show()
         mtg_all.save(join(exampdir, "%s_repr_img.jpg" % unitstr))
-        #%%
+        #%
         plt.figure(figsize=[8, 6])
         ax = sns.heatmap(scores_cat, annot=True, fmt=".1f", xticklabels=methods_all)
         b, t = plt.ylim() # discover the values for bottom and top
@@ -527,7 +527,8 @@ ax2.set_title("Comparison of Convergence Speed over Layers of AlexNet\n (FC6 GAN
 plt.savefig(join(summarydir, "timescale_cmp_errorbar_fc6_cholCMA_50_noRsz.pdf"))
 ax2.figure.show()
 
-#%% Plot a few exemplar traj
+#%%
+""" Plot a few exemplar traj """
 from GAN_utils import upconvGAN
 from torchvision.transforms import ToPILImage
 G = upconvGAN("fc6")

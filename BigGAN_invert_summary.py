@@ -105,7 +105,7 @@ plt.savefig(join(summarydir, "5seeds_trials_score.jpg"))
 plt.show()
 
 #%%  Non-matching trials.
-"""Newer version of matched samples for BigGAN generated Images. """
+"""Newer version of finding matched samples for BigGAN generated Images. """
 from glob import glob
 import re
 from tqdm import tqdm

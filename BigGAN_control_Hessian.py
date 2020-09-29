@@ -6,15 +6,14 @@ from matplotlib import cm
 from tqdm import tqdm
 from time import time
 from os.path import join
+import os
 import sys
-import lpips
 from GAN_hessian_compute import hessian_compute, get_full_hessian
 from torchvision.transforms import ToPILImage
 from torchvision.utils import make_grid
 from GAN_utils import loadBigGAN, loadStyleGAN2, BigGAN_wrapper
 from hessian_analysis_tools import plot_spectra, compute_hess_corr
 from lpips import LPIPS
-import os
 #%%
 ImDist = LPIPS(net="squeeze")
 datadir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\BigGAN"
@@ -66,10 +65,43 @@ for triali in tqdm(range(1, 100)):
         np.savez(join(savedir, "eig_genBlock%02d_trial%d.npz"%(blocki, triali)), H=H00, eva=eva00, evc=evc00,
                  feat=feat.cpu().detach().numpy())
 #%%
+""" Compute a full path from genz to GAN image manifold """
+
+savedir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\BigGAN\ctrl_Hessians"
+for triali in tqdm(range(100, 101)):
+    feat = torch.cat((torch.randn(128).cuda(), BGAN_sf.embeddings.weight[:, triali].clone()), dim=0)
+    eigvals, eigvects, H = hessian_compute(G_sf, feat, ImDist, hessian_method="BP", )
+    np.savez(join(savedir, "eig_full_trial%d.npz"%(triali)), H=H, eva=eigvals, evc=eigvects,
+                 feat=feat.cpu().detach().numpy())
+    feat.requires_grad_(True)
+
+    L2dist_col = []
+    torch.cuda.empty_cache()
+    H1 = BGAN_sf.generator.gen_z.register_forward_hook(Hess_hook)
+    img = BGAN_sf.generator(feat, 0.7)
+    H1.remove()
+    T0 = time()
+    H00 = get_full_hessian(L2dist_col[0], feat)
+    eva00, evc00 = np.linalg.eigh(H00)
+    print("Spent %.2f sec computing" % (time() - T0))
+    np.savez(join(savedir, "eig_gen_z_trial%d.npz"%triali), H=H00, eva=eva00, evc=evc00,
+             feat=feat.cpu().detach().numpy())
+    for blocki in list(range(13)):
+        L2dist_col = []
+        torch.cuda.empty_cache()
+        H1 = BGAN_sf.generator.layers[blocki].register_forward_hook(Hess_hook)
+        img = BGAN_sf.generator(feat, 0.7)
+        H1.remove()
+        T0 = time()
+        H00 = get_full_hessian(L2dist_col[0], feat)
+        eva00, evc00 = np.linalg.eigh(H00)
+        print("Spent %.2f sec computing" % (time() - T0))
+        np.savez(join(savedir, "eig_genBlock%02d_trial%d.npz"%(blocki, triali)), H=H00, eva=eva00, evc=evc00,
+                 feat=feat.cpu().detach().numpy())
+#%%
 from hessian_analysis_tools import scan_hess_npz, plot_spectra, compute_hess_corr, plot_consistentcy_mat, plot_consistency_example, plot_consistency_hist, average_H
 savedir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\BigGAN\ctrl_Hessians"
 figdir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\BigGAN"
-
 modelnm = "BigGAN_shuffle"
 # Load the Hessian NPZ
 eva_ctrl, evc_ctrl, feat_ctrl, meta = scan_hess_npz(savedir, "eig_full_trial(\d*).npz", evakey='eva', evckey='evc', featkey="feat")
@@ -88,6 +120,7 @@ fig3 = plot_consistency_example(eva_ctrl, evc_ctrl, figdir=figdir, nsamp=5, tits
 
 
 #%%
+"""Compute layer-wise Hessian for real BigGANs"""
 from pytorch_pretrained_biggan import truncated_noise_sample
 BGAN = loadBigGAN()
 G = BigGAN_wrapper(BGAN)
@@ -122,6 +155,8 @@ for triali in tqdm(range(50)):
         print("Spent %.2f sec computing" % (time() - T0))
         np.savez(join(savedir, "eig_genBlock%02d_trial%d.npz"%(blocki, triali)), H=H00, eva=eva00, evc=evc00,
                  feat=feat.cpu().detach().numpy())
+
+
 #%%
 savedir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\BigGAN\real_Hessians"
 modelnm = "BigGAN_real"
