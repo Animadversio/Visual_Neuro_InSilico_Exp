@@ -28,11 +28,11 @@ def spectra_montage(GANlist, fnlist, ylog=True, xnorm=False, ynorm=True, shade=T
         xnormalizer = len(eva_mean) if xnorm else 1
         ynormalizer = eva_mean.max() if ynorm else 1
         ytfm = np.log10 if ylog else lambda x: x
-        plt.plot(np.arange(len(eva_mean))/xnormalizer, ytfm(eva_mean / ynormalizer), alpha=1, lw=lw, label=GAN)  # ,
+        plt.plot(np.arange(len(eva_mean))/xnormalizer, ytfm(eva_mean / ynormalizer), alpha=.8, lw=lw, label=GAN)  # ,
         # eigval_arr.std(axis=0)
         if shade:
             plt.fill_between(np.arange(len(eva_mean))/xnormalizer, ytfm(eva_lim_pos[0, :] / ynormalizer),
-                         ytfm(eva_lim_pos[1, :] / ynormalizer), alpha=0.35)
+                         ytfm(eva_lim_pos[1, :] / ynormalizer), alpha=0.2)
     plt.ylabel("log10(eig/eigmax)" if ylog else "eig/eigmax")
     plt.xlabel("rank normalized to latent dim" if xnorm else "ranks")
     plt.xlim(xlim)
@@ -90,24 +90,78 @@ fig5 = spectra_montage(GANlist_Style, fnlist_Style, xlim=(-5, 140), lw=2, fn="sp
 #%%
 rootdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary"
 spaceD = [4096, 120, 256, 120, 512, 512, 512, 512, 512, 512, 512, 512, 512]
-GANlist = ["FC6", "DCGAN-fashion", "BigGAN", "BigBiGAN", "PGGAN-face", "StyleGAN-face_Z", "StyleGAN-face_W",
-           "StyleGAN2-face512_Z", "StyleGAN2-face256_Z", "StyleGAN2-cat_Z",
-           "StyleGAN2-face512_W", "StyleGAN2-face256_W", "StyleGAN2-cat_W", ]
+GANlist = np.array(["FC6", "DCGAN-fashion", "BigGAN", "BigBiGAN", "PGGAN-face", "StyleGAN-face_Z",
+           "StyleGAN2-face512_Z", "StyleGAN2-face256_Z", "StyleGAN2-cat_Z", "StyleGAN-face_W",
+           "StyleGAN2-face512_W", "StyleGAN2-face256_W", "StyleGAN2-cat_W", ])
            # "StyleGAN-face-Forw", "StyleGAN-cat-Forw"]
-fnlist = ["FC6GAN\\spectra_col_evol.npz",
+fnlist = np.array(["FC6GAN\\spectra_col_evol.npz",
           "DCGAN\\spectra_col_BP.npz",
           "BigGAN\\spectra_col.npz",
           "BigBiGAN\\spectra_col.npz",
           "PGGAN\\spectra_col_BP.npz",
-          "StyleGAN\\spectra_col_face256_BP.npz",  # need to update!!!!
-          "StyleGAN_wspace\\spectra_col_StyleGAN_Wspace.npz",
+          # "StyleGAN\\spectra_col_face256_BP.npz",  # need to update!!!!
+          # "StyleGAN_wspace\\spectra_col_StyleGAN_Wspace.npz",
+          "StyleGAN_Fix\\StyleGAN_Face256_fix\\spectra_col_StyleGAN_Face256_fix.npz",
           "StyleGAN2_Fix\\ffhq-512-avg-tpurun1_fix\\spectra_col_ffhq-512-avg-tpurun1_fix.npz",
           "StyleGAN2_Fix\\ffhq-256-config-e-003810_fix\\spectra_col_ffhq-256-config-e-003810_fix.npz",
           "StyleGAN2_Fix\\stylegan2-cat-config-f_fix\\spectra_col_stylegan2-cat-config-f_fix.npz",
+          "StyleGAN_Fix\\StyleGAN_Face256_W_fix\\spectra_col_StyleGAN_Face256_W_fix.npz",
           "StyleGAN2_Fix\\ffhq-512-avg-tpurun1_W_fix\\spectra_col_ffhq-512-avg-tpurun1_W_fix.npz",
           "StyleGAN2_Fix\\ffhq-256-config-e-003810_W_fix\\spectra_col_ffhq-256-config-e-003810_W_fix.npz",
-          "StyleGAN2_Fix\\stylegan2-cat-config-f_W_fix\\spectra_col_stylegan2-cat-config-f_W_fix.npz", ]
+          "StyleGAN2_Fix\\stylegan2-cat-config-f_W_fix\\spectra_col_stylegan2-cat-config-f_W_fix.npz", ])
 # ffhq-256-config-e-003810_BP.npz",
-fig1 = spectra_montage(GANlist, fnlist, xlim=(-25, 525), fn="spectra_synopsis_log_rank_SGfix")
-fig2 = spectra_montage(GANlist, fnlist, xlim=(-25, 4125), fn="spectra_synopsis_log_rank_full_SGfix")
-fig3 = spectra_montage(GANlist, fnlist, xlim=(-25, 515), shade=False, fn="spectra_synopsis_log_rank_line_SGfix")
+fig1 = spectra_montage(GANlist[:9], fnlist[:9], xlim=(-25, 525), lw=2.5, fn="spectra_synopsis_log_rank_SGfix")
+fig2 = spectra_montage(GANlist[:9], fnlist[:9], xlim=(-25, 4125), lw=2.5, fn="spectra_synopsis_log_rank_full_SGfix")
+fig3 = spectra_montage(GANlist[:9], fnlist[:9], xlim=(-25, 515), lw=2.5, shade=False,
+                       fn="spectra_synopsis_log_rank_line_SGfix")
+
+#%%
+GANlist_Conv = [GANlist[i] for i in [1,2,3,4]]
+fnlist_Conv = [fnlist[i] for i in [1,2,3,4]]
+GANlist_Style = [GANlist[i] for i in range(5,13)]
+fnlist_Style = [fnlist[i] for i in range(5,13)]
+fig4 = spectra_montage(GANlist_Conv, fnlist_Conv, xlim=(-5, 140), shade=True, lw=2.5,
+                       fn="spectra_synopsis_log_rank_Conv_SGfix")
+fig4 = spectra_montage(GANlist_Conv, fnlist_Conv, xlim=(-5, 520), shade=True, lw=2.5,
+                       fn="spectra_synopsis_log_rank_Conv_Full_SGfix")
+fig5 = spectra_montage(GANlist_Style, fnlist_Style, xlim=(-5, 140), shade=True, lw=2.5,
+                       fn="spectra_synopsis_log_rank_Style_SGfix")
+#%%
+cutoff_tab = {}
+for GAN, npzpath in zip(GANlist, fnlist):
+    # folder, npzfn = npzpath.split("\\")
+    # npzname, _ = npzfn.split(".")
+    data = np.load(join(summarydir, npzpath))
+    eig_mean = np.mean(data['eigval_col'], axis=0)
+    eigabssort = np.sort(np.abs(eig_mean))[::-1]
+    expvar = np.cumsum(eigabssort)/eigabssort.sum()
+    dimen = len(eig_mean)
+    cutoff_nums = (dimen, sum(expvar<0.99), sum(expvar<0.999), sum(expvar<0.9999), sum(expvar<0.99999), )
+    cutoff_tab[GAN] = cutoff_nums
+    print("%s (%d D) %d dim for 0.99 var, %d dim for 0.999 var, %d dim for 0.9999 var, %d dim for 0.99999 var"%
+          (GAN, *cutoff_nums))
+    if GAN == "BigGAN":
+        eig_mean = np.mean(data["eigvals_nois_col"], axis=0)
+        eigabssort = np.sort(np.abs(eig_mean))[::-1]
+        expvar = np.cumsum(eigabssort) / eigabssort.sum()
+        dimen = len(eig_mean)
+        cutoff_nums = (dimen, sum(expvar < 0.99), sum(expvar < 0.999), sum(expvar < 0.9999), sum(expvar < 0.99999),)
+        cutoff_tab[GAN+"_noise"] = cutoff_nums
+        print("%s (%d D) %d dim for 0.99 var, %d dim for 0.999 var, %d dim for 0.9999 var, %d dim for 0.99999 var" %
+              (GAN+"_noise", *cutoff_nums))
+        eig_mean = np.mean(data["eigvals_clas_col"], axis=0)
+        eigabssort = np.sort(np.abs(eig_mean))[::-1]
+        expvar = np.cumsum(eigabssort) / eigabssort.sum()
+        dimen = len(eig_mean)
+        cutoff_nums = (dimen, sum(expvar < 0.99), sum(expvar < 0.999), sum(expvar < 0.9999), sum(expvar < 0.99999),)
+        cutoff_tab[GAN + "_class"] = cutoff_nums
+        print("%s (%d D) %d dim for 0.99 var, %d dim for 0.999 var, %d dim for 0.9999 var, %d dim for 0.99999 var" %
+              (GAN + "_class", *cutoff_nums))
+GAN_cutoff_summary = pd.DataFrame.from_dict(cutoff_tab, orient="index", columns=["dimen", "dim99", "dim999",
+                                          "dim9999",  "dim9999"])
+GAN_cutoff_summary.to_csv(join(summarydir, "Hess_anistropy_table.csv"))
+# GAN_geom_summary.to_csv(join(summarydir, "Hess_consistency_table.csv"))
+# GAN_summary = pd.concat((GAN_geom_summary, GAN_cutoff_summary, ), axis=1)
+#%%
+# data = np.load(r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\BigGAN\spectra_col.npz")
+#$$
