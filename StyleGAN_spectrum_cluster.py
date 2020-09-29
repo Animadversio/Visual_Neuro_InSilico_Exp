@@ -11,7 +11,7 @@ import sys
 from GAN_hessian_compute import hessian_compute, get_full_hessian
 from torchvision.transforms import ToPILImage
 from torchvision.utils import make_grid
-from GAN_utils import loadBigGAN, BigGAN_wrapper, loadStyleGAN2, StyleGAN2_wrapper, ckpt_root
+from GAN_utils import loadBigGAN, BigGAN_wrapper, loadStyleGAN, StyleGAN_wrapper, ckpt_root
 from hessian_analysis_tools import plot_spectra, compute_hess_corr
 from hessian_analysis_tools import scan_hess_npz, average_H, plot_consistentcy_mat, plot_consistency_hist, plot_consistency_example, compute_vector_hess_corr, compute_hess_corr
 from lpips import LPIPS
@@ -19,39 +19,43 @@ ImDist = LPIPS(net="squeeze")
 
 from argparse import ArgumentParser
 parser = ArgumentParser(description='Computing Hessian at different part of the code space in StyleGAN2')
-parser.add_argument('--modelname', type=str, default="model.ckpt-533504", help='checkpoint name')
-parser.add_argument('--method', type=str, default="BP", help='Method of computing Hessian can be `BP` or '
-                                                             '`ForwardIter` `BackwardIter` ')
+# parser.add_argument('--method', type=str, default="BP", help='Method of computing Hessian can be `BP` or '
+#                                                              '`ForwardIter` `BackwardIter` ')
 parser.add_argument('--wspace', type=bool, default=False, help='resolution of generated image')
 parser.add_argument('--fixed', type=bool, default=False, help='number of repititions')
 parser.add_argument('--shuffled', type=bool, default=False, )#nargs="+"
 args = parser.parse_args()#['--modelname', "ffhq-256-config-e-003810", "--fixed", "True"])
 
 if sys.platform == "linux":
-	saveroot = r"/scratch/binxu/GAN_hessian/StyleGAN2"
+    saveroot = r"/scratch/binxu/GAN_hessian/StyleGAN"
 else:
-	saveroot = r"E:\Cluster_Backup\StyleGAN2"
+    saveroot = r"E:\Cluster_Backup\StyleGAN"
 
-modelname = args.modelname  # "model.ckpt-533504"  # 109 sec
+modelname = "StyleGAN_Face256"  # "model.ckpt-533504"  # 109 sec
 label = modelname + ("_W" if args.wspace else "") \
                   + ("_fix" if args.fixed else "") \
                   + ("_ctrl" if args.shuffled else "")
 
-SGAN = loadStyleGAN2(modelname+".pt")
-G = StyleGAN2_wrapper(SGAN)
+SGAN = loadStyleGAN()
+G = StyleGAN_wrapper(SGAN)
 if args.wspace: G.use_wspace(True)
-if args.fixed: G.random = False
+if args.fixed: fixednoise = G.fix_noise()
 if args.shuffled:
-    G.StyleGAN.load_state_dict(torch.load(join(ckpt_root, modelname+"_shuffle.pt")))
+    G.StyleGAN.load_state_dict(torch.load(join("E:\OneDrive - Washington University in St. Louis\HessNetArchit\StyleGAN", "StyleGAN_shuffle.pt")))
 
 savedir = join(saveroot, label)
 os.makedirs(savedir, exist_ok=True)
 print(savedir)
-for triali in range(2, 80):
-    feat = torch.randn(1, 512).detach().clone().cuda()
+for triali in range(0, 80):
+    if args.wspace:
+        feat_z = torch.randn(1, 512).cuda()
+        feat = G.StyleGAN.style(feat_z)
+    else:
+        feat = torch.randn(1, 512).cuda()
     T0 = time()
     eva_BP, evc_BP, H_BP = hessian_compute(G, feat, ImDist, hessian_method="BP",
-                   preprocess=lambda img: F.interpolate(img, (256, 256), mode='bilinear', align_corners=True))
+                                           preprocess=lambda img:img)
+                   # preprocess=lambda img: F.interpolate(img, (256, 256), mode='bilinear', align_corners=True))
     print("%.2f sec" % (time() - T0))  # 109 sec
     np.savez(join(savedir, "Hess_BP_%d.npz"%triali), eva_BP=eva_BP, evc_BP=evc_BP, H_BP=H_BP, feat=feat.detach().cpu().numpy())
 
