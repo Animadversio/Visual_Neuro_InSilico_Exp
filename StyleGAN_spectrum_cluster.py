@@ -16,7 +16,8 @@ from hessian_analysis_tools import plot_spectra, compute_hess_corr
 from hessian_analysis_tools import scan_hess_npz, average_H, plot_consistentcy_mat, plot_consistency_hist, plot_consistency_example, compute_vector_hess_corr, compute_hess_corr
 from lpips import LPIPS
 ImDist = LPIPS(net="squeeze")
-
+import matplotlib
+matplotlib.use("Agg")
 from argparse import ArgumentParser
 parser = ArgumentParser(description='Computing Hessian at different part of the code space in StyleGAN2')
 # parser.add_argument('--method', type=str, default="BP", help='Method of computing Hessian can be `BP` or '

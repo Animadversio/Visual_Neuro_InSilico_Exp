@@ -47,7 +47,7 @@ if args.shuffled:
 savedir = join(saveroot, label)
 os.makedirs(savedir, exist_ok=True)
 print(savedir)
-for triali in range(2, 80):
+for triali in range(50, 80):
     feat = torch.randn(1, 512).detach().clone().cuda()
     T0 = time()
     eva_BP, evc_BP, H_BP = hessian_compute(G, feat, ImDist, hessian_method="BP",
