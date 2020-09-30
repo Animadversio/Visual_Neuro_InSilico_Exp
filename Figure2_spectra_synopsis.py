@@ -12,7 +12,7 @@ import matplotlib
 summarydir = "E:\OneDrive - Washington University in St. Louis\Hessian_summary"
 def spectra_montage(GANlist, fnlist, ylog=True, xnorm=False, ynorm=True, shade=True, xlim=(-25, 525), \
                                              lw=1, fn="spectra_synopsis_log_rank"):
-    fig = plt.figure()
+    fig = plt.figure(figsize=[5,4.5])
     for i, GAN in enumerate(GANlist):
         with np.load(join(rootdir, fnlist[i])) as data:
             eigval_col = data["eigval_col"]
@@ -32,7 +32,7 @@ def spectra_montage(GANlist, fnlist, ylog=True, xnorm=False, ynorm=True, shade=T
         # eigval_arr.std(axis=0)
         if shade:
             plt.fill_between(np.arange(len(eva_mean))/xnormalizer, ytfm(eva_lim_pos[0, :] / ynormalizer),
-                         ytfm(eva_lim_pos[1, :] / ynormalizer), alpha=0.2)
+                         ytfm(eva_lim_pos[1, :] / ynormalizer), alpha=0.1)
     plt.ylabel("log10(eig/eigmax)" if ylog else "eig/eigmax")
     plt.xlabel("rank normalized to latent dim" if xnorm else "ranks")
     plt.xlim(xlim)
@@ -110,11 +110,21 @@ fnlist = np.array(["FC6GAN\\spectra_col_evol.npz",
           "StyleGAN2_Fix\\ffhq-256-config-e-003810_W_fix\\spectra_col_ffhq-256-config-e-003810_W_fix.npz",
           "StyleGAN2_Fix\\stylegan2-cat-config-f_W_fix\\spectra_col_stylegan2-cat-config-f_W_fix.npz", ])
 # ffhq-256-config-e-003810_BP.npz",
-fig1 = spectra_montage(GANlist[:9], fnlist[:9], xlim=(-25, 525), lw=2.5, fn="spectra_synopsis_log_rank_SGfix")
-fig2 = spectra_montage(GANlist[:9], fnlist[:9], xlim=(-25, 4125), lw=2.5, fn="spectra_synopsis_log_rank_full_SGfix")
+fig1 = spectra_montage(GANlist[:], fnlist[:], xlim=(0, 500), lw=2.5, fn="spectra_synopsis_SGfix_all")
+fig2 = spectra_montage(GANlist[:], fnlist[:], xlim=(0, 4100), lw=2.5, fn="spectra_synopsis_full_SGfix_all")
+fig3 = spectra_montage(GANlist[:], fnlist[:], xlim=(0, 500), lw=2.5, shade=False,
+                       fn="spectra_synopsis_line_SGfix_all")
+fig1 = spectra_montage(GANlist[:9], fnlist[:9], xlim=(-25, 525), lw=2.5, fn="spectra_synopsis_SGfix_Z")
+fig2 = spectra_montage(GANlist[:9], fnlist[:9], xlim=(-25, 4125), lw=2.5, fn="spectra_synopsis_full_SGfix_Z")
 fig3 = spectra_montage(GANlist[:9], fnlist[:9], xlim=(-25, 515), lw=2.5, shade=False,
-                       fn="spectra_synopsis_log_rank_line_SGfix")
-
+                       fn="spectra_synopsis_line_SGfix_Z")
+#%%
+idxs = [0,1,2,3,4,5,6,9,10]
+fig1 = spectra_montage(GANlist[idxs], fnlist[idxs], xlim=(0, 500), lw=2.5,
+                       fn="spectra_synopsis_SGfix_sel")
+fig2 = spectra_montage(GANlist[idxs], fnlist[idxs], xlim=(0, 4100), lw=2.5, fn="spectra_synopsis_full_SGfix_sel")
+fig3 = spectra_montage(GANlist[idxs], fnlist[idxs], xlim=(0, 500), lw=2.5, shade=False,
+                       fn="spectra_synopsis_line_SGfix_sel")
 #%%
 GANlist_Conv = [GANlist[i] for i in [1,2,3,4]]
 fnlist_Conv = [fnlist[i] for i in [1,2,3,4]]
