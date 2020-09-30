@@ -25,6 +25,7 @@ parser.add_argument('--method', type=str, default="BP", help='Method of computin
 parser.add_argument('--wspace', type=bool, default=False, help='resolution of generated image')
 parser.add_argument('--fixed', type=bool, default=False, help='number of repititions')
 parser.add_argument('--shuffled', type=bool, default=False, )#nargs="+"
+parser.add_argument('--range', type=int, default=[0, 80], nargs="+")#
 args = parser.parse_args()#['--modelname', "ffhq-256-config-e-003810", "--fixed", "True"])
 
 if sys.platform == "linux":
@@ -43,11 +44,11 @@ if args.wspace: G.use_wspace(True)
 if args.fixed: G.random = False
 if args.shuffled:
     G.StyleGAN.load_state_dict(torch.load(join(ckpt_root, modelname+"_shuffle.pt")))
-
+istr, iend = args.range
 savedir = join(saveroot, label)
 os.makedirs(savedir, exist_ok=True)
 print(savedir)
-for triali in range(0, 50):
+for triali in range(istr, iend):
     feat = torch.randn(1, 512).detach().clone().cuda()
     T0 = time()
     eva_BP, evc_BP, H_BP = hessian_compute(G, feat, ImDist, hessian_method="BP",
