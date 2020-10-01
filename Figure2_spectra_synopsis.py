@@ -109,7 +109,7 @@ fnlist = np.array(["FC6GAN\\spectra_col_evol.npz",
           "StyleGAN2_Fix\\ffhq-512-avg-tpurun1_W_fix\\spectra_col_ffhq-512-avg-tpurun1_W_fix.npz",
           "StyleGAN2_Fix\\ffhq-256-config-e-003810_W_fix\\spectra_col_ffhq-256-config-e-003810_W_fix.npz",
           "StyleGAN2_Fix\\stylegan2-cat-config-f_W_fix\\spectra_col_stylegan2-cat-config-f_W_fix.npz", ])
-# ffhq-256-config-e-003810_BP.npz",
+#%% ffhq-256-config-e-003810_BP.npz",
 fig1 = spectra_montage(GANlist[:], fnlist[:], xlim=(0, 500), lw=2.5, fn="spectra_synopsis_SGfix_all")
 fig2 = spectra_montage(GANlist[:], fnlist[:], xlim=(0, 4100), lw=2.5, fn="spectra_synopsis_full_SGfix_all")
 fig3 = spectra_montage(GANlist[:], fnlist[:], xlim=(0, 500), lw=2.5, shade=False,
@@ -175,3 +175,6 @@ GAN_cutoff_summary.to_csv(join(summarydir, "Hess_anistropy_table.csv"))
 #%%
 # data = np.load(r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\BigGAN\spectra_col.npz")
 #$$
+
+
+

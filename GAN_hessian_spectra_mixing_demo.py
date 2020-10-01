@@ -18,6 +18,13 @@ matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 summarydir = "E:\OneDrive - Washington University in St. Louis\Hessian_summary"
 #%%
+def theoretical_moment(eigval_m):
+    """Compute the theoretical first and 2nd moment for the eigenvalue distribution"""
+    dim = len(eigval_m)
+    Var = ((eigval_m**2).sum() * dim - eigval_m.sum()**2) * 2 / dim**2 / (dim+2)
+    Mean = eigval_m.sum()/dim
+    return Mean, Var
+
 def plot_spectra_mix_cmp(eigval_m, repN=3000, figdir="", Hlabel=""):
     mixeig_col = []
     for i in range(repN):
@@ -25,14 +32,17 @@ def plot_spectra_mix_cmp(eigval_m, repN=3000, figdir="", Hlabel=""):
         v /= np.sqrt((v ** 2).sum())
         mixeig = (v ** 2 * eigval_m).sum() #/ sum(v ** 2)
         mixeig_col.append(mixeig)
-    fig = plt.figure()
+    Mean, Var = theoretical_moment(eigval_m)
+    Mean_emp, Var_emp = np.mean(mixeig_col), np.var(mixeig_col)
+    fig = plt.figure(figsize=[4,3])
     plt.hist(np.log10(eigval_m), bins=40, alpha=0.5, density=True, label="eigen value")
     plt.hist(np.log10(mixeig_col), bins=40, alpha=0.5, density=True, label="vHv of random unit vector")
     plt.ylabel("Frequency Density")
     plt.xlabel("log10(lambda)")
-    plt.title("Comparison of Original Spectrum and Random Mixing of\n%s"%Hlabel)
-    plt.savefig(join(figdir, "Spectra_rand_mix_cmp_%s.png"%Hlabel))
+    plt.title("Comparison of Spectrum and Random Mixing \n%s\nTheory %.1e(%.1e) Empir %.1e(%.1e)"%(Hlabel, Mean, np.sqrt(Var), Mean_emp, np.sqrt(Var_emp)))
     plt.legend()
+    plt.savefig(join(figdir, "Spectra_rand_mix_cmp_%s.png"%Hlabel))
+    plt.savefig(join(figdir, "Spectra_rand_mix_cmp_%s.pdf"%Hlabel))
     plt.show()
     return mixeig_col, fig
 
@@ -68,10 +78,4 @@ for path, label in zip(fnlist, GANlist):
     plot_spectra_mix_cmp(eigval_m, Hlabel=label, figdir=figdir)
 
 #%% The first and second moment of the alpha distribution by derivation.
-def theoretical_moment(eigval_m):
-    """Compute the theoretical first and 2nd moment for the eigenvalue distribution"""
-    dim = len(eigval_m)
-    Var = ((eigval_m**2).sum() * dim - eigval_m.sum()**2) * 2 / dim**2 / (dim+2)
-    Mean = eigval_m.sum()/dim
-    return Mean, Var
 

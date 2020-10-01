@@ -20,7 +20,6 @@ def Hess_hook(module, fea_in, fea_out):
     L2dist = torch.pow(fea_out - ref_feat, 2).sum()
     L2dist_col.append(L2dist)
     return None
-
 #%%
 feat = torch.randn(4096, requires_grad=True)
 archdir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit"
@@ -180,3 +179,32 @@ Li_list = [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20
 plot_layer_consistency_mat(corr_mat_log, corr_mat_lin, corr_mat_vec, savelabel="fc6GAN", titstr="fc6GAN", figdir=archdir, layernames=[layernames[Li] for Li in Li_list])
 #%%
 """ The matrix entry M_ij means the eigenvector of Hessian i applies to Hessian j. this matrix correlated with eigenvalues of matrix j forms the correlation M_ij """
+#%%
+G_sf = upconvGAN()
+G_sf.G.requires_grad_(False)
+G_sf.load_state_dict(torch.load(r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\FC6GAN\upconvGAN_fc6_shuffle.pt"))
+layernames = [name for name, _ in G_sf.G.named_children()]
+#%%
+def Hess_hook(module, fea_in, fea_out):
+    print("hooker on %s"%module.__class__)
+    ref_feat = fea_out.detach().clone()
+    ref_feat.requires_grad_(False)
+    L2dist = torch.pow(fea_out - ref_feat, 2).sum()
+    L2dist_col.append(L2dist)
+    return None
+
+feat = torch.randn(4096, requires_grad=True)
+archdir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit"
+layernames = [name for name, _ in G.G.named_children()]
+eva_col = []
+from time import time
+for Li in [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, ]:#
+    L2dist_col = []
+    torch.cuda.empty_cache()
+    H1 = G.G[Li].register_forward_hook(Hess_hook)
+    img = G.visualize(feat)
+    H1.remove()
+    T0 = time()
+    H10 = get_full_hessian(L2dist_col[0], feat)
+    eva10, evc10 = np.linalg.eigh(H10)
+    np.savez(join(archdir, "eig_shfl_Layer%d.npz" % (Li)), evc=evc10, eva=eva10)
