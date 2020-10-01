@@ -123,7 +123,6 @@ fig0 = plot_layer_spectra(eva_col, layernames=layernames, figdir=datadir, titstr
 from hessian_analysis_tools import plot_consistentcy_mat, compute_hess_corr, compute_vector_hess_corr, plot_layer_consistency_mat
 corr_mat_log, corr_mat_lin = compute_hess_corr(eva_col, evc_col, savelabel="StyleGAN2_zspace", figdir=datadir)
 corr_mat_vec = compute_vector_hess_corr(eva_col, evc_col, savelabel="StyleGAN2_zspace", figdir=datadir)
-fig1, fig2, fig3 = plot_layer_consistency_mat(corr_mat_log, corr_mat_lin, corr_mat_vec, savelabel="StyleGAN2_zspace",
-                                      figdir=datadir, titstr="StyleGAN2", layernames=layernames)
+fig1, fig2, fig3 = plot_layer_consistency_mat(corr_mat_log, corr_mat_lin, corr_mat_vec, savelabel="StyleGAN2_zspace", figdir=datadir, titstr="StyleGAN2", layernames=layernames)
 #%%
 

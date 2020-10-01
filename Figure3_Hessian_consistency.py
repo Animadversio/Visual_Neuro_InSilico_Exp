@@ -299,8 +299,7 @@ for GAN, path in corrmat_npz_dict.items():
     corr_mat_log, corr_mat_lin = data["corr_mat_log"].copy(), data["corr_mat_lin"].copy()
     np.fill_diagonal(corr_mat_lin, np.nan)
     np.fill_diagonal(corr_mat_log, np.nan)
-    consist_tab[GAN] = (np.nanmean(corr_mat_log), np.nanstd(corr_mat_log), np.nanmean(corr_mat_lin), np.nanstd(
-        corr_mat_lin))
+    consist_tab[GAN] = (np.nanmean(corr_mat_log), np.nanstd(corr_mat_log), np.nanmean(corr_mat_lin), np.nanstd(corr_mat_lin))
     print("%s logscale corr %.3f(%.3f) linscale corr %.3f(%.3f)" %
           (GAN, *consist_tab[GAN]))
 

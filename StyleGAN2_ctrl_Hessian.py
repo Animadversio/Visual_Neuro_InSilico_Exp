@@ -148,3 +148,98 @@ for modelnm in ["ffhq-512-avg-tpurun1", "ffhq-256-config-e-003810", "stylegan2-c
     mtg.show()
     mtg.save(join(ckpt_root, modelnm+"_shuffle.png"))
 #%%
+datadir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\StyleGAN2"
+SGAN_sf = loadStyleGAN2('ffhq-512-avg-tpurun1.pt')
+SGAN_sf.load_state_dict(torch.load(join(datadir, "StyleGAN2_ffhq-512-avg-tpurun1_shuffle.pt")))
+G_sf = StyleGAN2_wrapper(SGAN_sf)
+#%%
+rndfeat = torch.randn(1,512).cuda()
+G_sf.random = False
+img1 = G_sf.visualize(rndfeat, ).cpu()
+img2 = G_sf.visualize(rndfeat).cpu()
+print((img1-img2).abs().max())
+ToPILImage()(img1[0,:].cpu()).show()
+#%%
+G_sf.random = False
+def Hess_hook(module, fea_in, fea_out):
+    print("hooker on %s"%module.__class__)
+    ref_feat = fea_out.detach().clone()
+    ref_feat.requires_grad_(False)
+    L2dist = torch.pow(fea_out - ref_feat, 2).sum()
+    L2dist_col.append(L2dist)
+    return None
+
+savedir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\StyleGAN2\ctrl_Hessians"
+os.makedirs(savedir, exist_ok=True)
+for triali in [100]:
+    feat = torch.randn(1, 512).cuda()
+    eigvals, eigvects, H = hessian_compute(G_sf, feat, ImDist, hessian_method="BP", )
+    np.savez(join(savedir, "eig_full_trial%d.npz"%(triali)), H=H, eva=eigvals, evc=eigvects,
+                 feat=feat.cpu().detach().numpy())
+    feat.requires_grad_(True)
+
+    L2dist_col = []
+    torch.cuda.empty_cache()
+    H1 = G_sf.StyleGAN.style.register_forward_hook(Hess_hook)
+    img = G_sf.visualize(feat) # SGAN_sf([feat], truncation=1)
+    H1.remove()
+    T0 = time()
+    H00 = get_full_hessian(L2dist_col[0], feat)
+    eva00, evc00 = np.linalg.eigh(H00)
+    print("Spent %.2f sec computing" % (time() - T0))
+    np.savez(join(savedir, "eig_style_trial%d.npz" % (triali)), H=H00, eva=eva00, evc=evc00, feat=feat.cpu().detach().numpy())
+    for blocki in range(14):
+        L2dist_col = []
+        torch.cuda.empty_cache()
+        H1 = G_sf.StyleGAN.convs[blocki].register_forward_hook(Hess_hook)
+        img = G_sf.visualize(feat)  # SGAN_sf([feat], truncation=1)
+        H1.remove()
+        T0 = time()
+        H00 = get_full_hessian(L2dist_col[0], feat)
+        eva00, evc00 = np.linalg.eigh(H00)
+        print("Spent %.2f sec computing" % (time() - T0))
+        np.savez(join(savedir, "eig_genBlock%02d_trial%d.npz"%(blocki, triali)), H=H00, eva=eva00, evc=evc00, feat=feat.cpu().detach().numpy())
+#%%
+SGAN = loadStyleGAN2('ffhq-512-avg-tpurun1.pt')
+G = StyleGAN2_wrapper(SGAN)
+G.random = False
+def Hess_hook(module, fea_in, fea_out):
+    print("hooker on %s"%module.__class__)
+    ref_feat = fea_out.detach().clone()
+    ref_feat.requires_grad_(False)
+    L2dist = torch.pow(fea_out - ref_feat, 2).sum()
+    L2dist_col.append(L2dist)
+    return None
+
+savedir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\StyleGAN2\real_Hessians"
+os.makedirs(savedir, exist_ok=True)
+for triali in [100]:
+    feat = torch.randn(1, 512).cuda()
+    eigvals, eigvects, H = hessian_compute(G, feat, ImDist, hessian_method="BP", )
+    np.savez(join(savedir, "eig_full_trial%d.npz"%(triali)), H=H, eva=eigvals, evc=eigvects,
+                 feat=feat.cpu().detach().numpy())
+    feat.requires_grad_(True)
+
+    L2dist_col = []
+    torch.cuda.empty_cache()
+    H1 = G.StyleGAN.style.register_forward_hook(Hess_hook)
+    img = G.visualize(feat) # SGAN_sf([feat], truncation=1)
+    H1.remove()
+    T0 = time()
+    H00 = get_full_hessian(L2dist_col[0], feat)
+    eva00, evc00 = np.linalg.eigh(H00)
+    print("Spent %.2f sec computing" % (time() - T0))
+    np.savez(join(savedir, "eig_style_trial%d.npz" % (triali)), H=H00, eva=eva00, evc=evc00, feat=feat.cpu().detach().numpy())
+    for blocki in range(14):
+        L2dist_col = []
+        torch.cuda.empty_cache()
+        H1 = G.StyleGAN.convs[blocki].register_forward_hook(Hess_hook)
+        img = G.visualize(feat)  # SGAN_sf([feat], truncation=1)
+        H1.remove()
+        T0 = time()
+        H00 = get_full_hessian(L2dist_col[0], feat)
+        eva00, evc00 = np.linalg.eigh(H00)
+        print("Spent %.2f sec computing" % (time() - T0))
+        np.savez(join(savedir, "eig_genBlock%02d_trial%d.npz"%(blocki, triali)), H=H00, eva=eva00, evc=evc00, feat=feat.cpu().detach().numpy())
+
+

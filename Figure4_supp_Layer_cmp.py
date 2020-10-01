@@ -21,9 +21,14 @@ layernames = [name for name, _ in G.G.named_children()]
 datadir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\FC6GAN"
 eva_col = []
 evc_col = []
+eva_ctrl_col = []
+evc_ctrl_col = []
 for Li in [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]:
     with np.load(join(datadir, "eig_Layer%d.npz" % (Li))) as data:
         eva_col.append(data["eva"].copy())
         evc_col.append(data["evc"].copy())
+    with np.load(join(datadir, "eig_shfl_Layer%d.npz" % (Li))) as data:
+        eva_ctrl_col.append(data["eva"].copy())
+        evc_ctrl_col.append(data["evc"].copy())
 
 #%%
