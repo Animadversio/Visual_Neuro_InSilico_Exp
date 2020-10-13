@@ -248,3 +248,40 @@ plt.savefig(join(figdir, "HessianCMA_ActMax_perlayer_cmp_BigGAN.png"))
 plt.savefig(join(figdir, "HessianCMA_ActMax_perlayer_cmp_BigGAN.pdf"))
 plt.show()
 
+#%%
+from os.path import join
+import numpy as np
+rootdir = r"E:\Cluster_Backup\BigGAN_invert"
+hessfd = "ImageNet\CMA10Adam10Final500_postAdam_all"
+nonefd = "ImageNet\CMA10Adam10Final500_postAdam_none"
+hessfn = "val_crop_00000290optim_data_829268.npz"
+nonefn = "val_crop_00000290optim_data_59146.npz"
+#%%
+data = np.load(join(rootdir, hessfd, hessfn))
+data['dsims']
+# [0.14086172, 0.15135692, 0.15998776, 0.15312713]
+# we choose the last one , 0.153
+#%%
+data = np.load(join(rootdir, nonefd, nonefn))
+data['dsims']
+# [0.2952813 , 0.27251655, 0.29808468, 0.22612008]
+# we choose the 2nd one 0.272
+
+#%%
+hessfd = "BigGAN_rnd\CMA10Adam10Final500_postAdam_all"
+nonefd = "BigGAN_rnd\CMA10Adam10Final500_postAdam_none"
+hessfn = "BigGAN_rnd_0235optim_data_479939.npz" #"BigGAN_rnd_0235refinefinal479939.jpg"
+nonefn = "BigGAN_rnd_0235optim_data_864715.npz"
+data = np.load(join(rootdir, hessfd, hessfn))
+print(data['dsims'])
+data = np.load(join(rootdir, nonefd, nonefn))
+print(data['dsims'])
+#%%
+hessfd = "BigGAN_rnd\CMA10Adam10Final500_postAdam_all"
+nonefd = "BigGAN_rnd\CMA10Adam10Final500_postAdam_none"
+hessfn = "BigGAN_rnd_0202optim_data_502789.npz" #"BigGAN_rnd_0235refinefinal479939.jpg"
+nonefn = "BigGAN_rnd_0202optim_data_843480.npz"
+data = np.load(join(rootdir, hessfd, hessfn))
+print(data['dsims'])
+data = np.load(join(rootdir, nonefd, nonefn))
+print(data['dsims'])

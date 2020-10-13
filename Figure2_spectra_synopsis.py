@@ -10,7 +10,7 @@ from hessian_analysis_tools import scan_hess_npz, plot_spectra
 import matplotlib.pylab as plt
 import matplotlib
 summarydir = "E:\OneDrive - Washington University in St. Louis\Hessian_summary"
-def spectra_montage(GANlist, fnlist, ylog=True, xnorm=False, ynorm=True, shade=True, xlim=(-25, 525), \
+def spectra_montage(GANlist, fnlist, ylog=True, xnorm=False, ynorm=True, shade=True, xlim=(-25, 525), ylim=None,\
                                              lw=1, fn="spectra_synopsis_log_rank"):
     fig = plt.figure(figsize=[5,4.5])
     for i, GAN in enumerate(GANlist):
@@ -36,6 +36,7 @@ def spectra_montage(GANlist, fnlist, ylog=True, xnorm=False, ynorm=True, shade=T
     plt.ylabel("log10(eig/eigmax)" if ylog else "eig/eigmax")
     plt.xlabel("rank normalized to latent dim" if xnorm else "ranks")
     plt.xlim(xlim)
+    if ylim is not None: plt.ylim(ylim)
     plt.title("Spectra Compared Across GANs")
     plt.legend(loc="best")
     plt.savefig(join(rootdir, fn+".png"))
@@ -125,6 +126,11 @@ fig1 = spectra_montage(GANlist[idxs], fnlist[idxs], xlim=(0, 500), lw=2.5,
 fig2 = spectra_montage(GANlist[idxs], fnlist[idxs], xlim=(0, 4100), lw=2.5, fn="spectra_synopsis_full_SGfix_sel")
 fig3 = spectra_montage(GANlist[idxs], fnlist[idxs], xlim=(0, 500), lw=2.5, shade=False,
                        fn="spectra_synopsis_line_SGfix_sel")
+#%%
+fig5 = spectra_montage(GANlist[5:13], fnlist[5:13], xlim=(-5, 140), ylim=(-9,0.5),shade=True, lw=2.5,
+                       fn="spectra_synopsis_Style_SGfix")
+fig6 = spectra_montage(GANlist[1:5], fnlist[1:5], xlim=(-5, 140), shade=True, lw=2.5,
+                       fn="spectra_synopsis_DCGAN_SGfix")
 #%%
 GANlist_Conv = [GANlist[i] for i in [1,2,3,4]]
 fnlist_Conv = [fnlist[i] for i in [1,2,3,4]]

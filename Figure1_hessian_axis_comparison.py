@@ -151,7 +151,8 @@ eigval_col, eigvec_col, feat_col, meta = scan_hess_npz(join(dataroot, modelnm), 
 feat_col = np.array(feat_col).squeeze()
 H_avg, eva_avg, evc_avg = average_H(eigval_col, eigvec_col)
 np.savez(join(Hessdir, "H_avg_%s.npz"%modelnm), H_avg=H_avg, eva_avg=eva_avg, evc_avg=evc_avg, feats=feat_col)
-
+#%%
+SG.random = False
 #%% Final Version
 veci = 40
 RND = np.random.randint(1E4)

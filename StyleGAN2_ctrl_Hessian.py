@@ -213,7 +213,7 @@ def Hess_hook(module, fea_in, fea_out):
 
 savedir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\StyleGAN2\real_Hessians"
 os.makedirs(savedir, exist_ok=True)
-for triali in [100]:
+for triali in [1000]:
     feat = torch.randn(1, 512).cuda()
     eigvals, eigvects, H = hessian_compute(G, feat, ImDist, hessian_method="BP", )
     np.savez(join(savedir, "eig_full_trial%d.npz"%(triali)), H=H, eva=eigvals, evc=eigvects,
