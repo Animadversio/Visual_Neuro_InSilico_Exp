@@ -6,6 +6,9 @@ Analyze the geometry of the BigGAN manifold. How the metric tensor relates to th
 import sys
 import numpy as np
 import matplotlib.pylab as plt
+import matplotlib
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
 from time import time
 from os.path import join
 from imageio import imwrite
@@ -13,6 +16,7 @@ from build_montages import build_montages, color_framed_montages
 
 BGdatadir = r"E:\Cluster_Backup\BigGANH"
 figdir = r"E:\Cluster_Backup\BigGANH\summary"
+figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\BigGAN"
 #%%
 # np.savez(join(savedir, "Hess_cls%d.npz" % class_id), H=H, H_nois=H_nois, H_clas=H_clas, eigvals=eigvals,
 #              eigvects=eigvects, eigvals_clas=eigvals_clas, eigvects_clas=eigvects_clas, eigvals_nois=eigvals_nois,
@@ -140,7 +144,7 @@ for class_id in range(1000):
     H_col.append(H_clas)
     eigvals_col.append(eigvals_clas)
     eigvects_col.append(eigvects_clas)
-#%%
+#%% Plot the correlation of vHv and eigenvalue at different positions
 fig = plt.figure(figsize=[10, 10], constrained_layout=False)
 spec = fig.add_gridspec(ncols=5, nrows=5, left=0.05, right=0.95, top=0.9, bottom=0.05)
 for eigi in range(5):
@@ -201,24 +205,44 @@ for eigi in range(1000):
 print("%.1f sec" % (time() - T0)) # 582.2 secs for the 1000 by 1000 mat. not bad!
 #% save it in   E:\Cluster_Backup\BigGANH\summary
 np.savez(join(figdir, "Hess_%s_consistency_corr_mat.npz"%Hlabel), corr_mat_log=corr_mat_log, corr_mat_lin=corr_mat_lin)
+#%% Plot all the figures with legend and annotataion.
+Hlabel = "noise"
+for Hlabel in ["noise", 'class', "all"]:
+    with np.load(join(figdir, "Hess_%s_consistency_corr_mat.npz"%Hlabel)) as data:
+        print(list(data))
+        corr_mat_log = data['corr_mat_log']
+        corr_mat_lin = data['corr_mat_lin']
+    #%
+    corr_mat_log_nodiag = corr_mat_log.copy()
+    corr_mat_lin_nodiag = corr_mat_lin.copy()
+    np.fill_diagonal(corr_mat_log_nodiag, np.nan) # corr_mat_log_nodiag =
+    np.fill_diagonal(corr_mat_lin_nodiag, np.nan) # corr_mat_log_nodiag =
+    log_nodiag_mean_cc = np.nanmean(corr_mat_log_nodiag)
+    lin_nodiag_mean_cc = np.nanmean(corr_mat_lin_nodiag)
+    print("Log scale non-diag mean corr value %.3f"%np.nanmean(corr_mat_log_nodiag))  # 0.934
+    print("Lin scale non-diag mean corr value %.3f"%np.nanmean(corr_mat_lin_nodiag))  # 0.934
+    #%%
+    plt.figure(figsize=[10, 8])
+    plt.matshow(corr_mat_log, fignum=0)
+    plt.title("BigGAN %s Hessian at 1000 class vectors\nCorrelation Mat of log of vHv and eigenvalues"
+              "\nNon-Diagonal mean %.3f"%(Hlabel, log_nodiag_mean_cc), fontsize=15)
+    plt.colorbar()
+    plt.subplots_adjust(top=0.85)
+    plt.savefig(join(figdir, "Hess_%s_corrmat_log.jpg"%Hlabel))
+    plt.savefig(join(figdir, "Hess_%s_corrmat_log.pdf"%Hlabel))
+    plt.show()
+    #%
+    fig = plt.figure(figsize=[10, 8])
+    plt.matshow(corr_mat_lin, fignum=0)
+    plt.title("BigGAN %s Hessian at 1000 class vectors\nCorrelation Mat of log of vHv and eigenvalues"
+              "\nNon-Diagonal mean %.3f"%(Hlabel, lin_nodiag_mean_cc), fontsize=15)
+    plt.colorbar()
+    plt.subplots_adjust(top=0.85)
+    plt.savefig(join(figdir, "Hess_%s_corrmat_lin.jpg"%Hlabel))
+    plt.savefig(join(figdir, "Hess_%s_corrmat_lin.pdf"%Hlabel))
+    plt.show()
 #%
-plt.figure(figsize=[10, 8])
-plt.matshow(corr_mat_log, fignum=0)
-plt.title("Correlation Mat of log of vHv and eigenvalues", fontsize=16)
-plt.colorbar()
-plt.savefig(join(figdir, "Hess_%s_corrmat_log.jpg"%Hlabel))
-plt.show()
-#%
-fig = plt.figure(figsize=[10, 8])
-plt.matshow(corr_mat_lin, fignum=0)
-plt.title("Correlation Mat of vHv and eigenvalues", fontsize=16)
-plt.colorbar()
-plt.savefig(join(figdir, "Hess_%s_corrmat_lin.jpg"%Hlabel))
-plt.show()
-#%
-corr_mat_log_nodiag = corr_mat_log.copy()
-np.fill_diagonal(corr_mat_log_nodiag, np.nan) # corr_mat_log_nodiag =
-print("mean corr value %.3f"%np.nanmean(corr_mat_log_nodiag))  # 0.934
+
 #%%
 from pytorch_pretrained_biggan import BigGAN
 G = BigGAN.from_pretrained("biggan-deep-256")

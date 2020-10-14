@@ -15,6 +15,7 @@ from os.path import join
 from imageio import imread
 from scipy.linalg import block_diag
 #%%
+"""This version is deployable on Cluster"""
 def get_BigGAN(version="biggan-deep-256"):
     cache_path = "/scratch/binxu/torch/"
     cfg = BigGANConfig.from_json_file(join(cache_path, "%s-config.json" % version))

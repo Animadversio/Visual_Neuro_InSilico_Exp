@@ -6,7 +6,7 @@
 # Specify the default queue for the fastest nodes
 #PBS -m be
 #PBS -q dque
-#PBS -t 21-25
+#PBS -t 26-27
 
 # Prepare the virtual env for python
 # export PATH=/act/Anaconda3-2.3.0/bin:${PATH}
@@ -38,7 +38,9 @@ param_list='--dataset pasu --method BP --idx_rg 0 100
 --dataset pasu --method BP --idx_rg 100 200  --GAN fc6_shfl_fix
 --dataset evol --method BP --idx_rg 0 100  --GAN fc6_shfl_fix
 --dataset evol --method BP --idx_rg 100 200  --GAN fc6_shfl_fix
---dataset evol --method BP --idx_rg 200 300  --GAN fc6_shfl_fix'
+--dataset evol --method BP --idx_rg 200 300  --GAN fc6_shfl_fix
+--dataset text --method ForwardIter --idx_rg 0 30  --GAN fc6
+--dataset text --method BP --idx_rg 0 30  --GAN fc6'
 export csr_lim="$(echo "$param_list" | head -n $PBS_ARRAYID | tail -1)"
 
 cd ~/Visual_Neuro_InSilico_Exp/

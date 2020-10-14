@@ -40,7 +40,8 @@ sys.path.append(r"D:\Github\BigGANsAreWatching")
 sys.path.append(r"E:\Github_Projects\BigGANsAreWatching")
 from BigGAN.gan_load import UnconditionalBigGAN, make_big_gan
 from BigGAN.model.BigGAN import Generator
-BBGAN = make_big_gan(r"E:\Github_Projects\BigGANsAreWatching\BigGAN\weights\BigBiGAN_x1.pth", resolution=128)
+# BBGAN = make_big_gan(r"E:\Github_Projects\BigGANsAreWatching\BigGAN\weights\BigBiGAN_x1.pth", resolution=128)
+BBGAN = make_big_gan(r"D:\Github\BigGANsAreWatching\BigGAN\weights\BigBiGAN_x1.pth", resolution=128)
 for param in BBGAN.parameters():
     param.requires_grad_(False)
 BBGAN.eval()
@@ -76,9 +77,10 @@ for triali in range(20):
         imgs1 = G.visualize(ref_vect)
         imgs2 = G.visualize(mov_vect)
         dsim = ImDist(imgs1, imgs2)
-        H = get_full_hessian(dsim, mov_vect)  # 77sec to compute a Hessian.
-        # ToPILImage()(imgs[0,:,:,:].cpu()).show()
+        T0 = time()
+        H = get_full_hessian(dsim, mov_vect)  # 14.9 sec to compute a Hessian.
         eigvals, eigvects = np.linalg.eigh(H)
+        print("Spent time %.1f sec" % (time() - T00))
         plt.figure(figsize=[7,5])
         plt.subplot(1, 2, 1)
         plt.plot(eigvals)
@@ -114,8 +116,11 @@ for triali in range(20):
         PILimg = ToPILImage()(imggrid)#.show()
         PILimg.save(join(savedir, "eigvect_sph_norm%d_%03d.jpg" % (trunc, RND)))
         print("Spent time %.1f sec"%(time() - T00))
+#%% Method comparison,
 
-#%%
+
+
+#%% Analyze Results
 from glob import glob
 import re
 import os
@@ -234,11 +239,7 @@ for eigi in tqdm.trange(Hnums):
         vHv_ij = torch.diag((inpr * eva_j.unsqueeze(0)) @ inpr.T)
         corr_mat_log[eigi, eigj] = corr_nan_torch(vHv_ij.log10(), eva_j.log10())
         corr_mat_lin[eigi, eigj] = corr_nan_torch(vHv_ij, eva_j)
-        # vHv_ij = np.diag(eigvect_i.T @ eigvect_j @ np.diag(eigval_j) @ eigvect_j.T @ eigvect_i)
-        # corr_mat_log[eigi, eigj] = np.corrcoef(np.log10(vHv_ij), np.log10(eigvect_j))[0, 1]
-        # corr_mat_lin[eigi, eigj] = np.corrcoef(vHv_ij, eigvect_j)[0, 1]
 
-    print(time() - T0)
 print(time() - T0)  # 107.9 sev
 corr_mat_log = corr_mat_log.cpu().numpy()
 corr_mat_lin = corr_mat_lin.cpu().numpy()
@@ -315,3 +316,18 @@ ST = plt.suptitle("Consistency of Hessian Across Vectors\n"
 plt.savefig(join(figdir, "Hess_consistency_example_rnd%03d.jpg"%np.random.randint(1000)), bbox_extra_artists=[ST]) #
 # this is working.
 # plt.show()
+#%%
+datadir = r"E:\OneDrive - Washington University in St. Louis\HessGANCmp\BigBiGAN"
+figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\BigBiGAN"
+from hessian_analysis_tools import plot_spectra, compute_hess_corr, plot_consistency_example, plot_consistentcy_mat, average_H, scan_hess_npz
+eva_col, evc_col, feat_col, meta = scan_hess_npz(datadir, "Hess_norm(\d.*)_(\d\d\d)", featkey='vect',
+                                                 evakey="eigvals", evckey="eigvects")
+feat_col = np.array(feat_col).squeeze()
+H_avg, eva_avg, evc_avg = average_H(eva_col, evc_col)
+np.savez(join(figdir, "H_avg_%s.npz"%"BigBiGAN"), H_avg=H_avg, eva_avg=eva_avg, evc_avg=evc_avg, feats=feat_col)
+#%%
+fig = plot_spectra(eva_col, figdir=figdir, titstr="BigBiGAN", )
+#%
+corr_mat_log, corr_mat_lin = compute_hess_corr(eva_col, evc_col, figdir=figdir, use_cuda=False)
+fig1, fig2 = plot_consistentcy_mat(corr_mat_log, corr_mat_lin, figdir=figdir, titstr="BigBiGAN")
+fig3 = plot_consistency_example(eva_col, evc_col, figdir=figdir, nsamp=5, titstr="BigBiGAN",)

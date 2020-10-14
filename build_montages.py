@@ -68,8 +68,8 @@ from skimage.transform import resize
 #     if start_new_img is False:
 #         image_montages.append(montage_image)  # add unfinished montage
 #     return image_montages
-
-def build_montages(image_list, image_shape, montage_shape):
+#%%
+def build_montages(image_list, image_shape, montage_shape, transpose=True):
     """Adapted from imutils.build_montages   add automatic normalization in it.
     ---------------------------------------------------------------------------------------------
     author: Kyle Hounslow
@@ -104,8 +104,13 @@ def build_montages(image_list, image_shape, montage_shape):
     if len(montage_shape) != 2:
         raise Exception('montage shape must be list or tuple of length 2 (rows, cols)')
     image_montages = []
+    rowfirst = transpose
     # start with black canvas to draw images onto
-    montage_image = np.zeros(shape=(image_shape[1] * (montage_shape[1]), image_shape[0] * montage_shape[0], 3), dtype=np.float64)
+    if rowfirst:
+        montage_image = np.zeros(shape=(image_shape[1] * (montage_shape[1]), image_shape[0] * montage_shape[0], 3), dtype=np.float64)
+    else:
+        montage_image = np.zeros(shape=(image_shape[1] * (montage_shape[0]), image_shape[0] *
+                                    montage_shape[1], 3), dtype=np.float64)
     cursor_pos = [0, 0]
     start_new_img = False
     for img in image_list:
@@ -117,16 +122,29 @@ def build_montages(image_list, image_shape, montage_shape):
             img = (img / 255.0).astype(np.float64)
         # draw image to black canvas
         montage_image[cursor_pos[1]:cursor_pos[1] + image_shape[1], cursor_pos[0]:cursor_pos[0] + image_shape[0]] = img
-        cursor_pos[0] += image_shape[0]  # increment cursor x position
-        if cursor_pos[0] >= montage_shape[0] * image_shape[0]:
+        if rowfirst:
+            cursor_pos[0] += image_shape[0]  # increment cursor x position
+            if cursor_pos[0] >= montage_shape[0] * image_shape[0]:
+                cursor_pos[1] += image_shape[1]  # increment cursor y position
+                cursor_pos[0] = 0
+                if cursor_pos[1] >= montage_shape[1] * image_shape[1]:
+                    cursor_pos = [0, 0]
+                    image_montages.append(montage_image)
+                    # reset black canvas
+                    montage_image = np.zeros(shape=(image_shape[1] * (montage_shape[1]), image_shape[0] * montage_shape[0], 3), dtype=np.float64)
+                    start_new_img = True
+        else:
             cursor_pos[1] += image_shape[1]  # increment cursor y position
-            cursor_pos[0] = 0
-            if cursor_pos[1] >= montage_shape[1] * image_shape[1]:
-                cursor_pos = [0, 0]
-                image_montages.append(montage_image)
-                # reset black canvas
-                montage_image = np.zeros(shape=(image_shape[1] * (montage_shape[1]), image_shape[0] * montage_shape[0], 3), dtype=np.float64)
-                start_new_img = True
+            if cursor_pos[1] >= image_shape[1] * montage_shape[0]:
+                cursor_pos[0] += image_shape[0]  # increment cursor y position
+                cursor_pos[1] = 0
+                if cursor_pos[0] >= montage_shape[1] * image_shape[0]:
+                    cursor_pos = [0, 0]
+                    image_montages.append(montage_image)
+                    # reset black canvas
+                    montage_image = np.zeros(shape=(image_shape[1] * montage_shape[0], image_shape[0] *
+                                                    montage_shape[1], 3), dtype=np.float64)
+                    start_new_img = True
     if start_new_img is False:
         image_montages.append(montage_image)  # add unfinished montage
     return image_montages

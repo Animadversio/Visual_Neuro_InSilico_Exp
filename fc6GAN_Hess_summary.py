@@ -12,10 +12,10 @@ from os.path import join
 from imageio import imwrite
 from build_montages import build_montages, color_framed_montages
 import torch
-#%%
 savedir = r"E:\Cluster_Backup\FC6GAN"
 figdir = r"E:\Cluster_Backup\FC6GAN\summary"
 labeldict = {"BP": "bpfull", "BackwardIter": "bkwlancz", "ForwardIter": "frwlancz"}
+#%%
 method = "BP"
 space = "evol"
 labstr = labeldict[method]
@@ -289,3 +289,59 @@ print("Correlation between code correlation  and  log Hessian similarity (non-di
 # Correlation between code correlation  and  log Hessian similarity  0.3159495935200964
 # Correlation between code correlation  and  Hessian similarity (non-diagonal)  0.020121576393265176
 # Correlation between code correlation  and  log Hessian similarity (non-diagonal)  0.022462684881444483
+#%%
+figdir = r"E:\Cluster_Backup\FC6GAN\summary"
+savedir = r"E:\Cluster_Backup\FC6GAN"
+method = "BP"
+labstr = labeldict[method]
+space = "text"
+eigvals_col = []
+eigvecs_col = []
+code_all = []
+for idx in range(30): # Note load it altogether is very slow, not recommended
+    fn = "%s_%03d_%s.npz" % (space, idx, labstr)
+    data = np.load(join(savedir, fn))
+    eigvals = data['eigvals']
+    eigvecs = data['eigvects']
+    code = data['code']
+    eigvals_col.append(eigvals.copy())
+    eigvecs_col.append(eigvecs.copy())
+    code_all.append(code.copy())
+#%
+eigval_arr = np.array(eigvals_col)
+code_all = np.array(code_all)
+eigmean = eigval_arr[:, ::-1].mean(axis=0)
+eigstd = eigval_arr[:, ::-1].std(axis=0)
+eiglim = np.percentile(eigval_arr[:, ::-1], [5, 95], axis=0)
+#%%
+from GAN_utils import upconvGAN
+G = upconvGAN()
+#%%
+from torchvision.utils import make_grid
+from torchvision.transforms import ToPILImage
+imgs = G.visualize_batch_np(-50*eigvecs[:,-10:].T,)
+ToPILImage()(make_grid(imgs)).show()
+# G.visualize_batch_np
+#%%
+H_avg = np.zeros((4096,4096))
+for eigvals, eigvecs in zip(eigvals_col, eigvecs_col):
+    H_avg += eigvecs @ np.diag(eigvals) @ eigvecs.T
+H_avg /= len(eigvals_col)
+#%%
+eigv_avg, eigvect_avg = np.linalg.eigh(H_avg)
+#%%
+np.savez(join(r"E:\OneDrive - Washington University in St. Louis\HessTune\NullSpace",
+            "Texture_Avg_Hess.npz"),eigv_avg=eigv_avg, eigvect_avg=eigvect_avg, H_avg=H_avg)
+#%%
+# avg_data = np.load(join(r"E:\OneDrive - Washington University in St. Louis\HessTune\NullSpace",
+#                         "Evolution_Avg_Hess.npz"))
+# eigvect_avg = avg_data["eigvect_avg"]
+# eigval_avg = avg_data["eigv_avg"]
+#%%
+eigvect_avg = eigvect_avg[:,::-1]
+eigv_avg = eigv_avg[::-1]
+#%%
+# np.savez(join(r"E:\OneDrive - Washington University in St. Louis\HessTune\NullSpace",
+#             "Texture_Avg_Hess.npz"),eigv_avg=eigv_avg, eigvect_avg=eigvect_avg, H_avg=H_avg)
+#%%
+
