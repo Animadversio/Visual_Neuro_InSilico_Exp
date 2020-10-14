@@ -9,9 +9,9 @@ Find important Nuisanced + Class transformations in Noise + Class space for a Bi
 
 # backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_integrated\2020-06-01-09-46-37"
 # Put the backup folder and the thread to analyze here 
-#backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-07-22-10-14-22"
-# backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2020-08-06-10-18-55"#2020-08-04-09-54-25"#
-backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-08-17-09-51-16"
+
+backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-09-17-09-59-59"
+
 threadid = 1
 
 score_rank_avg = False  # If True, it will try to read "scores_record.mat", from the backup folder and read "scores_record"
