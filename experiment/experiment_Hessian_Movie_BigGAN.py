@@ -12,7 +12,7 @@ Find important Nuisanced + Class transformations in Noise + Class space for a Bi
 # Put the backup folder and the thread to analyze here 
 #backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-07-22-10-14-22"
 # backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2020-08-06-10-18-55"#2020-08-04-09-54-25"#
-backup_dir = r"E:\Monkey_Data\2020-09-04-Alfa-01\2020-09-04-Alfa-01\2020-09-04-12-06-08"
+backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-10-05-09-45-03"
 threadid = 1
 
 score_rank_avg = False  # If True, it will try to read "scores_record.mat", from the backup folder and read "scores_record"
@@ -190,7 +190,7 @@ def subsampled_img_row(ref_vect, tan_vec, targ_val, xticks_row, unit = 0.08):
     targ_ticks.append(targ_val_all[-1])
     # codes_row = ref_vect + torch.tensor(subsamp_ticks).unsqueeze(1).float().cuda() @ tan_vec.cuda()
     codes_row = ref_vect.cpu().numpy() + np.array([subsamp_ticks]).T @ tan_vec.cpu().numpy()
-    imgs = G.render(codes_row)
+    imgs = G.render(codes_row, B=8)
     return imgs, subsamp_ticks, targ_ticks, codes_row
 
 def createSinuMovie(imgs, movdir="", savenm="eig"):
@@ -211,6 +211,7 @@ summary_dir = join(backup_dir,"Hess_imgs","summary")
 movie_dir = join(backup_dir,"Hess_imgs","Movie")
 os.makedirs(newimg_dir,exist_ok=True)
 os.makedirs(summary_dir,exist_ok=True)
+os.makedirs(movie_dir,exist_ok=True)
 
 print("Loading the codes from experiment folder %s", backup_dir)
 evo_codes_all, generations = load_codes_mat(backup_dir, threadnum=threadid) 
@@ -339,7 +340,7 @@ if Hess_method == "BP":
              H_clas=H_clas, eigvals_clas=eigvals_clas, eigvects_clas=eigvects_clas, 
              H_nois=H_nois, eigvals_nois=eigvals_nois, eigvects_nois=eigvects_nois, 
              vect=ref_vect.cpu().numpy(), noisevec=noisevec.cpu().numpy(), classvec=classvec.cpu().numpy())
-
+    del dsim, imgs2, imgs1
 elif Hess_method == "BackwardIter":
     print("Computing Hessian Decomposition Through Lanczos decomposition on Backward HVP operator.")
     feat = torch.from_numpy(sphere_norm * PC1_vect).float().requires_grad_(False).cuda()
