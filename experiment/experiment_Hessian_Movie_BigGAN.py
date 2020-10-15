@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Wed Jul 22 19:08:54 2020
+Modified Oct. 14th
 
 @author: Binxu Wang
 
@@ -11,7 +12,7 @@ Find important Nuisanced + Class transformations in Noise + Class space for a Bi
 # Put the backup folder and the thread to analyze here 
 #backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-07-22-10-14-22"
 # backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2020-08-06-10-18-55"#2020-08-04-09-54-25"#
-backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2020-08-14-11-06-59"
+backup_dir = r"E:\Monkey_Data\2020-09-04-Alfa-01\2020-09-04-Alfa-01\2020-09-04-12-06-08"
 threadid = 1
 
 score_rank_avg = False  # If True, it will try to read "scores_record.mat", from the backup folder and read "scores_record"
@@ -28,6 +29,7 @@ from time import time
 import os
 from os.path import join
 import sys
+import cv2 # for video writing
 if os.environ['COMPUTERNAME'] == 'PONCELAB-ML2B':
     Python_dir = r"C:\Users\Ponce lab\Documents\Python"
 elif os.environ['COMPUTERNAME'] == 'PONCELAB-ML2A':
@@ -53,19 +55,23 @@ from IPython.display import clear_output
 from hessian_eigenthings.utils import progress_bar
 from tqdm import tqdm
 T00 = time()
-import models # from PerceptualSimilarity folder
-ImDist = models.PerceptualLoss(model='net-lin', net='squeeze', use_gpu=1, gpu_ids=[0])
+import lpips
+# import models # from PerceptualSimilarity folder
+# ImDist = models.PerceptualLoss(model='net-lin', net='squeeze', use_gpu=1, gpu_ids=[0])
+ImDist = lpips.LPIPS(net='squeeze', )
 # model_vgg = models.PerceptualLoss(model='net-lin', net='vgg', use_gpu=1, gpu_ids=[0])
 ImDist.cuda()
 for param in ImDist.parameters():
     param.requires_grad_(False)
 #%%
-BGAN = BigGAN.from_pretrained("biggan-deep-256")
-for param in BGAN.parameters():
-    param.requires_grad_(False)
-embed_mat = BGAN.embeddings.parameters().__next__().data
-BGAN.cuda()
-
+# BGAN = BigGAN.from_pretrained("biggan-deep-256")
+# for param in BGAN.parameters():
+#     param.requires_grad_(False)
+# embed_mat = BGAN.embeddings.parameters().__next__().data
+# BGAN.cuda()
+from GAN_utils import BigGAN_wrapper, loadBigGAN
+BGAN = loadBigGAN()
+G = BigGAN_wrapper(BGAN)
 #%%
 def LExpMap(refvect, tangvect, ticks=11, lims=(-1,1)):
     refvect, tangvect = refvect.reshape(1, -1), tangvect.reshape(1, -1)
@@ -102,8 +108,7 @@ def SExpMap(refvect, tangvect, ticks=11, lims=(-1,1)):
 #                 clear_output(wait=True)
 #                 progress_bar(csr_end, imgn, "ploting row of page: %d of %d" % (csr_end, imgn))
 #         return img_all
-from GAN_utils import BigGAN_wrapper
-G = BigGAN_wrapper(BGAN)
+
 
 #%% Test code for hessian eigendecomposition
 #t0 = time()
@@ -171,6 +176,30 @@ def Hess_img_distmat(ImDist, img_all, nrow=11):
             dists = ImDist(img_all[rstr:rend,:],img_all[rmid,:]).squeeze()
         distmat[irow, :]=dists.cpu()
     return distmat
+#%% Utility functions to create movies from a row of interpolation. 
+def subsampled_img_row(ref_vect, tan_vec, targ_val, xticks_row, unit = 0.08):
+    targ_val_all = list(targ_val[::-1]) + [0] + list(targ_val)
+    subsamp_ticks = []
+    targ_ticks = []
+    for i in range(len(targ_val_all)-1):
+        seg = np.linspace(xticks_row[i], xticks_row[i+1], int(abs((targ_val_all[i] - targ_val_all[i+1]))/unit * 6) , endpoint=False)
+        tseg = np.linspace(targ_val_all[i], targ_val_all[i+1], int(abs((targ_val_all[i] - targ_val_all[i+1]))/unit * 6) , endpoint=False)
+        subsamp_ticks.extend(list(seg))
+        targ_ticks.extend(list(tseg))
+    subsamp_ticks.append(xticks_row[-1])
+    targ_ticks.append(targ_val_all[-1])
+    # codes_row = ref_vect + torch.tensor(subsamp_ticks).unsqueeze(1).float().cuda() @ tan_vec.cuda()
+    codes_row = ref_vect.cpu().numpy() + np.array([subsamp_ticks]).T @ tan_vec.cpu().numpy()
+    imgs = G.render(codes_row)
+    return imgs, subsamp_ticks, targ_ticks, codes_row
+
+def createSinuMovie(imgs, movdir="", savenm="eig"):
+    out = cv2.VideoWriter(join(movdir, "%s.avi"%savenm), cv2.VideoWriter_fourcc(*'XVID'), 10, imgs[0].shape[0:2])
+    fN = len(imgs)
+    centi = fN // 2
+    for fi in [*range(centi, fN)] + [*range(fN - 1, -1, -1)] + [*range(0, centi+1)]:
+        out.write((255.0*imgs[fi][:,:,::-1]).astype('uint8'))
+    out.release()
 #%% Load up the codes
 from sklearn.decomposition import PCA 
 import numpy as np
@@ -179,7 +208,7 @@ from imageio import imwrite
 
 newimg_dir = join(backup_dir,"Hess_imgs")
 summary_dir = join(backup_dir,"Hess_imgs","summary")
-summary_dir = join(backup_dir,"Hess_imgs","Movie")
+movie_dir = join(backup_dir,"Hess_imgs","Movie")
 os.makedirs(newimg_dir,exist_ok=True)
 os.makedirs(summary_dir,exist_ok=True)
 
@@ -450,6 +479,9 @@ else:  # exact_distance by line search
         img_names.extend("noise_eig%d_lin%.2f.jpg" % (eigid, dist) for dist in tick_labels)  # dsim_row)
         imgall = imgrow if imgall is None else torch.cat((imgall, imgrow))
 
+        imgs, _, _, _ = subsampled_img_row(ref_vect, tan_vec, targ_val, xticks_row, unit=0.08)
+        createSinuMovie(imgs, movie_dir, savenm="%s_eig%d" % (space, eigid))
+
     mtg1 = ToPILImage()(make_grid(imgall, nrow=2*len(target_distance)+1).cpu())  # 20sec for 13 rows not bad
     mtg1.show()
     mtg1.save(join(summary_dir, "noise_space_all_var.jpg"))
@@ -492,7 +524,7 @@ else:  # exact_distance by line search
     plt.title("Perceptual distance metric along each row\nnoise space")
     plt.savefig(join(summary_dir, "noise_space_distmat.jpg"))
     plt.show()
-    #%
+    #%%
     space = "class"
     imgall = None
     xtick_col = []
@@ -515,7 +547,7 @@ else:  # exact_distance by line search
         imgrow = torch.cat((torch.flip(stepimgs_neg, (0,)), refimg, stepimgs_pos)).cpu()
         xticks_row = xtar_neg[::-1] + [0.0] + xtar_pos
         dsim_row = list(ytar_neg[::-1]) + [0.0] + list(ytar_pos)
-        vecs_row = torch.tensor(xticks_row).cuda().view(-1, 1) @ tan_vec + ref_vect
+        vecs_row = torch.tensor(xticks_row).float().cuda().view(-1, 1) @ tan_vec + ref_vect
         xtick_col.append(xticks_row)
         dsim_col.append(dsim_row)
         vecs_col.append(vecs_row.cpu().numpy())
@@ -523,6 +555,9 @@ else:  # exact_distance by line search
             "class_eig%d_lin%.2f.jpg" % (eigid, dist) for dist in tick_labels)  # np.linspace(-0.4, 0.4,11))
         #
         imgall = imgrow if imgall is None else torch.cat((imgall, imgrow))
+
+        imgs, _, _, _ = subsampled_img_row(ref_vect, tan_vec, targ_val, xticks_row, unit=0.08)
+        createSinuMovie(imgs, movie_dir, savenm="%s_eig%d" % (space, eigid))
 
     mtg2 = ToPILImage()(make_grid(imgall, nrow=2*len(target_distance)+1).cpu())  # 20sec for 13 rows not bad
     mtg2.show()
@@ -532,14 +567,6 @@ else:  # exact_distance by line search
                                                   np.uint8(npimgs[:, :, :, imgi] * 255))
     print(time() - t0)
     # %
-    eigvect
-    targ_val
-    xticks_row
-    def createMovie(refvec, eigvec, targ_val, xticks):
-        frames
-
-
-
     xtick_arr = np.array(xtick_col)
     dsim_arr = np.array(dsim_col)
     vecs_arr = np.array(vecs_col)
@@ -575,7 +602,7 @@ else:  # exact_distance by line search
     plt.savefig(join(summary_dir, "class_space_distmat.jpg"))
     plt.show()
 #%%
-
+#%%
 ##% Interpolation in the class space
 #codes_all = []
 #img_names = []
