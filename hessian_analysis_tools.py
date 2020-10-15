@@ -11,6 +11,7 @@ from glob import glob
 from tqdm import tqdm
 import numpy as np
 import matplotlib.pylab as plt
+from matplotlib import cm
 import matplotlib
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
@@ -373,8 +374,7 @@ def plot_layer_consistency_mat(corr_mat_log, corr_mat_lin, corr_mat_vec, savelab
     return fig1, fig2, fig3
 
 #%%
-def plot_layer_consistency_example(eigval_col, eigvec_col, layernames, layeridx=[0,1,-1], titstr="GAN", figdir="",
-                                   savelabel=""):
+def plot_layer_consistency_example(eigval_col, eigvec_col, layernames, layeridx=[0,1,-1], titstr="GAN", figdir="", savelabel="", use_cuda=False):
     """
     Note for scatter plot the aspect ratio is set fixed to one.
     :param eigval_col:
@@ -437,22 +437,44 @@ def plot_layer_mat(layer_mat, layernames=None, titstr="Correlation of Amplificat
     plt.show()
     return fig
 
-def compute_plot_layer_corr_mat(eva_col, evc_col, H_col, layernames, titstr="BigGAN", savestr="BigGAN", figdir=""):
-    Lnum = len(H_col)
+def compute_plot_layer_corr_mat(eva_col, evc_col, H_col, layernames, titstr="BigGAN", savestr="BigGAN", figdir="", use_cuda=False):
+    Lnum = len(evc_col)
     corr_mat_lin = np.zeros((Lnum, Lnum))
     corr_mat_log = np.zeros((Lnum, Lnum))
     log_reg_slope = np.zeros((Lnum, Lnum))
     log_reg_intcp = np.zeros((Lnum, Lnum))
-    for Li in range(len(H_col)):
-        evc = evc_col[Li]
-        eva = eva_col[Li]
-        for Lj in range(len(H_col)):
-            H = H_col[Lj]
-            alphavec = np.diag(evc.T @ H @ evc)
+    for Li in range(Lnum):
+        eva, evc = eva_col[Li], evc_col[Li]
+        eva_i, evc_i = (eva, evc) if not use_cuda else \
+            (torch.from_numpy(eva).cuda(), torch.from_numpy(evc).cuda())
+        for Lj in range(Lnum):  # hessian target
+            if H_col is not None:
+                H = H_col[Lj]
+                if use_cuda:
+                    H = torch.from_numpy(H).cuda()
+                    alphavec = torch.diag(evc_i.T @ H @ evc_i).cpu().numpy()
+                else:
+                    alphavec = np.diag(evc_i.T @ H @ evc_i)
+            else:
+                if use_cuda:
+                    eva_j, evc_j = torch.from_numpy(eva_col[Lj]).cuda(), torch.from_numpy(evc_col[Lj]).cuda()
+                    inpr = evc_i.T @ evc_j
+                    alphavec = torch.diag((inpr * eva_j.view(1, -1)) @ inpr.T)
+                    alphavec = alphavec.cpu().numpy()
+                else:
+                    inpr = evc_i.T @ evc_col[Lj]
+                    # H = evc_col[Lj] @ np.diag(eva_col[Lj]) @ evc_col[Lj].T
+                    alphavec = np.diag((inpr * eva_col[Lj].reshape(1, -1)) @ inpr.T)
+    # for Li in range(Lnum):
+    #     evc = evc_col[Li]
+    #     eva = eva_col[Li]
+    #     for Lj in range(Lnum):
+    #         H = H_col[Lj]
+    #         alphavec = np.diag(evc.T @ H @ evc)
             log10alphavec = np.log10(alphavec)
             log10eva = np.log10(eva)
             corr_mat_lin[Li, Lj] = np.corrcoef(alphavec, eva)[0,1]
-            corr_mat_log[Li, Lj] = np.corrcoef(log10alphavec, log10eva)[0,1]
+            corr_mat_log[Li, Lj] = ma.corrcoef(ma.masked_invalid(log10alphavec), ma.masked_invalid(log10eva))[0, 1]  #np.corrcoef(log10alphavec, log10eva)[0,1]
             nanmask = (~np.isnan(log10alphavec)) * (~np.isnan(log10eva))
             slope, intercept = np.polyfit(log10eva[nanmask], log10alphavec[nanmask], 1)
             log_reg_slope[Li, Lj] = slope
@@ -468,17 +490,34 @@ def compute_plot_layer_corr_mat(eva_col, evc_col, H_col, layernames, titstr="Big
     return corr_mat_lin, corr_mat_log, log_reg_slope, log_reg_intcp, fig1, fig2, fig3, fig4,
 
 def plot_layer_amplif_curves(eva_col, evc_col, H_col, layernames, savestr="", figdir="",
-                             maxnorm=False):
+                             maxnorm=False, use_cuda=False):
     Lnum = len(evc_col)
     colorseq = [cm.jet(Li / (Lnum - 1)) for Li in range(Lnum)]  # color for each curve.
     for Li in range(Lnum):  # source of eigenvector basis
         alphavec_col = []
-        evc = evc_col[Li]
-        eva = eva_col[Li]
+        if use_cuda:
+            eva_i, evc_i = torch.from_numpy(eva_col[Li]).cuda(), torch.from_numpy(evc_col[Li]).cuda()
+        else:
+            eva_i, evc_i = eva_col[Li], evc_col[Li]
         plt.figure(figsize=[5, 4])
         for Lj in range(Lnum):  # hessian target
-            H = H_col[Lj]
-            alphavec = np.diag(evc.T @ H @ evc)
+            if H_col is not None:
+                H = H_col[Lj]
+                if use_cuda:
+                    H = torch.from_numpy(H).cuda()
+                    alphavec = torch.diag(evc_i.T @ H @ evc_i).cpu().numpy()
+                else:
+                    alphavec = np.diag(evc_i.T @ H @ evc_i)
+            else:
+                if use_cuda:
+                    eva_j, evc_j = torch.from_numpy(eva_col[Lj]).cuda(), torch.from_numpy(evc_col[Lj]).cuda()
+                    inpr = evc_i.T @ evc_j
+                    alphavec = torch.diag((inpr * eva_j.view(1, -1)) @ inpr.T)
+                    alphavec = alphavec.cpu().numpy()
+                else:
+                    inpr = evc_i.T @ evc_col[Lj]
+                    # H = evc_col[Lj] @ np.diag(eva_col[Lj]) @ evc_col[Lj].T
+                    alphavec = np.diag((inpr * eva_col[Lj].reshape(1,-1)) @ inpr.T)
             alphavec_col.append(alphavec)
             scaler = alphavec[-1] if maxnorm else 1
             plt.plot(np.log10(alphavec[::-1] / scaler), label=layernames[Lj], color=colorseq[Lj], lw=2, alpha=0.7)

@@ -37,8 +37,8 @@ elif os.environ['COMPUTERNAME'] == 'DESKTOP-MENSD6S':
 elif os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':
     Python_dir = r"D:\Github"
 
-sys.path.append(join(Python_dir,"Visual_Neuro_InSilico_Exp"))
-sys.path.append(join(Python_dir,"PerceptualSimilarity"))
+sys.path.append(join(Python_dir, "Visual_Neuro_InSilico_Exp"))
+sys.path.append(join(Python_dir, "PerceptualSimilarity"))
 import torch
 from pytorch_pretrained_biggan import BigGAN, truncated_noise_sample
 from GAN_utils import upconvGAN
@@ -79,30 +79,30 @@ def SExpMap(refvect, tangvect, ticks=11, lims=(-1,1)):
     interp_vects = steps @ tangvect + refvect
     return interp_vects
 
-class BigGAN_wrapper():#nn.Module
-    def __init__(self, BigGAN, space="class"):
-        self.BigGAN = BigGAN
-        self.space = space
-
-    def visualize(self, code, scale=1.0, truncation=0.7):
-        imgs = self.BigGAN.generator(code, truncation) # Matlab version default to 0.7
-        return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
-
-    def visualize_batch_np(self, codes_all_arr, truncation=0.7, B=5):
-        csr = 0
-        img_all = None
-        imgn = codes_all_arr.shape[0]
-        with torch.no_grad():
-            while csr < imgn:
-                csr_end = min(csr + B, imgn)
-                img_list = self.visualize(torch.from_numpy(codes_all_arr[csr:csr_end, :]).float().cuda(),
-                                           truncation=truncation, ).cpu()
-                img_all = img_list if img_all is None else torch.cat((img_all, img_list), dim=0)
-                csr = csr_end
-                clear_output(wait=True)
-                progress_bar(csr_end, imgn, "ploting row of page: %d of %d" % (csr_end, imgn))
-        return img_all
-
+# class BigGAN_wrapper():#nn.Module
+#     def __init__(self, BigGAN, space="class"):
+#         self.BigGAN = BigGAN
+#         self.space = space
+#
+#     def visualize(self, code, scale=1.0, truncation=0.7):
+#         imgs = self.BigGAN.generator(code, truncation) # Matlab version default to 0.7
+#         return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
+#
+#     def visualize_batch_np(self, codes_all_arr, truncation=0.7, B=5):
+#         csr = 0
+#         img_all = None
+#         imgn = codes_all_arr.shape[0]
+#         with torch.no_grad():
+#             while csr < imgn:
+#                 csr_end = min(csr + B, imgn)
+#                 img_list = self.visualize(torch.from_numpy(codes_all_arr[csr:csr_end, :]).float().cuda(),
+#                                            truncation=truncation, ).cpu()
+#                 img_all = img_list if img_all is None else torch.cat((img_all, img_list), dim=0)
+#                 csr = csr_end
+#                 clear_output(wait=True)
+#                 progress_bar(csr_end, imgn, "ploting row of page: %d of %d" % (csr_end, imgn))
+#         return img_all
+from GAN_utils import BigGAN_wrapper
 G = BigGAN_wrapper(BGAN)
 
 #%% Test code for hessian eigendecomposition
@@ -179,6 +179,7 @@ from imageio import imwrite
 
 newimg_dir = join(backup_dir,"Hess_imgs")
 summary_dir = join(backup_dir,"Hess_imgs","summary")
+summary_dir = join(backup_dir,"Hess_imgs","Movie")
 os.makedirs(newimg_dir,exist_ok=True)
 os.makedirs(summary_dir,exist_ok=True)
 
@@ -531,6 +532,14 @@ else:  # exact_distance by line search
                                                   np.uint8(npimgs[:, :, :, imgi] * 255))
     print(time() - t0)
     # %
+    eigvect
+    targ_val
+    xticks_row
+    def createMovie(refvec, eigvec, targ_val, xticks):
+        frames
+
+
+
     xtick_arr = np.array(xtick_col)
     dsim_arr = np.array(dsim_col)
     vecs_arr = np.array(vecs_col)
