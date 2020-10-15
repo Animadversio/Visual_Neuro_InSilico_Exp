@@ -176,7 +176,7 @@ def Hess_img_distmat(ImDist, img_all, nrow=11):
             dists = ImDist(img_all[rstr:rend,:],img_all[rmid,:]).squeeze()
         distmat[irow, :]=dists.cpu()
     return distmat
-#%% Utility functions to create movies from a row of interpolation. 
+#%% Utility functions to create movies from a row of interpolation.
 def subsampled_img_row(ref_vect, tan_vec, targ_val, xticks_row, unit = 0.08):
     targ_val_all = list(targ_val[::-1]) + [0] + list(targ_val)
     subsamp_ticks = []
