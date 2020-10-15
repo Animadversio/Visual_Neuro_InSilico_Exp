@@ -478,7 +478,7 @@ else:  # exact_distance by line search
         vecs_col.append(vecs_row.cpu().numpy())
         img_names.extend("noise_eig%d_lin%.2f.jpg" % (eigid, dist) for dist in tick_labels)  # dsim_row)
         imgall = imgrow if imgall is None else torch.cat((imgall, imgrow))
-
+        # Subsample the exploration and visualize the images on the line. ANd then render it into a movie. 
         imgs, _, _, _ = subsampled_img_row(ref_vect, tan_vec, targ_val, xticks_row, unit=0.08)
         createSinuMovie(imgs, movie_dir, savenm="%s_eig%d" % (space, eigid))
 
@@ -553,9 +553,8 @@ else:  # exact_distance by line search
         vecs_col.append(vecs_row.cpu().numpy())
         img_names.extend(
             "class_eig%d_lin%.2f.jpg" % (eigid, dist) for dist in tick_labels)  # np.linspace(-0.4, 0.4,11))
-        #
         imgall = imgrow if imgall is None else torch.cat((imgall, imgrow))
-
+        # Subsample the exploration and visualize the images on the line. ANd then render it into a movie. 
         imgs, _, _, _ = subsampled_img_row(ref_vect, tan_vec, targ_val, xticks_row, unit=0.08)
         createSinuMovie(imgs, movie_dir, savenm="%s_eig%d" % (space, eigid))
 
