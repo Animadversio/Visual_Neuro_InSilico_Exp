@@ -211,6 +211,7 @@ summary_dir = join(backup_dir,"Hess_imgs","summary")
 movie_dir = join(backup_dir,"Hess_imgs","Movie")
 os.makedirs(newimg_dir,exist_ok=True)
 os.makedirs(summary_dir,exist_ok=True)
+os.makedirs(movie_dir,exist_ok=True)
 
 print("Loading the codes from experiment folder %s", backup_dir)
 evo_codes_all, generations = load_codes_mat(backup_dir, threadnum=threadid) 
@@ -329,6 +330,8 @@ if Hess_method == "BP":
     H_clas = get_full_hessian(dsim, classvec)  # 39.3 sec to compute a Hessian.
     eigvals_clas, eigvects_clas = np.linalg.eigh(H_clas)  # 75 ms
     classvec.requires_grad_(False)
+    del dsim, imgs2, imgs1
+    torch.cuda.empty_cache()
     if Hess_all:
         np.savez(join(summary_dir, "Hess_mat.npz"), H=H, eigvals=eigvals, eigvects=eigvects, 
              H_clas=H_clas, eigvals_clas=eigvals_clas, eigvects_clas=eigvects_clas, 
@@ -382,6 +385,8 @@ if Hess_all:
 
 #%% Do interpolation along each axes
 #%%
+#classvec = torch.from_numpy(ref_class_vec).float().cuda()  # embed_mat[:, class_id:class_id+1].cuda().T
+#noisevec = torch.from_numpy(ref_noise_vec).float().cuda()
 if not exact_distance:
     #% Interpolation in the class space, but inversely scale the step size w.r.t. eigenvalue
     codes_all = []
