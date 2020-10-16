@@ -177,13 +177,13 @@ def Hess_img_distmat(ImDist, img_all, nrow=11):
         distmat[irow, :]=dists.cpu()
     return distmat
 #%% Utility functions to create movies from a row of interpolation.
-def subsampled_img_row(ref_vect, tan_vec, targ_val, xticks_row, unit = 0.08):
+def subsampled_img_row(ref_vect, tan_vec, targ_val, xticks_row, unit=0.08, density=11):
     targ_val_all = list(targ_val[::-1]) + [0] + list(targ_val)
     subsamp_ticks = []
     targ_ticks = []
     for i in range(len(targ_val_all)-1):
-        seg = np.linspace(xticks_row[i], xticks_row[i+1], int(abs((targ_val_all[i] - targ_val_all[i+1]))/unit * 6) , endpoint=False)
-        tseg = np.linspace(targ_val_all[i], targ_val_all[i+1], int(abs((targ_val_all[i] - targ_val_all[i+1]))/unit * 6) , endpoint=False)
+        seg = np.linspace(xticks_row[i], xticks_row[i+1], int(abs((targ_val_all[i] - targ_val_all[i+1]))/unit * density) , endpoint=False)
+        tseg = np.linspace(targ_val_all[i], targ_val_all[i+1], int(abs((targ_val_all[i] - targ_val_all[i+1]))/unit * density) , endpoint=False)
         subsamp_ticks.extend(list(seg))
         targ_ticks.extend(list(tseg))
     subsamp_ticks.append(xticks_row[-1])
@@ -193,8 +193,8 @@ def subsampled_img_row(ref_vect, tan_vec, targ_val, xticks_row, unit = 0.08):
     imgs = G.render(codes_row, B=8)
     return imgs, subsamp_ticks, targ_ticks, codes_row
 
-def createSinuMovie(imgs, movdir="", savenm="eig"):
-    out = cv2.VideoWriter(join(movdir, "%s.avi"%savenm), cv2.VideoWriter_fourcc(*'XVID'), 10, imgs[0].shape[0:2])
+def createSinuMovie(imgs, movdir="", savenm="eig", fps=20):
+    out = cv2.VideoWriter(join(movdir, "%s.avi"%savenm), cv2.VideoWriter_fourcc(*'XVID'), fps, imgs[0].shape[0:2])
     fN = len(imgs)
     centi = fN // 2
     for fi in [*range(centi, fN)] + [*range(fN - 1, -1, -1)] + [*range(0, centi+1)]:
@@ -342,7 +342,6 @@ if Hess_method == "BP":
              H_clas=H_clas, eigvals_clas=eigvals_clas, eigvects_clas=eigvects_clas, 
              H_nois=H_nois, eigvals_nois=eigvals_nois, eigvects_nois=eigvects_nois, 
              vect=ref_vect.cpu().numpy(), noisevec=noisevec.cpu().numpy(), classvec=classvec.cpu().numpy())
-    del dsim, imgs2, imgs1
 elif Hess_method == "BackwardIter":
     print("Computing Hessian Decomposition Through Lanczos decomposition on Backward HVP operator.")
     feat = torch.from_numpy(sphere_norm * PC1_vect).float().requires_grad_(False).cuda()
