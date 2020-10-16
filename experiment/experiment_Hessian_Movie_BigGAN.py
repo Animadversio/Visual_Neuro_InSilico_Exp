@@ -604,7 +604,32 @@ else:  # exact_distance by line search
     plt.title("Perceptual distance metric along each row\nnoise space")
     plt.savefig(join(summary_dir, "class_space_distmat.jpg"))
     plt.show()
-#%%
+#%% Regenerate the movies with different fps
+if exact_distance:
+    space = "noise"
+#    targ_val = np.array(target_distance)
+    ref_vect = torch.from_numpy(np.concatenate((ref_noise_vec, ref_class_vec), axis=1)).float().cuda()
+    evc_clas_tsr = torch.from_numpy(eigvects_clas[:, ::-1].copy()).float().cuda()
+    evc_nois_tsr = torch.from_numpy(eigvects_nois[:, ::-1].copy()).float().cuda()
+    
+    data = np.load(join(summary_dir, "noise_ImDist_root_data.npz"))
+    xtick_arr = data["xtick_arr"]
+    eiglist_noise = data["eiglist"]
+    for i, eigid in enumerate(eiglist_noise):
+        tan_vec = torch.cat((evc_nois_tsr[:, eigid:eigid + 1].t(), torch.zeros(1, 128).cuda()), dim=1)
+        xticks_row = xtick_arr[i, :]
+        imgs, _, _, _ = subsampled_img_row(ref_vect, tan_vec, targ_val, xticks_row, unit=0.08, density=6)
+        createSinuMovie(imgs, movie_dir, savenm="%s_eig%d_short" % (space, eigid), fps=20)
+    
+    space = "class"
+    data = np.load(join(summary_dir, "class_ImDist_root_data.npz"))
+    xtick_arr = data["xtick_arr"]
+    eiglist_class = data["eiglist"]
+    for i, eigid in enumerate(eiglist_class):
+        tan_vec = torch.cat((torch.zeros(1, 128).cuda(), evc_clas_tsr[:, eigid:eigid + 1].t()), dim=1)
+        xticks_row = xtick_arr[i, :]
+        imgs, _, _, _ = subsampled_img_row(ref_vect, tan_vec, targ_val, xticks_row, unit=0.08, density=6)
+        createSinuMovie(imgs, movie_dir, savenm="%s_eig%d_short" % (space, eigid), fps=20)
 #%%
 ##% Interpolation in the class space
 #codes_all = []
