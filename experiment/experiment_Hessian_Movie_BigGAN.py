@@ -12,7 +12,7 @@ Find important Nuisanced + Class transformations in Noise + Class space for a Bi
 # Put the backup folder and the thread to analyze here 
 #backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-07-22-10-14-22"
 # backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2020-08-06-10-18-55"#2020-08-04-09-54-25"#
-backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-10-05-09-45-03"
+backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-10-16-11-21-49"
 threadid = 1
 
 score_rank_avg = False  # If True, it will try to read "scores_record.mat", from the backup folder and read "scores_record"
@@ -462,7 +462,8 @@ else:  # exact_distance by line search
     img_names = []
     tick_labels = list(-targ_val[::-1]) + [0] + list(targ_val)  # -0.5, -0.4 ...  0.4, 0.5
     t0 = time()
-    eiglist_noise = [0, 1, 2, 3, 4, 5, 6, 8, 10, 20, 30, 40, ]#[0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 20, 30, 40, 50, 60, 70, 80]
+    # eiglist_noise = [0, 1, 2, 3, 4, 5, 6, 8, 10, 20, 30, 40, ]#[0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 20, 30, 40, 50, 60, 70, 80]
+    eiglist_noise = [0, 1, 2, 4, 6, 8, 10, 20, ]
     for eigid in tqdm(eiglist_noise):  # range(128):  # #
         if space == "class":
             tan_vec = torch.cat((torch.zeros(1, 128).cuda(), evc_clas_tsr[:, eigid:eigid + 1].t()), dim=1)
@@ -537,7 +538,8 @@ else:  # exact_distance by line search
     img_names = []
     tick_labels = list(-targ_val[::-1]) + [0] + list(targ_val)
     t0 = time()
-    eiglist_class = [0, 1, 2, 3, 6, 9, 13, 17, 21, 25, 30, 40, 60, ] #[0, 1, 2, 3, 6, 9, 11, 13, 15, 17, 19, 21, 25, 40, 50, 60, 70, 80]
+    #eiglist_class = [0, 1, 2, 3, 6, 9, 13, 17, 21, 25, 30, 40, 60, ] #[0, 1, 2, 3, 6, 9, 11, 13, 15, 17, 19, 21, 25, 40, 50, 60, 70, 80]
+    eiglist_class = [0, 1, 2, 3, 6, 9, 17, 21, 30, 60, ]
     for eigid in tqdm(eiglist_class):  # [0,1,2,3,4,5,6,7,8,10,20,30,
         # 40]:#
         if space == "class":
@@ -618,8 +620,8 @@ if exact_distance:
     for i, eigid in enumerate(eiglist_noise):
         tan_vec = torch.cat((evc_nois_tsr[:, eigid:eigid + 1].t(), torch.zeros(1, 128).cuda()), dim=1)
         xticks_row = xtick_arr[i, :]
-        imgs, _, _, _ = subsampled_img_row(ref_vect, tan_vec, targ_val, xticks_row, unit=0.08, density=6)
-        createSinuMovie(imgs, movie_dir, savenm="%s_eig%d_short" % (space, eigid), fps=20)
+        imgs, _, _, _ = subsampled_img_row(ref_vect, tan_vec, targ_val, xticks_row, unit=0.08, density=5)
+        createSinuMovie(imgs, movie_dir, savenm="%s_eig%d_shortshort" % (space, eigid), fps=30)
     
     space = "class"
     data = np.load(join(summary_dir, "class_ImDist_root_data.npz"))
@@ -628,8 +630,8 @@ if exact_distance:
     for i, eigid in enumerate(eiglist_class):
         tan_vec = torch.cat((torch.zeros(1, 128).cuda(), evc_clas_tsr[:, eigid:eigid + 1].t()), dim=1)
         xticks_row = xtick_arr[i, :]
-        imgs, _, _, _ = subsampled_img_row(ref_vect, tan_vec, targ_val, xticks_row, unit=0.08, density=6)
-        createSinuMovie(imgs, movie_dir, savenm="%s_eig%d_short" % (space, eigid), fps=20)
+        imgs, _, _, _ = subsampled_img_row(ref_vect, tan_vec, targ_val, xticks_row, unit=0.08, density=5)
+        createSinuMovie(imgs, movie_dir, savenm="%s_eig%d_shortshort" % (space, eigid), fps=30)
 #%%
 ##% Interpolation in the class space
 #codes_all = []
