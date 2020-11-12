@@ -21,7 +21,7 @@ def hessian_compute(G, feat, ImDist, hessian_method="BackwardIter", cutoff=None,
             compute.
     """
     if cutoff is None: cutoff = feat.numel() // 2 - 1
-    ImDist.to(device)
+    if 'to' in dir(ImDist): ImDist.to(device)
     if hessian_method == "BackwardIter":
         metricHVP = GANHVPOperator(G, feat, ImDist, preprocess=preprocess)
         eigvals, eigvects = lanczos(metricHVP, num_eigenthings=cutoff, use_gpu=True)  # takes 113 sec on K20x cluster,
@@ -49,7 +49,7 @@ def hessian_compute(G, feat, ImDist, hessian_method="BackwardIter", cutoff=None,
 
 def layer_hessian_compute(feat, net, ):
     pass
-
+#%%
 if __name__ == "__main__":
     #%%
     import sys
