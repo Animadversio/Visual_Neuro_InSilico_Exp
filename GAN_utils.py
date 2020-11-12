@@ -277,8 +277,17 @@ class BigGAN_wrapper():#nn.Module
         self.BigGAN = BigGAN
         self.space = space
 
+    def sample_vector(self, sampn=1, class_id=None, device="cuda"):
+        if class_id is None:
+            refvec = torch.cat((0.7 * torch.randn(128, sampn).to(device),
+                                self.BigGAN.embeddings.weight[:, torch.randint(1000, size=(sampn,))].to(device),)).T
+        else:
+            refvec = torch.cat((0.7 * torch.randn(128, sampn).to(device),
+                                self.BigGAN.embeddings.weight[:, (class_id*torch.ones(sampn)).long()].to(device),)).T
+        return refvec
+
     def visualize(self, code, scale=1.0, truncation=0.7):
-        imgs = self.BigGAN.generator(code, truncation) # Matlab version default to 0.7
+        imgs = self.BigGAN.generator(code, truncation)  # Matlab version default to 0.7
         return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
 
     def visualize_batch_np(self, codes_all_arr, truncation=0.7, B=15):
@@ -427,6 +436,14 @@ class StyleGAN2_wrapper():#nn.Module
         self.mean_latent = mean_latent
         self.wspace = False
         self.random = True
+
+    def sample_vector(self, sampn=1, device="cuda"):
+        if not self.wspace:
+            refvec = torch.randn((sampn, 512)).to(device)
+        else:
+            refvec = torch.randn((sampn, 512)).to(device)
+            # self.StyleGAN
+        return refvec
 
     def select_trunc(self, truncation, truncation_mean=4096):
         self.truncation = truncation
