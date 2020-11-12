@@ -597,6 +597,10 @@ class PGGAN_wrapper():  # nn.Module
     def __init__(self, PGGAN, ):
         self.PGGAN = PGGAN
 
+    def sample_vector(self, sampn=1, device="cuda"):
+        refvec = torch.randn((sampn, 512)).to(device)
+        return refvec
+
     def visualize(self, code, scale=1.0):
         imgs = self.PGGAN.forward(code,)  # Matlab version default to 0.7
         return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
