@@ -7,7 +7,7 @@ import torch
 from GAN_hessian_compute import hessian_compute
 # from hessian_analysis_tools import scan_hess_npz, plot_spectra, average_H, compute_hess_corr, plot_consistency_example
 # from hessian_axis_visualize import vis_eigen_explore, vis_eigen_action, vis_eigen_action_row, vis_eigen_explore_row
-from GAN_utils import loadStyleGAN2, StyleGAN2_wrapper, loadBigGAN, BigGAN_wrapper
+from GAN_utils import loadStyleGAN2, StyleGAN2_wrapper, loadBigGAN, BigGAN_wrapper, loadPGGAN, PGGAN_wrapper
 import matplotlib.pylab as plt
 import matplotlib
 #%%
@@ -43,7 +43,7 @@ def Hessian_cmp(eigvals1, eigvecs1, H1, eigvals2, eigvecs2, H2, show=True):
     if show:
         print("Entrywise Correlation Hessian %.3f log Hessian %.3f (log)"% (H_cc, logH_cc,))
     return H_cc, logH_cc
-#%%
+#%
 saveroot = r"E:\Cluster_Backup"
 #%%
 BGAN = loadBigGAN()
@@ -69,8 +69,6 @@ for idx in range(100):
     np.savez(join(savedir,"Hess_cmp_%03d.npz"%idx), **{"eva_PS":eigvals_PS, "evc_PS":eigvects_PS, "H_PS":H_PS, 
                       "eva_SSIM":eigvals_SSIM, "evc_SSIM":eigvects_SSIM, "H_SSIM":H_SSIM, 
                       "eva_MSE":eigvals_MSE, "evc_MSE":eigvects_MSE, "H_MSE":H_MSE,})
-    if idx == 2:
-        break
 
 np.savez(join(savedir, "H_cmp_stat.npz"), MSE_stat=MSE_stat_col, SSIM_stat=SSIM_stat_col)
 MSE_stat_tab = pd.DataFrame(MSE_stat_col, columns=["id", "cc", "logcc", "reg_slop", "reg_intcp", "reg_log_slop", "reg_log_intcp", "H_cc", "logH_cc"])
@@ -78,11 +76,9 @@ MSE_stat_tab.to_csv(join(savedir, "H_cmp_MSE_stat.csv"))
 SSIM_stat_tab = pd.DataFrame(SSIM_stat_col, columns=["id", "cc", "logcc", "reg_slop", "reg_intcp", "reg_log_slop", "reg_log_intcp", "H_cc", "logH_cc"])
 SSIM_stat_tab.to_csv(join(savedir, "H_cmp_SSIM_stat.csv"))
 #%%
-
 modelsnm = "Face256"
 SGAN = loadStyleGAN2("ffhq-256-config-e-003810.pt", size=256,)
-SG = StyleGAN2_wrapper(SGAN, )
-saveroot = r"E:\Cluster_Backup"
+G = StyleGAN2_wrapper(SGAN, )
 savedir = join(saveroot, "ImDist_cmp\\StyleGAN2\\Face256")
 os.makedirs(savedir, exist_ok=True)
 SSIM_stat_col = []
@@ -104,8 +100,6 @@ for idx in range(100):
     np.savez(join(savedir,"Hess_cmp_%03d.npz"%idx), **{"eva_PS":eigvals_PS, "evc_PS":eigvects_PS, "H_PS":H_PS,
                       "eva_SSIM":eigvals_SSIM, "evc_SSIM":eigvects_SSIM, "H_SSIM":H_SSIM,
                       "eva_MSE":eigvals_MSE, "evc_MSE":eigvects_MSE, "H_MSE":H_MSE,})
-    if idx == 2:
-        break
 
 np.savez(join(savedir, "H_cmp_stat.npz"), MSE_stat=MSE_stat_col, SSIM_stat=SSIM_stat_col)
 MSE_stat_tab = pd.DataFrame(MSE_stat_col, columns=["id", "cc", "logcc", "reg_slop", "reg_intcp", "reg_log_slop", "reg_log_intcp", "H_cc", "logH_cc"])
