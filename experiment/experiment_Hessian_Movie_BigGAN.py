@@ -12,7 +12,7 @@ Find important Nuisanced + Class transformations in Noise + Class space for a Bi
 # Put the backup folder and the thread to analyze here 
 #backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-07-22-10-14-22"
 # backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2020-08-06-10-18-55"#2020-08-04-09-54-25"#
-backup_dir = r"E:\Monkey_Data\2020-09-04-Alfa-01\2020-09-04-Alfa-01\2020-09-04-12-06-08"
+backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-10-16-11-21-49"
 threadid = 1
 
 score_rank_avg = False  # If True, it will try to read "scores_record.mat", from the backup folder and read "scores_record"
@@ -177,24 +177,24 @@ def Hess_img_distmat(ImDist, img_all, nrow=11):
         distmat[irow, :]=dists.cpu()
     return distmat
 #%% Utility functions to create movies from a row of interpolation.
-def subsampled_img_row(ref_vect, tan_vec, targ_val, xticks_row, unit = 0.08):
+def subsampled_img_row(ref_vect, tan_vec, targ_val, xticks_row, unit=0.08, density=11):
     targ_val_all = list(targ_val[::-1]) + [0] + list(targ_val)
     subsamp_ticks = []
     targ_ticks = []
     for i in range(len(targ_val_all)-1):
-        seg = np.linspace(xticks_row[i], xticks_row[i+1], int(abs((targ_val_all[i] - targ_val_all[i+1]))/unit * 6) , endpoint=False)
-        tseg = np.linspace(targ_val_all[i], targ_val_all[i+1], int(abs((targ_val_all[i] - targ_val_all[i+1]))/unit * 6) , endpoint=False)
+        seg = np.linspace(xticks_row[i], xticks_row[i+1], int(abs((targ_val_all[i] - targ_val_all[i+1]))/unit * density) , endpoint=False)
+        tseg = np.linspace(targ_val_all[i], targ_val_all[i+1], int(abs((targ_val_all[i] - targ_val_all[i+1]))/unit * density) , endpoint=False)
         subsamp_ticks.extend(list(seg))
         targ_ticks.extend(list(tseg))
     subsamp_ticks.append(xticks_row[-1])
     targ_ticks.append(targ_val_all[-1])
     # codes_row = ref_vect + torch.tensor(subsamp_ticks).unsqueeze(1).float().cuda() @ tan_vec.cuda()
     codes_row = ref_vect.cpu().numpy() + np.array([subsamp_ticks]).T @ tan_vec.cpu().numpy()
-    imgs = G.render(codes_row)
+    imgs = G.render(codes_row, B=8)
     return imgs, subsamp_ticks, targ_ticks, codes_row
 
-def createSinuMovie(imgs, movdir="", savenm="eig"):
-    out = cv2.VideoWriter(join(movdir, "%s.avi"%savenm), cv2.VideoWriter_fourcc(*'XVID'), 10, imgs[0].shape[0:2])
+def createSinuMovie(imgs, movdir="", savenm="eig", fps=20):
+    out = cv2.VideoWriter(join(movdir, "%s.avi"%savenm), cv2.VideoWriter_fourcc(*'XVID'), fps, imgs[0].shape[0:2])
     fN = len(imgs)
     centi = fN // 2
     for fi in [*range(centi, fN)] + [*range(fN - 1, -1, -1)] + [*range(0, centi+1)]:
@@ -211,6 +211,7 @@ summary_dir = join(backup_dir,"Hess_imgs","summary")
 movie_dir = join(backup_dir,"Hess_imgs","Movie")
 os.makedirs(newimg_dir,exist_ok=True)
 os.makedirs(summary_dir,exist_ok=True)
+os.makedirs(movie_dir,exist_ok=True)
 
 print("Loading the codes from experiment folder %s", backup_dir)
 evo_codes_all, generations = load_codes_mat(backup_dir, threadnum=threadid) 
@@ -329,6 +330,8 @@ if Hess_method == "BP":
     H_clas = get_full_hessian(dsim, classvec)  # 39.3 sec to compute a Hessian.
     eigvals_clas, eigvects_clas = np.linalg.eigh(H_clas)  # 75 ms
     classvec.requires_grad_(False)
+    del dsim, imgs2, imgs1
+    torch.cuda.empty_cache()
     if Hess_all:
         np.savez(join(summary_dir, "Hess_mat.npz"), H=H, eigvals=eigvals, eigvects=eigvects, 
              H_clas=H_clas, eigvals_clas=eigvals_clas, eigvects_clas=eigvects_clas, 
@@ -339,7 +342,6 @@ if Hess_method == "BP":
              H_clas=H_clas, eigvals_clas=eigvals_clas, eigvects_clas=eigvects_clas, 
              H_nois=H_nois, eigvals_nois=eigvals_nois, eigvects_nois=eigvects_nois, 
              vect=ref_vect.cpu().numpy(), noisevec=noisevec.cpu().numpy(), classvec=classvec.cpu().numpy())
-
 elif Hess_method == "BackwardIter":
     print("Computing Hessian Decomposition Through Lanczos decomposition on Backward HVP operator.")
     feat = torch.from_numpy(sphere_norm * PC1_vect).float().requires_grad_(False).cuda()
@@ -382,6 +384,8 @@ if Hess_all:
 
 #%% Do interpolation along each axes
 #%%
+#classvec = torch.from_numpy(ref_class_vec).float().cuda()  # embed_mat[:, class_id:class_id+1].cuda().T
+#noisevec = torch.from_numpy(ref_noise_vec).float().cuda()
 if not exact_distance:
     #% Interpolation in the class space, but inversely scale the step size w.r.t. eigenvalue
     codes_all = []
@@ -458,7 +462,8 @@ else:  # exact_distance by line search
     img_names = []
     tick_labels = list(-targ_val[::-1]) + [0] + list(targ_val)  # -0.5, -0.4 ...  0.4, 0.5
     t0 = time()
-    eiglist_noise = [0, 1, 2, 3, 4, 5, 6, 8, 10, 20, 30, 40, ]#[0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 20, 30, 40, 50, 60, 70, 80]
+    # eiglist_noise = [0, 1, 2, 3, 4, 5, 6, 8, 10, 20, 30, 40, ]#[0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 20, 30, 40, 50, 60, 70, 80]
+    eiglist_noise = [0, 1, 2, 4, 6, 8, 10, 20, ]
     for eigid in tqdm(eiglist_noise):  # range(128):  # #
         if space == "class":
             tan_vec = torch.cat((torch.zeros(1, 128).cuda(), evc_clas_tsr[:, eigid:eigid + 1].t()), dim=1)
@@ -478,9 +483,9 @@ else:  # exact_distance by line search
         vecs_col.append(vecs_row.cpu().numpy())
         img_names.extend("noise_eig%d_lin%.2f.jpg" % (eigid, dist) for dist in tick_labels)  # dsim_row)
         imgall = imgrow if imgall is None else torch.cat((imgall, imgrow))
-
-        imgs, _, _, _ = subsampled_img_row(ref_vect, tan_vec, targ_val, xticks_row, unit=0.08)
-        createSinuMovie(imgs, movie_dir, savenm="%s_eig%d" % (space, eigid))
+        # Subsample the exploration and visualize the images on the line. ANd then render it into a movie. 
+        imgs, _, _, _ = subsampled_img_row(ref_vect, tan_vec, targ_val, xticks_row, unit=0.08, density=5)
+        createSinuMovie(imgs, movie_dir, savenm="%s_eig%d_shortshort" % (space, eigid), fps=30)
 
     mtg1 = ToPILImage()(make_grid(imgall, nrow=2*len(target_distance)+1).cpu())  # 20sec for 13 rows not bad
     mtg1.show()
@@ -533,7 +538,8 @@ else:  # exact_distance by line search
     img_names = []
     tick_labels = list(-targ_val[::-1]) + [0] + list(targ_val)
     t0 = time()
-    eiglist_class = [0, 1, 2, 3, 6, 9, 13, 17, 21, 25, 30, 40, 60, ] #[0, 1, 2, 3, 6, 9, 11, 13, 15, 17, 19, 21, 25, 40, 50, 60, 70, 80]
+    #eiglist_class = [0, 1, 2, 3, 6, 9, 13, 17, 21, 25, 30, 40, 60, ] #[0, 1, 2, 3, 6, 9, 11, 13, 15, 17, 19, 21, 25, 40, 50, 60, 70, 80]
+    eiglist_class = [0, 1, 2, 3, 6, 9, 17, 21, 30, 60, ]
     for eigid in tqdm(eiglist_class):  # [0,1,2,3,4,5,6,7,8,10,20,30,
         # 40]:#
         if space == "class":
@@ -553,11 +559,10 @@ else:  # exact_distance by line search
         vecs_col.append(vecs_row.cpu().numpy())
         img_names.extend(
             "class_eig%d_lin%.2f.jpg" % (eigid, dist) for dist in tick_labels)  # np.linspace(-0.4, 0.4,11))
-        #
         imgall = imgrow if imgall is None else torch.cat((imgall, imgrow))
-
-        imgs, _, _, _ = subsampled_img_row(ref_vect, tan_vec, targ_val, xticks_row, unit=0.08)
-        createSinuMovie(imgs, movie_dir, savenm="%s_eig%d" % (space, eigid))
+        # Subsample the exploration and visualize the images on the line. ANd then render it into a movie. 
+        imgs, _, _, _ = subsampled_img_row(ref_vect, tan_vec, targ_val, xticks_row, unit=0.08, density=5)
+        createSinuMovie(imgs, movie_dir, savenm="%s_eig%d_shortshort" % (space, eigid), fps=30)
 
     mtg2 = ToPILImage()(make_grid(imgall, nrow=2*len(target_distance)+1).cpu())  # 20sec for 13 rows not bad
     mtg2.show()
@@ -601,7 +606,32 @@ else:  # exact_distance by line search
     plt.title("Perceptual distance metric along each row\nnoise space")
     plt.savefig(join(summary_dir, "class_space_distmat.jpg"))
     plt.show()
-#%%
+#%% Regenerate the movies with different fps
+if exact_distance:
+    space = "noise"
+#    targ_val = np.array(target_distance)
+    ref_vect = torch.from_numpy(np.concatenate((ref_noise_vec, ref_class_vec), axis=1)).float().cuda()
+    evc_clas_tsr = torch.from_numpy(eigvects_clas[:, ::-1].copy()).float().cuda()
+    evc_nois_tsr = torch.from_numpy(eigvects_nois[:, ::-1].copy()).float().cuda()
+    
+    data = np.load(join(summary_dir, "noise_ImDist_root_data.npz"))
+    xtick_arr = data["xtick_arr"]
+    eiglist_noise = data["eiglist"]
+    for i, eigid in enumerate(eiglist_noise):
+        tan_vec = torch.cat((evc_nois_tsr[:, eigid:eigid + 1].t(), torch.zeros(1, 128).cuda()), dim=1)
+        xticks_row = xtick_arr[i, :]
+        imgs, _, _, _ = subsampled_img_row(ref_vect, tan_vec, targ_val, xticks_row, unit=0.08, density=5)
+        createSinuMovie(imgs, movie_dir, savenm="%s_eig%d_shortshort" % (space, eigid), fps=30)
+    
+    space = "class"
+    data = np.load(join(summary_dir, "class_ImDist_root_data.npz"))
+    xtick_arr = data["xtick_arr"]
+    eiglist_class = data["eiglist"]
+    for i, eigid in enumerate(eiglist_class):
+        tan_vec = torch.cat((torch.zeros(1, 128).cuda(), evc_clas_tsr[:, eigid:eigid + 1].t()), dim=1)
+        xticks_row = xtick_arr[i, :]
+        imgs, _, _, _ = subsampled_img_row(ref_vect, tan_vec, targ_val, xticks_row, unit=0.08, density=5)
+        createSinuMovie(imgs, movie_dir, savenm="%s_eig%d_shortshort" % (space, eigid), fps=30)
 #%%
 ##% Interpolation in the class space
 #codes_all = []
