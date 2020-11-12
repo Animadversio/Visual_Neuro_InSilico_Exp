@@ -7,6 +7,8 @@ Wrapper and loader of various GANs are listed, currently we have
 * BigGAN
 * BigBiGAN
 * StyleGAN2
+* PGGAN
+* DCGAN
 """
 #%%
 # import torch
