@@ -27,9 +27,9 @@ def MSE(im1, im2):
 #%% Utility functions to quantify relationship between 2 eigvals or 2 Hessians.
 def spectra_cmp(eigvals1, eigvals2, show=True):
     cc = np.corrcoef((eigvals1), (eigvals2))[0, 1]
-    logcc = np.corrcoef(np.log10(eigvals1), np.log10(eigvals2))[0, 1]
+    logcc = np.corrcoef(np.log10(np.abs(eigvals1)+1E-8), np.log10(np.abs(eigvals2)+1E-8))[0, 1]
     reg_coef = np.polyfit((eigvals1), (eigvals2), 1)
-    logreg_coef = np.polyfit(np.log10(eigvals1), np.log10(eigvals2), 1)
+    logreg_coef = np.polyfit(np.log10(np.abs(eigvals1)+1E-8), np.log10(np.abs(eigvals2)+1E-8), 1)
     if show:
         print("Correlation %.3f (lin) %.3f (log). Regress Coef [%.2f, %.2f] (lin) [%.2f, %.2f] (log)"%
             (cc, logcc, *tuple(reg_coef), *tuple(logreg_coef)))
@@ -37,9 +37,9 @@ def spectra_cmp(eigvals1, eigvals2, show=True):
 
 def Hessian_cmp(eigvals1, eigvecs1, H1, eigvals2, eigvecs2, H2, show=True):
     H_cc = np.corrcoef(H1.flatten(), H2.flatten())[0,1] 
-    logH1 = eigvecs1 * np.log10(np.abs(eigvals1))[np.newaxis,:] @ eigvecs1
-    logH2 = eigvecs2 * np.log10(np.abs(eigvals2))[np.newaxis,:] @ eigvecs2
-    logH_cc = np.corrcoef(logH1.flatten(), logH2.flatten())[0,1] 
+    logH1 = eigvecs1 * np.log10(np.abs(eigvals1))[np.newaxis, :] @ eigvecs1.T
+    logH2 = eigvecs2 * np.log10(np.abs(eigvals2))[np.newaxis, :] @ eigvecs2.T
+    logH_cc = np.corrcoef(logH1.flatten(), logH2.flatten())[0, 1]
     if show:
         print("Entrywise Correlation Hessian %.3f log Hessian %.3f (log)"% (H_cc, logH_cc,))
     return H_cc, logH_cc
@@ -119,3 +119,45 @@ im2 = G.visualize(torch.randn(1,256).cuda())
 D(im1, im2)
 refvec = 0.1 * torch.randn(1,256)
 eigvals, eigvects, H = hessian_compute(G, refvec, D, hessian_method="BP")
+#%%
+
+def top_eigvec_corr(eigvects1, eigvects2, eignum=10):
+    cc_arr = []
+    for eigi in range(eignum):
+        cc = np.corrcoef(eigvects1[:, -eigi-1], eigvects2[:, -eigi-1])[0, 1]
+        cc_arr.append(cc)
+    return np.abs(cc_arr)
+#%%
+from glob import glob
+fullfns = glob(join(savedir, "Hess_cmp_*.npz"))
+npzpatt = "Hess_cmp_%03d.npz"
+SSIM_stat_col = []
+MSE_stat_col = []
+for idx, fn in enumerate(fullfns):
+    assert (npzpatt % idx) in fn
+    data = np.load(fn)
+    eigvals_PS, eigvects_PS, H_PS = data["eva_PS"], data["evc_PS"], data["H_PS"]
+    eigvals_SSIM, eigvects_SSIM, H_SSIM = data["eva_SSIM"], data["evc_SSIM"], data["H_SSIM"]
+    eigvals_MSE, eigvects_MSE, H_MSE = data["eva_MSE"], data["evc_MSE"], data["H_MSE"]
+    print("SSIM - LPIPS comparison")
+    cc_SSIM, logcc_SSIM, reg_coef_SSIM, logreg_coef_SSIM = spectra_cmp(-eigvals_SSIM[::-1], eigvals_PS, show=True)
+    H_cc_SSIM, logH_cc_SSIM = Hessian_cmp(-eigvals_SSIM[::-1], eigvects_SSIM[:, ::-1], -H_SSIM, eigvals_PS, eigvects_PS,
+                                          H_PS, show=True)
+    evc_cc_SSIM = top_eigvec_corr(eigvects_SSIM[:, ::-1], eigvects_PS, eignum=10)
+    SSIM_stat_col.append((idx, cc_SSIM, logcc_SSIM, *tuple(reg_coef_SSIM), *tuple(logreg_coef_SSIM),
+                          H_cc_SSIM, logH_cc_SSIM, *tuple(evc_cc_SSIM)))
+    print("MSE - LPIPS comparison")
+    cc_MSE, logcc_MSE, reg_coef_MSE, logreg_coef_MSE = spectra_cmp(eigvals_MSE, eigvals_PS, show=True)
+    H_cc_MSE, logH_cc_MSE = Hessian_cmp(eigvals_MSE, eigvects_MSE, H_MSE, eigvals_PS, eigvects_PS, H_PS, show=True)
+    evc_cc_MSE = top_eigvec_corr(eigvects_MSE, eigvects_PS, eignum=10)
+    MSE_stat_col.append((idx, cc_MSE, logcc_MSE, *tuple(reg_coef_MSE), *tuple(logreg_coef_MSE), H_cc_MSE,
+                         logH_cc_MSE, *tuple(evc_cc_MSE)))
+    
+np.savez(join(savedir, "H_cmp_stat.npz"), MSE_stat=MSE_stat_col, SSIM_stat=SSIM_stat_col)
+MSE_stat_tab = pd.DataFrame(MSE_stat_col, columns=["id", "cc", "logcc", "reg_slop", "reg_intcp", "reg_log_slop", "reg_log_intcp",
+                                       "H_cc", "logH_cc"] + ["eigvec%d_cc" % i for i in range(10)])
+MSE_stat_tab.to_csv(join(savedir, "H_cmp_MSE_stat.csv"))
+SSIM_stat_tab = pd.DataFrame(SSIM_stat_col, columns=["id", "cc", "logcc", "reg_slop", "reg_intcp", "reg_log_slop", "reg_log_intcp",
+                                       "H_cc", "logH_cc"] + ["eigvec%d_cc" % i for i in range(10)])
+SSIM_stat_tab.to_csv(join(savedir, "H_cmp_SSIM_stat.csv"))
+
