@@ -43,7 +43,26 @@ def Hessian_cmp(eigvals1, eigvecs1, H1, eigvals2, eigvecs2, H2, show=True):
     if show:
         print("Entrywise Correlation Hessian %.3f log Hessian %.3f (log)"% (H_cc, logH_cc,))
     return H_cc, logH_cc
-#%
+
+def top_eigvec_corr(eigvects1, eigvects2, eignum=10):
+    cc_arr = []
+    for eigi in range(eignum):
+        cc = np.corrcoef(eigvects1[:, -eigi-1], eigvects2[:, -eigi-1])[0, 1]
+        cc_arr.append(cc)
+    return np.abs(cc_arr)
+
+def eigvec_H_corr(eigvals1, eigvects1, H1, eigvals2, eigvects2, H2, show=True):
+    vHv12 = np.diag(eigvects1.T @ H2 @ eigvects1)
+    vHv21 = np.diag(eigvects2.T @ H1 @ eigvects2)
+    cc_12 = np.corrcoef(vHv12, eigvals2)[0, 1]
+    cclog_12 = np.corrcoef(np.log(np.abs(vHv12)+1E-8), np.log(np.abs(eigvals2+1E-8)))[0, 1]
+    cc_21 = np.corrcoef(vHv21, eigvals1)[0, 1]
+    cclog_21 = np.corrcoef(np.log(np.abs(vHv21)+1E-8), np.log(np.abs(eigvals1+1E-8)))[0, 1]
+    if show:
+        print("Applying eigvec 1->2: corr %.3f (lin) %.3f (log)"%(cc_12, cclog_12))
+        print("Applying eigvec 2->1: corr %.3f (lin) %.3f (log)"%(cc_21, cclog_21))
+    return cc_12, cclog_12, cc_21, cclog_21
+#%%
 saveroot = r"E:\Cluster_Backup"
 #%%
 BGAN = loadBigGAN()
@@ -68,6 +87,38 @@ for idx in range(100):
     MSE_stat_col.append((idx, cc_MSE, logcc_MSE, *tuple(reg_coef_MSE), *tuple(logreg_coef_MSE), H_cc_MSE, logH_cc_MSE))
     np.savez(join(savedir,"Hess_cmp_%03d.npz"%idx), **{"eva_PS":eigvals_PS, "evc_PS":eigvects_PS, "H_PS":H_PS, 
                       "eva_SSIM":eigvals_SSIM, "evc_SSIM":eigvects_SSIM, "H_SSIM":H_SSIM, 
+                      "eva_MSE":eigvals_MSE, "evc_MSE":eigvects_MSE, "H_MSE":H_MSE,})
+
+np.savez(join(savedir, "H_cmp_stat.npz"), MSE_stat=MSE_stat_col, SSIM_stat=SSIM_stat_col)
+MSE_stat_tab = pd.DataFrame(MSE_stat_col, columns=["id", "cc", "logcc", "reg_slop", "reg_intcp", "reg_log_slop", "reg_log_intcp", "H_cc", "logH_cc"])
+MSE_stat_tab.to_csv(join(savedir, "H_cmp_MSE_stat.csv"))
+SSIM_stat_tab = pd.DataFrame(SSIM_stat_col, columns=["id", "cc", "logcc", "reg_slop", "reg_intcp", "reg_log_slop", "reg_log_intcp", "H_cc", "logH_cc"])
+SSIM_stat_tab.to_csv(join(savedir, "H_cmp_SSIM_stat.csv"))
+del G, BGAN
+torch.cuda.empty_cache()
+#%%
+PGGAN = loadPGGAN()
+G = PGGAN_wrapper(PGGAN)
+savedir = join(saveroot, "ImDist_cmp\\PGGAN")
+os.makedirs(savedir, exist_ok=True)
+SSIM_stat_col = []
+MSE_stat_col = []
+for idx in range(100):
+    refvec = G.sample_vector(1, device="cuda")# 0.1 * torch.randn(1, 256)
+    eigvals_PS, eigvects_PS, H_PS = hessian_compute(G, refvec, ImDist, hessian_method="BP")
+    eigvals_SSIM, eigvects_SSIM, H_SSIM = hessian_compute(G, refvec, D, hessian_method="BP")
+    eigvals_MSE, eigvects_MSE, H_MSE = hessian_compute(G, refvec, MSE, hessian_method="BP")
+    #% eigvals_L1, eigvects_L1, H_L1 = hessian_compute(G, refvec, L1, hessian_method="BP")
+    print("SSIM - LPIPS comparison")
+    cc_SSIM, logcc_SSIM, reg_coef_SSIM, logreg_coef_SSIM = spectra_cmp(-eigvals_SSIM[::-1], eigvals_PS, show=True)
+    H_cc_SSIM, logH_cc_SSIM = Hessian_cmp(-eigvals_SSIM[::-1], eigvects_SSIM, -H_SSIM, eigvals_PS, eigvects_PS, H_PS, show=True)
+    SSIM_stat_col.append((idx, cc_SSIM, logcc_SSIM, *tuple(reg_coef_SSIM), *tuple(logreg_coef_SSIM), H_cc_SSIM, logH_cc_SSIM))
+    print("MSE - LPIPS comparison")
+    cc_MSE, logcc_MSE, reg_coef_MSE, logreg_coef_MSE = spectra_cmp(eigvals_MSE, eigvals_PS, show=True)
+    H_cc_MSE, logH_cc_MSE = Hessian_cmp(eigvals_MSE, eigvects_MSE, H_MSE, eigvals_PS, eigvects_PS, H_PS, show=True)
+    MSE_stat_col.append((idx, cc_MSE, logcc_MSE, *tuple(reg_coef_MSE), *tuple(logreg_coef_MSE), H_cc_MSE, logH_cc_MSE))
+    np.savez(join(savedir,"Hess_cmp_%03d.npz"%idx), **{"eva_PS":eigvals_PS, "evc_PS":eigvects_PS, "H_PS":H_PS,
+                      "eva_SSIM":eigvals_SSIM, "evc_SSIM":eigvects_SSIM, "H_SSIM":H_SSIM,
                       "eva_MSE":eigvals_MSE, "evc_MSE":eigvects_MSE, "H_MSE":H_MSE,})
 
 np.savez(join(savedir, "H_cmp_stat.npz"), MSE_stat=MSE_stat_col, SSIM_stat=SSIM_stat_col)
@@ -120,27 +171,12 @@ D(im1, im2)
 refvec = 0.1 * torch.randn(1,256)
 eigvals, eigvects, H = hessian_compute(G, refvec, D, hessian_method="BP")
 #%%
-def top_eigvec_corr(eigvects1, eigvects2, eignum=10):
-    cc_arr = []
-    for eigi in range(eignum):
-        cc = np.corrcoef(eigvects1[:, -eigi-1], eigvects2[:, -eigi-1])[0, 1]
-        cc_arr.append(cc)
-    return np.abs(cc_arr)
-
-def eigvec_H_corr(eigvals1, eigvects1, H1, eigvals2, eigvects2, H2, show=True):
-    vHv12 = np.diag(eigvects1.T @ H2 @ eigvects1)
-    vHv21 = np.diag(eigvects2.T @ H1 @ eigvects2)
-    cc_12 = np.corrcoef(vHv12, eigvals2)[0, 1]
-    cclog_12 = np.corrcoef(np.log(np.abs(vHv12)+1E-8), np.log(np.abs(eigvals2+1E-8)))[0, 1]
-    cc_21 = np.corrcoef(vHv21, eigvals1)[0, 1]
-    cclog_21 = np.corrcoef(np.log(np.abs(vHv21)+1E-8), np.log(np.abs(eigvals1+1E-8)))[0, 1]
-    if show:
-        print("Applying eigvec 1->2: corr %.3f (lin) %.3f (log)"%(cc_12, cclog_12))
-        print("Applying eigvec 2->1: corr %.3f (lin) %.3f (log)"%(cc_21, cclog_21))
-    return cc_12, cclog_12, cc_21, cclog_21
-
 #%%
 from glob import glob
+
+# savedir = join(saveroot, "ImDist_cmp\\BigGAN")
+savedir = join(saveroot, "ImDist_cmp\\PGGAN")
+
 fullfns = glob(join(savedir, "Hess_cmp_*.npz"))
 npzpatt = "Hess_cmp_%03d.npz"
 SSIM_stat_col = []
@@ -154,14 +190,14 @@ for idx, fn in enumerate(fullfns):
 
     print("SSIM - LPIPS comparison")
     cc_SSIM, logcc_SSIM, reg_coef_SSIM, logreg_coef_SSIM = spectra_cmp(-eigvals_SSIM[::-1], eigvals_PS, show=True)
-    H_cc_SSIM, logH_cc_SSIM = Hessian_cmp(-eigvals_SSIM[::-1], eigvects_SSIM[:, ::-1], -H_SSIM, 
+    H_cc_SSIM, logH_cc_SSIM = Hessian_cmp(-eigvals_SSIM[::-1], eigvects_SSIM[:, ::-1], -H_SSIM,
                                         eigvals_PS, eigvects_PS, H_PS, show=True)
-    xcc_SSIM2PS, xlogcc_SSIM2PS, xcc_PS2SSIM, xlogcc_PS2SSIM = eigvec_H_corr(-eigvals_SSIM[::-1], eigvects_SSIM[:, ::-1], -H_SSIM, 
+    xcc_SSIM2PS, xlogcc_SSIM2PS, xcc_PS2SSIM, xlogcc_PS2SSIM = eigvec_H_corr(-eigvals_SSIM[::-1], eigvects_SSIM[:, ::-1], -H_SSIM,
                                         eigvals_PS, eigvects_PS, H_PS, show=True)
     evc_cc_SSIM = top_eigvec_corr(eigvects_SSIM[:, ::-1], eigvects_PS, eignum=10)
     SSIM_stat_col.append((idx, cc_SSIM, logcc_SSIM, *tuple(reg_coef_SSIM), *tuple(logreg_coef_SSIM),
                           H_cc_SSIM, logH_cc_SSIM, xcc_SSIM2PS, xlogcc_SSIM2PS, xcc_PS2SSIM, xlogcc_PS2SSIM, *tuple(evc_cc_SSIM)))
-    
+
     print("MSE - LPIPS comparison")
     cc_MSE, logcc_MSE, reg_coef_MSE, logreg_coef_MSE = spectra_cmp(eigvals_MSE, eigvals_PS, show=True)
     H_cc_MSE, logH_cc_MSE = Hessian_cmp(eigvals_MSE, eigvects_MSE, H_MSE, eigvals_PS, eigvects_PS, H_PS, show=True)
