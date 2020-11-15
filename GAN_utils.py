@@ -441,7 +441,8 @@ class StyleGAN2_wrapper():#nn.Module
         if not self.wspace:
             refvec = torch.randn((sampn, 512)).to(device)
         else:
-            refvec = torch.randn((sampn, 512)).to(device)
+            refvec_Z = torch.randn((sampn, 512)).cuda()
+            refvec = self.StyleGAN.style(refvec_Z).to(device)
             # self.StyleGAN
         return refvec
 
@@ -602,7 +603,7 @@ class PGGAN_wrapper():  # nn.Module
         return refvec
 
     def visualize(self, code, scale=1.0):
-        imgs = self.PGGAN.forward(code,)  # Matlab version default to 0.7
+        imgs = self.PGGAN.forward(code,)
         return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
 
     def visualize_batch_np(self, codes_all_arr, scale=1.0, B=50):

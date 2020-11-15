@@ -176,6 +176,7 @@ from glob import glob
 
 # savedir = join(saveroot, "ImDist_cmp\\BigGAN")
 savedir = join(saveroot, "ImDist_cmp\\PGGAN")
+savedir = join(saveroot, "ImDist_cmp\\StyleGAN2\\Face256")
 
 fullfns = glob(join(savedir, "Hess_cmp_*.npz"))
 npzpatt = "Hess_cmp_%03d.npz"
@@ -214,6 +215,25 @@ SSIM_stat_tab.to_csv(join(savedir, "H_cmp_SSIM_stat.csv"))
 MSE_stat_tab = pd.DataFrame(MSE_stat_col, columns=["id", "cc", "logcc", "reg_slop", "reg_intcp", "reg_log_slop", "reg_log_intcp",
                                        "H_cc", "logH_cc", "xcc_MSE2PS", "xlogcc_MSE2PS", "xcc_PS2MSE", "xlogcc_PS2MSE"] + ["eigvec%d_cc" % i for i in range(10)])
 MSE_stat_tab.to_csv(join(savedir, "H_cmp_MSE_stat.csv"))
-
-
+#%% Final Synopsis across GANs.
+GANdir_col = ["ImDist_cmp\\BigGAN", "ImDist_cmp\\PGGAN", "ImDist_cmp\\StyleGAN2\\Face256"]
+GANnms = ["BigGAN", "PGGAN", "StyleGAN2"]
+Stats_nms = ["H_cc", "logH_cc", "cc", "logcc", "xcc_MSE2PS", "xlogcc_MSE2PS", "reg_log_slop", "reg_log_intcp"]
+for GANnm, GANdir in zip(GANnms, GANdir_col):
+    print("\n%s MSE - PS" % GANnm, end="\t")
+    savedir = join(saveroot, GANdir)
+    tab = pd.read_csv(join(savedir, "H_cmp_MSE_stat.csv"))
+    meanstd_tab = pd.concat([tab.mean(axis=0), tab.std(axis=0)], 1).rename(columns={0: "mean", 1: "std"})
+    keystats = meanstd_tab.loc[
+        ["H_cc", "logH_cc", "cc", "logcc", "xcc_MSE2PS", "xlogcc_MSE2PS", "reg_log_slop", "reg_log_intcp"]]
+    # print(keystats)
+    for varnm, row in keystats.iterrows():
+        print("%.2f(%.2f)" % (row[0], row[1]), end="\t")
+    print("\n%s SSIM - PS" % GANnm, end="\t")
+    tab = pd.read_csv(join(savedir, "H_cmp_SSIM_stat.csv"))
+    meanstd_tab = pd.concat([tab.mean(axis=0), tab.std(axis=0)], 1).rename(columns={0:"mean",1:"std"})
+    keystats = meanstd_tab.loc[
+        ["H_cc", "logH_cc", "cc", "logcc", "xcc_SSIM2PS", "xlogcc_SSIM2PS", "reg_log_slop", "reg_log_intcp"]]
+    for varnm, row in keystats.iterrows():
+        print("%.2f(%.2f)" % (row[0], row[1]), end="\t")
 
