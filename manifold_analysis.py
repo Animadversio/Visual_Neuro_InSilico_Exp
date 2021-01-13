@@ -51,7 +51,7 @@ def fit_Kent(theta_arr, phi_arr, act_map):
     try:  # avoid fitting failure to crash the whole thing.
         param, pcov = curve_fit(KentFunc, Xin, fval,
                                 p0=[0, 0, pi / 2, 0.1, 0.1, 0.1],
-                                bounds=([-pi, -pi / 2, 0, -np.inf, 0, 0],
+                                bounds=([-pi, -pi / 2, 0, 0, 0, 0],
                                         [pi, pi / 2, pi, np.inf, np.inf, np.inf]))
         sigmas = np.diag(pcov) ** 0.5
         return param, sigmas
@@ -67,7 +67,7 @@ def fit_Kent_bsl(theta_arr, phi_arr, act_map):
     try:  # avoid fitting failure to crash the whole thing.
         param, pcov = curve_fit(KentFunc_bsl, Xin, fval,
                                 p0=[0, 0, pi / 2, 0.1, 0.1, 0.1, 0.001],
-                                bounds=([-pi, -pi / 2, 0, -np.inf, 0, 0, 0],
+                                bounds=([-pi, -pi / 2, 0, 0, 0, 0, 0],
                                         [pi, pi / 2, pi, np.inf, np.inf, np.inf, np.inf]))
         sigmas = np.diag(pcov) ** 0.5
         return param, sigmas
@@ -301,6 +301,14 @@ layers = ["conv2", "conv4", "conv7", "conv9", "conv13", "fc1", "fc2", "fc3"]
 netname = "densenet121"
 layers = ["bn1", "denseblock1", "transition1", "denseblock2", "transition2", "denseblock3", "transition3"]#, "fc1"
 #%%
+ang_step = 9
+theta_arr = np.arange(-90, 90.1, ang_step) / 180 * pi
+phi_arr = np.arange(-90, 90.1, ang_step) / 180 * pi
+result_dir = r"E:\OneDrive - Washington University in St. Louis\Artiphysiology\Manifold"
+netname = "vgg16"
+layers = ["conv2", "conv4", "conv7", "conv9", "conv13", "fc1", "fc2", "fc3"]
+param_col_arr, sigma_col_arr, stat_col_arr = fit_Kent_manifold_dataset(result_dir, netname, layers, baseline=True) #
+param_col_arr, sigma_col_arr, stat_col_arr = fit_Kent_manifold_dataset(result_dir, netname, layers, baseline=False) #
 
 #%%
 # netname = "caffe-net"
