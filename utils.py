@@ -7,10 +7,11 @@ from scipy.io import loadmat
 import numpy as np
 from PIL import Image
 from cv2 import imread, resize, INTER_CUBIC, INTER_AREA
-from Generator import Generator
+
 GAN_space = "fc6"
 generator = None
 def load_GAN(name=GAN_space):
+    from Generator import Generator
     generator = Generator(name=GAN_space)
     return generator
 

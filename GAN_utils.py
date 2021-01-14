@@ -82,7 +82,7 @@ RGB_mean = torch.tensor([123.0, 117.0, 104.0])
 RGB_mean = torch.reshape(RGB_mean, (1, 3, 1, 1))
 
 class upconvGAN(nn.Module):
-    def __init__(self, name="fc6", pretrained=True, shuffled=True):
+    def __init__(self, name="fc6", pretrained=True, shuffled=False):
         super(upconvGAN, self).__init__()
         self.name = name
         if name == "fc6" or name == "fc7":
