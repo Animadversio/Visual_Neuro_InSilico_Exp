@@ -240,7 +240,7 @@ def fit_Kent_manifold_dataset_new(result_dir, netname, layers, unit_arr, suffix=
         lay_sgm = []
         lay_stat = []
         savepath = join(result_dir, "%s_%s_manifold" % (netname, layers[i]))
-        for ch_i in tqdm(range(50)):
+        for ch_i in tqdm(range(1, 51)):
             ch_col = []
             ch_sgm = []
             ch_stat = []
@@ -310,6 +310,30 @@ layers = ["conv2", "conv4", "conv7", "conv9", "conv13", "fc1", "fc2", "fc3"]
 param_col_arr, sigma_col_arr, stat_col_arr = fit_Kent_manifold_dataset(result_dir, netname, layers, baseline=True) #
 param_col_arr, sigma_col_arr, stat_col_arr = fit_Kent_manifold_dataset(result_dir, netname, layers, baseline=False) #
 
+data_dir = r"E:\Monkey_Data\Generator_DB_Windows\data\with_CNN\resize_data"
+# netname = "caffe-net"
+# layers = ["conv1", "conv2", "conv3", "conv4", "conv5"]
+# unit_arr = [('caffe-net', 'conv1', 5, 28, 28),
+#             ('caffe-net', 'conv2', 5, 13, 13),
+#             ('caffe-net', 'conv3', 5, 7, 7),
+#             ('caffe-net', 'conv4', 5, 7, 7),
+#             ('caffe-net', 'conv5', 10, 7, 7), ]
+ang_step = 9
+theta_arr = np.arange(-90, 90.1, ang_step) / 180 * pi
+phi_arr = np.arange(-90, 90.1, ang_step) / 180 * pi
+netname = "vgg16"
+layers = ["conv2","conv3","conv4","conv5","conv6","conv7","conv10","conv12","conv13"]#,"conv9"
+unit_arr = [("vgg16", "conv2", 5, 112, 112),
+            ("vgg16", "conv3", 5, 56, 56),
+            ("vgg16", "conv4", 5, 56, 56),
+            ("vgg16", "conv5", 5, 28, 28),
+            ("vgg16", "conv6", 5, 28, 28),
+            ("vgg16", "conv7", 5, 28, 28),
+            #("vgg16", "conv9", 5, 14, 14), # data
+            ("vgg16", "conv10", 5, 14, 14),
+            ("vgg16", "conv12", 5, 7, 7),
+            ("vgg16", "conv13", 5, 7, 7), ]
+param_col_arr, sigma_col_arr, stat_col_arr = fit_Kent_manifold_dataset_new(data_dir, netname, layers, unit_arr, suffix="_orig", baseline=True)
 #%%
 # netname = "caffe-net"
 # layers = ["conv1", "conv2", "conv3", "conv4", "conv5", "fc6", "fc7", "fc8"]
