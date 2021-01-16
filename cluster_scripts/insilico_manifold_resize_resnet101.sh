@@ -9,12 +9,12 @@
 # will limit the number of jobs you can run per node, so only
 # increase it when necessary (i.e. the job gets killed for violating
 # the memory limit).
-#PBS -l nodes=1:ppn=1:gpus=1,walltime=12:00:00,mem=15gb
+#PBS -l nodes=1:ppn=1:gpus=1,walltime=23:00:00,mem=15gb
 
 # Specify the default queue for the fastest nodes
 #PBS -m be
 #PBS -q dque
-#PBS -t 1-10
+#PBS -t 1-12
 # Prepare the virtual env for python
 # export PATH=/act/Anaconda3-2.3.0/bin:${PATH}
 
