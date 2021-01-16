@@ -36,7 +36,7 @@ units = ("resnet101", ".layer3.Bottleneck22", 5, 7, 7);
 
 export unit_name="$(echo "$param_list" | head -n $PBS_ARRAYID | tail -1)"
 #$PBS_ARRAYID
-export python_code=`cat cluster_scripts/insilico_ResizeManifold_script.py`
+export python_code=`cat cluster_scripts/insilico_ResizeManifold_torch_script.py`
 
 python_code_full=$unit_name$'\n'$python_code
 echo "$python_code_full"
