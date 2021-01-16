@@ -422,6 +422,7 @@ class ExperimentManifold:
             img_subsp_list = [img_arr[i] for i in range(len(img_arr)) if i in idx_lin]
             fig = visualize_img_list(img_subsp_list, scores=scores[idx_lin], ncol=interv_n + 1, nrow=interv_n + 1, )
             fig.savefig(join(self.savedir, "%s_%s.png" % (title, self.explabel)))
+            plt.close(fig)
             scores = np.array(scores).reshape((2*interv_n+1, 2*interv_n+1))
             self.score_sum.append(scores)
             ax = figsum.add_subplot(1, len(subspace_list), spi + 1)

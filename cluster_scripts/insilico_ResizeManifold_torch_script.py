@@ -1,4 +1,8 @@
 # %% Preparation for RF computation.
+import matplotlib.pylab as plt
+plt.ioff()
+import matplotlib
+matplotlib.use('Agg')
 from insilico_Exp_torch import *
 import torchvision, torch
 # alexnet = torchvision.models.AlexNet()  # using the pytorch alexnet as proxy for caffenet.
@@ -16,9 +20,6 @@ import torchvision, torch
 # from insilico_Exp import *
 from time import time
 
-plt.ioff()
-import matplotlib
-matplotlib.use('Agg')
 # %%
 # units = ("vgg16", "conv10", 5, 14, 14);
 # layer_list = ["conv5", "conv4", "conv3", "conv1", "conv2"]  #
@@ -35,7 +36,7 @@ netname = units[0]
 layer = units[1]
 savedir = join(recorddir, "resize_data", "%s_%s_manifold-%s" % (netname, layer, GANspace))
 os.makedirs(savedir, exist_ok=True)
-for channel in range(1, 51):
+for channel in range(25, 76):
     if len(units) == 5:
         unit = (netname, layer, channel, units[3], units[4])
         unit_lab = "%s_%d_%d_%d" % (unit[1], unit[2], unit[3], unit[4])
@@ -58,12 +59,12 @@ for channel in range(1, 51):
     exp.analyze_traj()
     exp.visualize_trajectory()
     exp.visualize_best()
-    score_sum, _ = exp.run_manifold([(1, 2), (24, 25), (48, 49), "RND"], interval=9)
+    score_sum, figsum = exp.run_manifold([(1, 2), (24, 25), (48, 49), "RND"], interval=9)
+    plt.close(figsum)
     # np.save(join(savedir, "Manifold_score_%s_orig" % (unit_lab)), score_sum)
     # np.savez(join(savedir, "Manifold_set_%s_orig.npz" % (unit_lab)),
     #          Perturb_vec=exp.Perturb_vec, imgsize=exp.imgsize, corner=exp.corner,
     #          evol_score=exp.scores_all, evol_gen=exp.generations)
-    plt.clf()
     t1 = time()
     print("Original Exp Processing time %.f" % (t1 - t0))
     # Resized Manifold experiment
@@ -79,9 +80,9 @@ for channel in range(1, 51):
     # #          Perturb_vec=exp.Perturb_vec, imgsize=exp.imgsize, corner=exp.corner,
     # #          evol_score=exp.scores_all, evol_gen=exp.generations)
     # plt.clf()
-    # plt.close("all")
-    # t2 = time()
-    # print("Pair Processing time %.f" % (t2 - t0))
-    # print("Existing figures %d" % (len(plt.get_fignums())))
+    plt.close("all")
+    t2 = time()
+    print("Pair Processing time %.f" % (t2 - t0))
+    print("Existing figures %d" % (len(plt.get_fignums())))
 
 # %%
