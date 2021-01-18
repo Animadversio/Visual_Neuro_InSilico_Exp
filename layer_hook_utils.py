@@ -81,6 +81,7 @@ def named_apply(model, name, func, prefix=None):
 def get_module_names(model, input_size, device="cpu", ):
     module_names = OrderedDict()
     module_types = OrderedDict()
+    module_spec = OrderedDict()
     def register_hook(module, name, prefix):
         # register forward hook and save the handle to the `hooks` for removal.
         def hook(module, input, output):
@@ -90,7 +91,15 @@ def get_module_names(model, input_size, device="cpu", ):
             module_idx = len(module_names)
             module_names[str(module_idx)] = prefix + "." + class_name + name
             module_types[str(module_idx)] = class_name
-
+            module_spec[str(module_idx)] = OrderedDict()
+            if isinstance(input[0], torch.Tensor):
+                module_spec[str(module_idx)]["inshape"] = tuple(input[0].shape[1:])
+            else:
+                module_spec[str(module_idx)]["inshape"] = (None,)
+            if isinstance(output, torch.Tensor):
+                module_spec[str(module_idx)]["outshape"] = tuple(output.shape[1:])
+            else:
+                module_spec[str(module_idx)]["outshape"] = (None,)
         if (
                 not isinstance(module, nn.Sequential)
                 and not isinstance(module, nn.ModuleList)
@@ -119,6 +128,9 @@ def get_module_names(model, input_size, device="cpu", ):
     # receptive_field = OrderedDict()
     module_names["0"] = "Image"
     module_types["0"] = "Input"
+    module_spec["0"] = OrderedDict()
+    module_spec["0"]["inshape"] = input_size
+    module_spec["0"]["outshape"] = input_size
     hooks = []
 
     # register hook recursively at any module in the hierarchy
@@ -133,19 +145,21 @@ def get_module_names(model, input_size, device="cpu", ):
         h.remove()
 
     print("------------------------------------------------------------------------------")
-    line_new = "{:>14}  {:>12}   {:>15} ".format("Layer Id", "Type", "ReadableStr", )
+    line_new = "{:>14}  {:>12}   {:>12}   {:>12}   {:>25} ".format("Layer Id", "inshape", "outshape", "Type", "ReadableStr", )
     print(line_new)
     print("==============================================================================")
     for layer in module_names:
         # input_shape, output_shape, trainable, nb_params
-        line_new = "{:7} {:8} {:>12} {:>15}".format(
+        line_new = "{:7} {:8} {:>12} {:>12} {:>15}  {:>25}".format(
             "",
             layer,
+            str(module_spec[layer]["inshape"]),
+            str(module_spec[layer]["outshape"]),
             module_types[layer],
             module_names[layer],
         )
         print(line_new)
-    return module_names, module_types
+    return module_names, module_types, module_spec
 
 
 def register_hook_by_module_names(target_name, target_hook, model, input_size, device="cpu", ):

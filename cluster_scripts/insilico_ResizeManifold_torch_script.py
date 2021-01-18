@@ -55,7 +55,7 @@ for channel in range(0, 75):
         unit = (netname, layer, channel,)
         unit_lab = "%s_%d" % (unit[1], unit[2])
     t0 = time()
-    if RFfit:
+    if not RFfit:
         # Original experiment
         exp = ExperimentManifold(unit, max_step=100, imgsize=(227, 227), corner=(0, 0), backend="torch", savedir=savedir, explabel="%s_original" % (unit_lab))
         # exp.load_traj("Evolv_%s_%d_%d_%d_orig.npz" % (unit[1], unit[2], unit[3], unit[4]))  # load saved traj
