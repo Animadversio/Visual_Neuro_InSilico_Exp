@@ -1,4 +1,5 @@
 # %% Preparation for RF computation.
+units = ("alexnet", "conv5_relu", 5, 6, 6);corner = (30, 30); imgsize = (163, 163); RFfit = True; chan_rng = (0, 100);
 import matplotlib.pylab as plt
 plt.ioff()
 import matplotlib
@@ -41,13 +42,25 @@ except NameError:
     RFfit = False
     imgsize = (227, 227)
     corner = (0, 0)
+    Xlim = (corner[0], corner[0]+imgsize[0])
+    Ylim = (corner[1], corner[1]+imgsize[1])
     print("RF info not found from config, no image resizing")
 else:
+    Xlim = (corner[0], corner[0]+imgsize[0])
+    Ylim = (corner[1], corner[1]+imgsize[1])
     print("RF info found from config!")
+
+try:
+    chan_rng
+except NameError:
+    chan_rng = (0, 75)
+    print("Use the default channel range %d %d"%chan_rng)
+else:
+    print("Use the user defined channel range %d %d"%chan_rng)
 
 print("Exp Config: Unit %s %s (%d, %d)\n corner: %s imgsize: %s\n Xlim %s Ylim %s"%(units[0], units[1], units[3], units[4], corner, imgsize, Xlim, Ylim))
 
-for channel in range(0, 75):
+for channel in range(chan_rng[0], chan_rng[1]):
     if len(units) == 5:
         unit = (netname, layer, channel, units[3], units[4])
         unit_lab = "%s_%d_%d_%d" % (unit[1], unit[2], unit[3], unit[4])

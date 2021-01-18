@@ -32,7 +32,8 @@ def get_layer_names(model):
             layername.append(layer.__repr__())
     return layername
 
-#%%
+#%
+# Readable names for classic CNN layers in torchvision model implementation.
 layername_dict ={"alexnet":["conv1", "conv1_relu", "pool1",
                             "conv2", "conv2_relu", "pool2",
                             "conv3", "conv3_relu",
@@ -69,8 +70,9 @@ layername_dict ={"alexnet":["conv1", "conv1_relu", "pool1",
                                  'fc1']}
 
 
+#%% Hooks based methods to get layer and module names
 def named_apply(model, name, func, prefix=None):
-    # model the apply function but suits the functions here.
+    # resemble the apply function but suits the functions here.
     cprefix = "" if prefix is None else prefix + "." + name
     for cname, child in model.named_children():
         named_apply(child, cname, func, cprefix)
