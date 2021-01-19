@@ -1,5 +1,5 @@
 # %% Preparation for RF computation.
-units = ("alexnet", "conv5_relu", 5, 6, 6);corner = (30, 30); imgsize = (163, 163); RFfit = True; chan_rng = (0, 100);
+# units=("resnet50_linf_8", ".layer3.Bottleneck2", 5, 7, 7); Xlim=(47, 184); Ylim=(47, 184); imgsize=(137, 137); corner=(47, 47); RFfit=True; chan_rng=(0, 75);
 import matplotlib.pylab as plt
 plt.ioff()
 import matplotlib

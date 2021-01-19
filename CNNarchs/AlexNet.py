@@ -6,7 +6,7 @@ from layer_hook_utils import get_module_names, register_hook_by_module_names, la
 modulenames, moduletypes, module_spec = get_module_names(Anet.features, input_size=(3, 227, 227), device="cpu")
 #%%
 from torch_net_utils import receptive_field, receptive_field_for_unit
-#%%
+#%% Get receptive field
 rfdict = receptive_field(Anet.features, (3,227,227), device="cpu")
 receptive_field_for_unit(rfdict, "2", (28, 28))
 receptive_field_for_unit(rfdict, "5", (13, 13))

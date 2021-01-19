@@ -9,7 +9,6 @@ import matplotlib
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 
-
 import torch
 from torchvision import transforms
 from torchvision import models
@@ -34,6 +33,17 @@ def get_activation(name, unit=None, ingraph=False):
             elif len(output.shape) == 2:
                 activation[name] = out[:, unit[0]]
     return hook
+
+if platform == "linux": # cluster
+    torchhome = "/scratch/binxu/torch/checkpoints"
+else:
+    if os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':  # PonceLab-Desktop 3
+        torchhome = r"E:\Cluster_Backup\torch"
+    elif os.environ['COMPUTERNAME'] == 'DESKTOP-MENSD6S':  ## Home_WorkStation
+        torchhome = r"E:\Cluster_Backup\torch"
+    elif os.environ['COMPUTERNAME'] == 'DESKTOP-9LH02U9':  ## Home_WorkStation Victoria
+        torchhome = r"E:\Cluster_Backup\torch"
+# Basic properties for Optimizer.
 
 
 class TorchScorer:
@@ -71,9 +81,18 @@ class TorchScorer:
             self.model = models.resnet101(pretrained=True)
             self.inputsize = (3, 227, 227)
             self.layername = None
-            # self.layers = list(self.model.features) + [self.model.classifier]
-            # self.layername = layername_dict[model_name]
             self.model.cuda().eval()
+        elif "resnet50" in model_name:
+            self.model = models.resnet50(pretrained=True)
+            if model_name == "resnet50_linf_8": # robust version of resnet50. 
+                self.model.load_state_dict(torch.load(join(torchhome, "imagenet_linf_8_pure.pt")))
+            elif model_name == "resnet50_linf_4":
+                self.model.load_state_dict(torch.load(join(torchhome, "imagenet_linf_4_pure.pt")))
+            elif model_name == "resnet50_l2_3_0":
+                self.model.load_state_dict(torch.load(join(torchhome, "imagenet_l2_3_0_pure.pt")))
+            self.model.cuda().eval()
+            self.inputsize = (3, 227, 227)
+            self.layername = None
 
         for param in self.model.parameters():
             param.requires_grad_(False)
@@ -424,7 +443,7 @@ class ExperimentManifold:
             fig = visualize_img_list(img_subsp_list, scores=scores[idx_lin], ncol=interv_n + 1, nrow=interv_n + 1, )
             fig.savefig(join(self.savedir, "%s_%s.png" % (title, self.explabel)))
             plt.close(fig)
-            scores = np.array(scores).reshape((2*interv_n+1, 2*interv_n+1))
+            scores = np.array(scores).reshape((2*interv_n+1, 2*interv_n+1)) # Reshape score as heatmap.
             self.score_sum.append(scores)
             ax = figsum.add_subplot(1, len(subspace_list), spi + 1)
             im = ax.imshow(scores)
