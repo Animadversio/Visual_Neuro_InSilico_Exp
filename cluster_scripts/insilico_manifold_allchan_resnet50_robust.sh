@@ -94,7 +94,7 @@ cd ~/Visual_Neuro_InSilico_Exp/
 # python -c "$python_code_full"
 
 echo "$unit_name"
-python cluster_scripts/insilico_ResizeManifold_torch_efficient_script.py $unit_name
+python cluster_scripts/insilico_ResizeManifold_torch_efficient_script.py  $unit_name
 
 
 # --units resnet50_linf_8 .ReLUrelu 5 57 57 --imgsize 7 7 --corner 111 111 --RFfit 
