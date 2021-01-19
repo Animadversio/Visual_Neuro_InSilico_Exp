@@ -34,18 +34,19 @@ resnetR = resnet50(False)
 ptname = "imagenet_linf_8.pt" #in ["imagenet_linf_8.pt", "imagenet_linf_4.pt", "imagenet_l2_3_0.pt"]
 resnetR.load_state_dict(torch.load(join(savedir, ptname.split(".")[0]+"_pure.pt")))
 #%%
-unit_list = [("resnet50", ".ReLUrelu", 5, 57, 57),
-("resnet50", ".layer1.Bottleneck1", 5, 28, 28),
-("resnet50", ".layer2.Bottleneck0", 5, 14, 14),
-("resnet50", ".layer2.Bottleneck2", 5, 14, 14),
-("resnet50", ".layer3.Bottleneck0", 5, 7, 7),
-("resnet50", ".layer3.Bottleneck2", 5, 7, 7),
-("resnet50", ".layer3.Bottleneck4", 5, 7, 7),
-("resnet50", ".layer4.Bottleneck0", 5, 4, 4),
-("resnet50", ".layer4.Bottleneck2", 5, 4, 4), ]
 resnetR.cuda().eval()
 for param in resnetR.parameters():
     param.requires_grad_(False)
+unit_list = [("resnet50", ".ReLUrelu", 5, 57, 57),
+            ("resnet50", ".layer1.Bottleneck1", 5, 28, 28),
+            ("resnet50", ".layer2.Bottleneck0", 5, 14, 14),
+            ("resnet50", ".layer2.Bottleneck2", 5, 14, 14),
+            ("resnet50", ".layer3.Bottleneck0", 5, 7, 7),
+            ("resnet50", ".layer3.Bottleneck2", 5, 7, 7),
+            ("resnet50", ".layer3.Bottleneck4", 5, 7, 7),
+            ("resnet50", ".layer4.Bottleneck0", 5, 4, 4),
+            ("resnet50", ".layer4.Bottleneck2", 5, 4, 4), ]
+
 
 for unit in unit_list:
     print("Unit %s" % (unit,))
@@ -54,6 +55,8 @@ for unit in unit_list:
     Xlim, Ylim = gradmap2RF_square(gradAmpmap, absthresh=1E-8, relthresh=0.01, square=True)
     print("Xlim %s Ylim %s\nimgsize %s corner %s" % (
         Xlim, Ylim, (Xlim[1] - Xlim[0], Ylim[1] - Ylim[0]), (Xlim[0], Ylim[0])))
+
+#%%
 
 #%%
 # units=("resnet50", ".ReLUrelu", 5, 57, 57); Xlim=(111, 118); Ylim=(111, 118); imgsize=(7, 7); corner=(111, 111); RFfit=True;
@@ -66,3 +69,41 @@ for unit in unit_list:
 # units=("resnet50", ".layer4.Bottleneck0", 5, 4, 4); Xlim=(0, 227); Ylim=(0, 227); imgsize=(227, 227); corner=(0, 0); RFfit=False;
 # units=("resnet50", ".layer4.Bottleneck2", 5, 4, 4); Xlim=(0, 227); Ylim=(0, 227); imgsize=(227, 227); corner=(0, 0); RFfit=False;
 # units=("resnet50", ".Linearfc", 5); RFfit=False;
+#%%
+unit_list = [("resnet50", ".ReLUrelu", 5, 57, 57),
+            ("resnet50", ".layer1.Bottleneck1", 5, 28, 28),
+            ("resnet50", ".layer2.Bottleneck0", 5, 14, 14),
+            ("resnet50", ".layer2.Bottleneck2", 5, 14, 14),
+            ("resnet50", ".layer3.Bottleneck0", 5, 7, 7),
+            ("resnet50", ".layer3.Bottleneck2", 5, 7, 7),
+            ("resnet50", ".layer3.Bottleneck4", 5, 7, 7),
+            ("resnet50", ".layer4.Bottleneck0", 5, 4, 4),
+            ("resnet50", ".layer4.Bottleneck2", 5, 4, 4),
+            ("resnet50", ".Linearfc", 5, ), ]
+
+commandstr = {'.ReLUrelu': '.ReLUrelu 5 57 57 --imgsize 7 7 --corner 111 111 --RFfit',
+'.layer1.Bottleneck1': '.layer1.Bottleneck1 5 28 28 --imgsize 23 23 --corner 101 101 --RFfit',
+'.layer2.Bottleneck0': '.layer2.Bottleneck0 5 14 14 --imgsize 29 29 --corner 99 99 --RFfit',
+'.layer2.Bottleneck2': '.layer2.Bottleneck2 5 14 14 --imgsize 49 49 --corner 89 90 --RFfit',
+'.layer3.Bottleneck0': '.layer3.Bottleneck0 5 7 7 --imgsize 75 75 --corner 77 78 --RFfit',
+'.layer3.Bottleneck2': '.layer3.Bottleneck2 5 7 7 --imgsize 137 137 --corner 47 47 --RFfit',
+'.layer3.Bottleneck4': '.layer3.Bottleneck4 5 7 7 --imgsize 185 185 --corner 25 27 --RFfit',
+'.layer4.Bottleneck0': '.layer4.Bottleneck0 5 4 4 --imgsize 227 227 --corner 0 0 ',
+'.layer4.Bottleneck2': '.layer4.Bottleneck2 5 4 4 --imgsize 227 227 --corner 0 0 ',
+'.Linearfc': '.Linearfc 5', }
+
+netname = "resnet50"
+taskN = 0
+batchN = 128
+inv_map = {v:k for k,v in module_names.items()}
+for unit in unit_list:
+    # print(unit[1], module_spec[inv_map[unit[1]]]['outshape'])
+    outshape = module_spec[inv_map[unit[1]]]['outshape']
+    chanN = outshape[0]
+    csr = 0
+    while csr < chanN:
+        csrend = min(chanN, csr + batchN)
+        print("--units", netname, commandstr[unit[1]], "--chan_rng", csr, csrend)
+        csr = csrend
+        taskN += 1
+print("num of task %d"%taskN)

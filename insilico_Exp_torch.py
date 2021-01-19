@@ -376,7 +376,7 @@ class ExperimentManifold:
             self.PC1_sign = 1
             pass
 
-    def run_manifold(self, subspace_list, interval=9):
+    def run_manifold(self, subspace_list, interval=9, print_manifold=True):
         '''Generate examples on manifold and run'''
         self.score_sum = []
         T0 = time()
@@ -440,9 +440,10 @@ class ExperimentManifold:
             # subsample images for better visualization
             msk, idx_lin = subsample_mask(factor=2, orig_size=(21, 21))
             img_subsp_list = [img_arr[i] for i in range(len(img_arr)) if i in idx_lin]
-            fig = visualize_img_list(img_subsp_list, scores=scores[idx_lin], ncol=interv_n + 1, nrow=interv_n + 1, )
-            fig.savefig(join(self.savedir, "%s_%s.png" % (title, self.explabel)))
-            plt.close(fig)
+            if print_manifold:
+                fig = visualize_img_list(img_subsp_list, scores=scores[idx_lin], ncol=interv_n + 1, nrow=interv_n + 1, )
+                fig.savefig(join(self.savedir, "%s_%s.png" % (title, self.explabel)))
+                plt.close(fig)
             scores = np.array(scores).reshape((2*interv_n+1, 2*interv_n+1)) # Reshape score as heatmap.
             self.score_sum.append(scores)
             ax = figsum.add_subplot(1, len(subspace_list), spi + 1)
@@ -500,6 +501,7 @@ class ExperimentManifold:
             plt.show()
         figh.savefig(join(self.savedir, "Evolv_Traj_%s.png" % (self.explabel)))
         return figh
+
 
 if __name__=="__main__":
     Exp = ExperimentManifold(("resnet101", ".layer3.Bottleneck22", 10, 7, 7), max_step=50, imgsize=(150, 150), corner=(30, 30),
