@@ -12,6 +12,11 @@ for i in range(31):
     layer = layername[i]
     layer_name_map[layer] = str(i+1)
 # how names in unit tuple maps to the numering in rf_dict. Can use this to fetch rf in exp
+# #%%
+# resnet101 = torchvision.models.resnet101(pretrained=True)
+# substnet = torch.nn.Sequential(resnet101.conv1, resnet101.bn1, resnet101.relu, resnet101.maxpool, resnet101.layer1,
+#                      resnet101.layer2, resnet101.layer3, resnet101.layer4)
+# rf_dict = receptive_field(substnet, (3, 227, 227), device="cpu")
 #%%
 from insilico_Exp import *
 from time import time
