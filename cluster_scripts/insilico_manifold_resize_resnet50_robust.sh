@@ -1,10 +1,11 @@
+#!/bin/sh
+
 #PBS -N insilico_manifold_RFfit_resnetRobust
 #PBS -l nodes=1:ppn=1:gpus=1,walltime=23:55:00,mem=15gb
 #PBS -m be
 #PBS -q dque
 #PBS -t 1-20
 
-cd ~/Visual_Neuro_InSilico_Exp/
 export TORCH_HOME="/scratch/binxu/torch"
 
 param_list='units=("resnet50_linf_8", ".ReLUrelu", 5, 57, 57); Xlim=(111, 118); Ylim=(111, 118); imgsize=(7, 7); corner=(111, 111); RFfit=True; chan_rng=(0, 75);
@@ -28,6 +29,16 @@ units=("resnet50", ".layer4.Bottleneck0", 5, 4, 4); Xlim=(0, 227); Ylim=(0, 227)
 units=("resnet50", ".layer4.Bottleneck2", 5, 4, 4); Xlim=(0, 227); Ylim=(0, 227); imgsize=(227, 227); corner=(0, 0); RFfit=False; chan_rng=(0, 75);
 units=("resnet50", ".Linearfc", 5); RFfit=False; chan_rng=(0, 75);'
 
+export unit_name="$(echo "$param_list" | head -n $PBS_ARRAYID | tail -1)"
+#$PBS_ARRAYID
+# Append the extra command to the script.
+cd ~/Visual_Neuro_InSilico_Exp/
+export python_code=`cat cluster_scripts/insilico_ResizeManifold_torch_script.py`
+
+python_code_full=$unit_name$'\n'$python_code
+echo "$python_code_full"
+#echo "$python_code_full" > ~\manifold_script.py
+python -c "$python_code_full"
 
 
 
