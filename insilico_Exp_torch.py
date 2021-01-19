@@ -21,17 +21,18 @@ from utils import visualize_img_list
 # mini-batches of 3-channel RGB images of shape (3 x H x W), where H and W are expected to be at least 224. The images have to be loaded in to a range of [0, 1] and then normalized using mean = [0.485, 0.456, 0.406] and std = [0.229, 0.224, 0.225].
 
 activation = {}  # global variable is important for hook to work! it's an important channel for communication
-def get_activation(name, unit=None):
+def get_activation(name, unit=None, ingraph=False):
     """Return a hook that record the unit activity into the entry in activation dict."""
     if unit is None:
         def hook(model, input, output):
-            activation[name] = output.detach()
+            activation[name] = output if ingraph else output.detach()
     else:
         def hook(model, input, output):
+            out = output if ingraph else output.detach()
             if len(output.shape) == 4:
-                activation[name] = output.detach()[:, unit[0], unit[1], unit[2]]
+                activation[name] = out[:, unit[0], unit[1], unit[2]]
             elif len(output.shape) == 2:
-                activation[name] = output.detach()[:, unit[0]]
+                activation[name] = out[:, unit[0]]
     return hook
 
 
