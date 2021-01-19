@@ -46,6 +46,9 @@ except NameError:
     Ylim = (corner[1], corner[1]+imgsize[1])
     print("RF info not found from config, no image resizing")
 else:
+    if not RFfit:
+        imgsize = (227, 227)
+        corner = (0, 0)
     Xlim = (corner[0], corner[0]+imgsize[0])
     Ylim = (corner[1], corner[1]+imgsize[1])
     print("RF info found from config!")

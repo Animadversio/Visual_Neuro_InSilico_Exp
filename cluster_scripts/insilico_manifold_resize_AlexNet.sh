@@ -14,7 +14,7 @@
 # Specify the default queue for the fastest nodes
 #PBS -m be
 #PBS -q dque
-#PBS -t 1-13
+#PBS -t 6-8
 # Prepare the virtual env for python
 # export PATH=/act/Anaconda3-2.3.0/bin:${PATH}
 
@@ -25,9 +25,9 @@ units = ("alexnet", "conv2_relu", 5, 13, 13); chan_rng = (0, 100);
 units = ("alexnet", "conv3_relu", 5, 6, 6); chan_rng = (0, 100); 
 units = ("alexnet", "conv4_relu", 5, 6, 6); chan_rng = (0, 100); 
 units = ("alexnet", "conv5_relu", 5, 6, 6); chan_rng = (0, 100); 
-units = ("alexnet", "fc6"); chan_rng = (0, 100); 
-units = ("alexnet", "fc7"); chan_rng = (0, 100); 
-units = ("alexnet", "fc8"); chan_rng = (0, 100); 
+units = ("alexnet", "fc6", 5); chan_rng = (0, 100);
+units = ("alexnet", "fc7", 5); chan_rng = (0, 100);
+units = ("alexnet", "fc8", 5); chan_rng = (0, 100);
 units = ("alexnet", "conv1_relu", 5, 28, 28);corner = (110, 110); imgsize = (11, 11); RFfit = True; chan_rng = (0, 100); 
 units = ("alexnet", "conv2_relu", 5, 13, 13);corner = (86, 86); imgsize = (51, 51); RFfit = True; chan_rng = (0, 100); 
 units = ("alexnet", "conv3_relu", 5, 6, 6);corner = (62, 62); imgsize = (99, 99); RFfit = True; chan_rng = (0, 100); 
