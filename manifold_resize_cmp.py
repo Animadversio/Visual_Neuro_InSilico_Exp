@@ -1,3 +1,5 @@
+"""Data analysis for resize evolution """
+
 import os
 from os.path import join
 from easydict import EasyDict
@@ -12,7 +14,7 @@ dataroot = r"E:\Cluster_Backup\CNN_manifold"
 sumdir = r"E:\Cluster_Backup\CNN_manifold\summary"
 os.makedirs(sumdir,exist_ok=True)
 netname = "vgg16"
-
+#%% Collect the statistics for the VGG evolution!
 unit_list = [("vgg16", "conv2", 5, 112, 112), 
             ("vgg16", "conv3", 5, 56, 56), 
             ("vgg16", "conv4", 5, 56, 56), 
