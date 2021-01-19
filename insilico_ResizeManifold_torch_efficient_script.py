@@ -36,8 +36,8 @@ savedir = join(recorddir, "manif_allchan", "%s_%s_manifold-%s" % (netname, layer
 os.makedirs(savedir, exist_ok=True)
 
 RFfit = args.RFfit
-imgsize = args.imgsize if RFfit else [227, 227]
-corner = args.corner if RFfit else [0, 0]
+imgsize = tuple(args.imgsize) if RFfit else (227, 227)  # have to be a tuple for resizing to behave correctly
+corner = tuple(args.corner) if RFfit else (0, 0)
 Xlim = (corner[0], corner[0]+imgsize[0])
 Ylim = (corner[1], corner[1]+imgsize[1])
 chan_rng = args.chan_rng
