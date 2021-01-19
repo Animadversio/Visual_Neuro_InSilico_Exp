@@ -1,5 +1,6 @@
-# %% Preparation for RF computation.
+# units=("resnet50_linf_8", ".Linearfc", 5); chan_rng=(0, 75);
 # units=("resnet50_linf_8", ".layer3.Bottleneck2", 5, 7, 7); Xlim=(47, 184); Ylim=(47, 184); imgsize=(137, 137); corner=(47, 47); RFfit=True; chan_rng=(0, 75);
+# %% Preparation for RF computation.
 import matplotlib.pylab as plt
 plt.ioff()
 import matplotlib
@@ -60,8 +61,11 @@ except NameError:
     print("Use the default channel range %d %d"%chan_rng)
 else:
     print("Use the user defined channel range %d %d"%chan_rng)
-
-print("Exp Config: Unit %s %s (%d, %d)\n corner: %s imgsize: %s\n Xlim %s Ylim %s"%(units[0], units[1], units[3], units[4], corner, imgsize, Xlim, Ylim))
+if len(units) == 5:
+    print("Exp Config: Unit %s %s (%d, %d)\n corner: %s imgsize: %s\n Xlim %s Ylim %s"%(units[0], units[1], units[3], units[4], corner, imgsize, Xlim, Ylim))
+elif len(units) == 3:
+    print("Exp Config: Unit %s %s\n corner: %s imgsize: %s\n Xlim %s Ylim %s" % (
+    units[0], units[1], corner, imgsize, Xlim, Ylim))
 
 for channel in range(chan_rng[0], chan_rng[1]):
     if len(units) == 5:
