@@ -358,6 +358,16 @@ class ExperimentManifold:
         self.scores_all = np.array(self.scores_all)
         self.generations = np.array(self.generations)
 
+    def save_last_gen(self, filename=""):
+        idx = np.argmax(self.scores_all)
+        select_code = self.codes_all[idx:idx + 1, :]
+        lastgen_code = np.mean(self.codes_all[self.generations == max(self.generations), :], axis=0, keepdims=True)
+        lastgen_score = np.mean(self.scores_all[self.generations == max(self.generations)], )
+        np.savez(join(self.savedir, "Evolution_codes_%s.npz" % (self.explabel)),
+                 best_code=select_code, best_score=self.scores_all[idx],
+                 lastgen_codes=lastgen_code, lastgen_score=lastgen_score)
+        print("Last generation and Best code saved.")
+
     def load_traj(self, filename):
         data = np.load(join(self.savedir, filename))
         self.codes_all = data["codes_all"]
@@ -459,12 +469,12 @@ class ExperimentManifold:
             ax.set_title(title+"_Hemisphere")
         figsum.suptitle("%s-%s-unit%03d  %s" % (self.pref_unit[0], self.pref_unit[1], self.pref_unit[2], self.explabel))
         figsum.savefig(join(self.savedir, "Manifold_summary_%s_norm%d.png" % (self.explabel, self.sphere_norm)))
-        figsum.savefig(join(self.savedir, "Manifold_summary_%s_norm%d.pdf" % (self.explabel, self.sphere_norm)))
+        # figsum.savefig(join(self.savedir, "Manifold_summary_%s_norm%d.pdf" % (self.explabel, self.sphere_norm)))
         self.Perturb_vec = np.concatenate(tuple(self.Perturb_vec), axis=0)
         np.save(join(self.savedir, "Manifold_score_%s" % (self.explabel)), self.score_sum)
         np.savez(join(self.savedir, "Manifold_set_%s.npz" % (self.explabel)),
                  Perturb_vec=self.Perturb_vec, imgsize=self.imgsize, corner=self.corner,
-                 evol_score=self.scores_all, evol_gen=self.generations)
+                 evol_score=self.scores_all, evol_gen=self.generations, sphere_norm=self.sphere_norm)
         return self.score_sum, figsum
 
     def visualize_best(self, show=False):

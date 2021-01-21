@@ -67,6 +67,7 @@ for channel in range(chan_rng[0], chan_rng[1]):
                                  savedir=savedir, explabel="%s_original" % (unit_lab))
         # exp.load_traj("Evolv_%s_%d_%d_%d_orig.npz" % (unit[1], unit[2], unit[3], unit[4]))  # load saved traj
         exp.run()
+        exp.save_last_gen()
         exp.analyze_traj()
         exp.visualize_trajectory()
         exp.visualize_best()
@@ -83,6 +84,7 @@ for channel in range(chan_rng[0], chan_rng[1]):
         exp = ExperimentManifold(unit, max_step=args.evosteps, imgsize=imgsize, corner=corner, backend="torch", savedir=savedir, explabel="%s_rf_fit" % (unit_lab))
         # exp.load_traj("Evolv_%s_%d_%d_%d_rf_fit.npz" % (unit[1], unit[2], unit[3], unit[4]))  # load saved traj
         exp.run()
+        exp.save_last_gen()
         exp.analyze_traj()
         exp.visualize_trajectory()
         exp.visualize_best()
