@@ -4,7 +4,7 @@
 #PBS -l nodes=1:ppn=1:gpus=1,walltime=23:55:00,mem=15gb
 #PBS -m be
 #PBS -q dque
-#PBS -t 1-97
+#PBS -t 72-76
 
 export TORCH_HOME="/scratch/binxu/torch"
 
