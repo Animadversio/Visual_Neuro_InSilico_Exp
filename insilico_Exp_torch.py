@@ -130,12 +130,17 @@ class TorchScorer:
 
     def set_unit(self, reckey, layer, unit=None):
         if self.layername is not None:
+            # if the network is a single stream feedforward structure, we can index it and use it to find the
+            # activation
             idx = self.layername.index(layer)
             handle = self.layers[idx].register_forward_hook(get_activation(reckey, unit)) # we can get the layer by indexing
             self.hooks.append(handle)  # save the hooks in case we will remove it.
         else:
-            handle, modulelist, moduletype = register_hook_by_module_names(layer, get_activation(reckey, unit), self.model, self.inputsize, device="cuda") # indexing is not available, we need to register by recursion.
-            self.hooks.extend(handle)
+            # if not, we need to parse the architecture of the network.
+            # indexing is not available, we need to register by recursively visit the layers and find match.
+            handle, modulelist, moduletype = register_hook_by_module_names(layer, get_activation(reckey, unit),
+                                self.model, self.inputsize, device="cuda")
+            self.hooks.extend(handle)  # handle here is a list.
         return handle
 
     def select_unit(self, unit_tuple):
