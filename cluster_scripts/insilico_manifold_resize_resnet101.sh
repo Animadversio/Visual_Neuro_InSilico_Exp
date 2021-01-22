@@ -14,7 +14,7 @@
 # Specify the default queue for the fastest nodes
 #PBS -m be
 #PBS -q dque
-#PBS -t 13-21
+#PBS -t 22-24
 # Prepare the virtual env for python
 # export PATH=/act/Anaconda3-2.3.0/bin:${PATH}
 
@@ -41,6 +41,9 @@ units = ("resnet101", ".layer3.Bottleneck0", 5, 7, 7); Xlim = (86, 145); Ylim = 
 units = ("resnet101", ".layer3.Bottleneck2", 5, 7, 7); Xlim = (78, 153); Ylim = (78, 153); imgsize = (75, 75); corner = (78, 78); RFfit = True;
 units = ("resnet101", ".layer3.Bottleneck6", 5, 7, 7); Xlim = (55, 180); Ylim = (54, 179); imgsize = (125, 125); corner = (55, 54); RFfit = True;
 units = ("resnet101", ".layer3.Bottleneck10", 5, 7, 7); Xlim = (41, 191); Ylim = (40, 190); imgsize = (150, 150); corner = (41, 40); RFfit = True;
+units = ("resnet101", ".layer4.Bottleneck0", 5, 4, 4); 
+units = ("resnet101", ".layer4.Bottleneck2", 5, 4, 4); 
+units = ("resnet101", ".Linearfc", 5); 
 '
 
 export unit_name="$(echo "$param_list" | head -n $PBS_ARRAYID | tail -1)"

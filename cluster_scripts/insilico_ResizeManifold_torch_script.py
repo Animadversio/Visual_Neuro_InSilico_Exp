@@ -1,3 +1,4 @@
+units = ("resnet101", ".Linearfc", 5);
 # units=("resnet50_linf_8", ".Linearfc", 5); chan_rng=(0, 75);
 # units=("resnet50_linf_8", ".layer3.Bottleneck2", 5, 7, 7); Xlim=(47, 184); Ylim=(47, 184); imgsize=(137, 137); corner=(47, 47); RFfit=True; chan_rng=(0, 75);
 # %% Preparation for RF computation.
@@ -80,6 +81,7 @@ for channel in range(chan_rng[0], chan_rng[1]):
         exp = ExperimentManifold(unit, max_step=100, imgsize=(227, 227), corner=(0, 0), backend="torch", savedir=savedir, explabel="%s_original" % (unit_lab))
         # exp.load_traj("Evolv_%s_%d_%d_%d_orig.npz" % (unit[1], unit[2], unit[3], unit[4]))  # load saved traj
         exp.run()
+        exp.save_last_gen()
         exp.analyze_traj()
         exp.visualize_trajectory()
         exp.visualize_best()
@@ -96,6 +98,7 @@ for channel in range(chan_rng[0], chan_rng[1]):
         exp = ExperimentManifold(unit, max_step=100, imgsize=imgsize, corner=corner, backend="torch", savedir=savedir, explabel="%s_rf_fit" % (unit_lab))
         # exp.load_traj("Evolv_%s_%d_%d_%d_rf_fit.npz" % (unit[1], unit[2], unit[3], unit[4]))  # load saved traj
         exp.run()
+        exp.save_last_gen()
         exp.analyze_traj()
         exp.visualize_trajectory()
         exp.visualize_best()
