@@ -2,7 +2,7 @@ import os
 import re
 from time import time, sleep
 
-import h5py
+# import h5py
 from scipy.io import loadmat
 import numpy as np
 from PIL import Image

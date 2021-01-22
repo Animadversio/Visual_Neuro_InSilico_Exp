@@ -67,10 +67,10 @@ def gradmap2RF_square(gradAmpmap, absthresh=None, relthresh=0.01, square=True):
             incre = (Xrng - Yrng) // 2
             Ylim = (Ylim[0] - incre, Ylim[1] + (Xrng - Yrng - incre))
             if Ylim[1] > gradAmpmap.shape[0]:
-                offset = gradAmpmap.shape[0] - Ylim
+                offset = Ylim[1] - gradAmpmap.shape[0]
                 Ylim = (Ylim[0] - offset, Ylim[1] - offset)
             if Ylim[0] < 0:
-                offset = 0 - Ylim
+                offset = 0 - Ylim[0]
                 Ylim = (Ylim[0] + offset, Ylim[1] + offset)
             print("After %s, %s"%(Xlim, Ylim))
         elif Yrng > Xrng:
@@ -78,10 +78,10 @@ def gradmap2RF_square(gradAmpmap, absthresh=None, relthresh=0.01, square=True):
             incre = (Yrng - Xrng) // 2
             Xlim = (Xlim[0] - incre, Xlim[1] + (Yrng - Xrng - incre))
             if Xlim[1] > gradAmpmap.shape[1]:
-                offset = gradAmpmap.shape[1] - Xlim
+                offset = Xlim[1] - gradAmpmap.shape[1]
                 Xlim = (Xlim[0] - offset, Xlim[1] - offset)
             if Xlim[0] < 0:
-                offset = 0 - Xlim
+                offset = 0 - Xlim[0]
                 Xlim = (Xlim[0] + offset, Xlim[1] + offset)
             print("After %s, %s" % (Xlim, Ylim))
     return Xlim, Ylim

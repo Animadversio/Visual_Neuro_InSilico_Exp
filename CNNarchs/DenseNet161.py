@@ -1,8 +1,15 @@
-import torchvision
+from torch_net_utils import receptive_field, receptive_field_for_unit
+from os.path import join
+import torchvision, torch
 from torchvision.models import densenet161
-import torch
+from collections import OrderedDict
 import numpy as np
-from torch_net_utils import receptive_field, receptive_field_for_unit, layername_dict
+dnet = densenet161(True)
+#%%
+from layer_hook_utils import get_module_names, register_hook_by_module_names, layername_dict
+# from grad_RF_estim import grad_RF_estimate, gradmap2RF_square
+module_names, module_types, module_spec = get_module_names(dnet, input_size=(3, 227, 227))
+#%%
 # resnet101 = torchvision.models.resnet101(pretrained=True)
 # rf_dict = receptive_field(vgg16.features, (3, 227, 227), device="cpu")
 resnet101 = torchvision.models.resnet101(pretrained=True)  # using the pytorch alexnet as proxy for caffenet.
