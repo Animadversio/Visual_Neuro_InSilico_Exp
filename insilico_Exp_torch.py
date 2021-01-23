@@ -77,6 +77,11 @@ class TorchScorer:
             self.layername = layername_dict[model_name]
             self.model.cuda().eval()
             self.inputsize = (3, 227, 227)
+        elif model_name == "densenet169":
+            self.model = models.densenet169(pretrained=True)
+            self.layername = None
+            self.model.cuda().eval()
+            self.inputsize = (3, 227, 227)
         elif model_name == "resnet101":
             self.model = models.resnet101(pretrained=True)
             self.inputsize = (3, 227, 227)
