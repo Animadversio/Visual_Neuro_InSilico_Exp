@@ -65,6 +65,13 @@ class TorchScorer:
             self.layername = layername_dict[model_name]
             self.model.cuda().eval()
             self.inputsize = (3, 227, 227)
+        if model_name == "vgg16-face":
+            self.model = models.vgg16(pretrained=False, num_classes=2622)
+            self.model.load_state_dict(torch.load(join(torchhome, "vgg16_face.pt")))
+            self.layers = list(self.model.features) + list(self.model.classifier)
+            self.layername = layername_dict["vgg16"]
+            self.model.cuda().eval()
+            self.inputsize = (3, 227, 227)
         elif model_name == "alexnet":
             self.model = models.alexnet(pretrained=True)
             self.layers = list(self.model.features) + list(self.model.classifier)
