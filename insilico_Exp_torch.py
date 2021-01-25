@@ -65,7 +65,7 @@ class TorchScorer:
             self.layername = layername_dict[model_name]
             self.model.cuda().eval()
             self.inputsize = (3, 227, 227)
-        if model_name == "vgg16-face":
+        elif model_name == "vgg16-face":
             self.model = models.vgg16(pretrained=False, num_classes=2622)
             self.model.load_state_dict(torch.load(join(torchhome, "vgg16_face.pt")))
             self.layers = list(self.model.features) + list(self.model.classifier)
@@ -114,6 +114,15 @@ class TorchScorer:
             self.model.cuda().eval()
             self.inputsize = (3, 227, 227)
             self.layername = None
+        elif model_name == "cornet_s":
+            from cornet import cornet_s
+            Cnet = cornet_s(pretrained=True)
+            self.model = Cnet.module
+            self.model.cuda().eval()
+            self.inputsize = (3, 227, 227)
+            self.layername = None
+        else:
+            raise NotImplementedError("Cannot find the specified model %s"%model_name)
 
         for param in self.model.parameters():
             param.requires_grad_(False)
