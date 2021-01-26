@@ -91,7 +91,7 @@ commandstr = {'.ReLUrelu': '.ReLUrelu 5 57 57 --imgsize 7 7 --corner 111 111 --R
 '.layer4.Bottleneck0': '.layer4.Bottleneck0 5 4 4 --imgsize 227 227 --corner 0 0 ',
 '.layer4.Bottleneck2': '.layer4.Bottleneck2 5 4 4 --imgsize 227 227 --corner 0 0 ',
 '.Linearfc': '.Linearfc 5', }
-
+#%%
 netname = "resnet50"
 taskN = 0
 batchN = 128
