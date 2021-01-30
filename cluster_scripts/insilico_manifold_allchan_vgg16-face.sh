@@ -4,11 +4,11 @@
 #PBS -l nodes=1:ppn=1:gpus=1,walltime=23:55:00,mem=15gb
 #PBS -m be
 #PBS -q dque
-#PBS -t 1-97
+#PBS -t 1
 
 export TORCH_HOME="/scratch/binxu/torch"
 
-param_list='--units-face vgg16 conv2 5 112 112 --imgsize 5 5 --corner 110 110 --RFfit --chan_rng 0 64
+param_list='--units vgg16-face conv2 5 112 112 --imgsize 5 5 --corner 110 110 --RFfit --chan_rng 0 64
 --units vgg16-face conv3 5 56 56 --imgsize 10 10 --corner 108 108 --RFfit --chan_rng 0 128
 --units vgg16-face conv4 5 56 56 --imgsize 14 14 --corner 106 106 --RFfit --chan_rng 0 128
 --units vgg16-face conv5 5 28 28 --imgsize 24 24 --corner 102 102 --RFfit --chan_rng 0 128

@@ -1,8 +1,9 @@
-import seaborn as sns
-import matplotlib.pylab as plt
+""" Do the plot for all the networks processed online.
+Networks
+Final weapon of mass generating figures of same setup.
+"""
 import pandas as pd
 import numpy as np
-from scipy.stats import ttest_rel,ttest_ind
 from glob import glob
 import os, re
 from os.path import join, exists
@@ -11,6 +12,7 @@ from tqdm import tqdm
 from time import time
 import matplotlib
 import seaborn as sns
+import matplotlib.pylab as plt
 from scipy.stats import ttest_rel, ttest_ind
 from scipy.stats import linregress
 from easydict import EasyDict
@@ -95,7 +97,7 @@ nettab = pd.DataFrame(stat_col)
 param_names = ["theta", "phi", "psi", "kappa", "beta", "A", "bsl"]
 param_std_names = [p+"_std" for p in param_names]
 def load_fit_manif2table(unit_list, netname, dataroot, ang_step=9, save=True, GANname="", savestr=""):
-    """Load experiments into table"""
+    """Load experiments into table, Algorithmic version"""
     theta_arr = np.arange(-90, 90.1, ang_step) / 180 * np.pi
     phi_arr = np.arange(-90, 90.1, ang_step) / 180 * np.pi
     stat_col = []
