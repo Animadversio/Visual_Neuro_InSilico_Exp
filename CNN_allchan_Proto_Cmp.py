@@ -274,7 +274,7 @@ unit_list = [("alexnet", "conv1_relu", 5, 28, 28, True),
             ("alexnet", "fc8", 5, False), ]
 
 extract_prototype(unit_list, "alexnet", G=G, imgN=49)
-#%%
+#%% Comparing the prototpye distribution of 2 architecturally matched network
 from build_montages import build_montages, make_grid_np
 unit_list = [("resnet50", ".ReLUrelu", 5, 57, 57, True), # last entry signify if we do RF resizing or not.
             ("resnet50", ".layer1.Bottleneck1", 5, 28, 28, True),

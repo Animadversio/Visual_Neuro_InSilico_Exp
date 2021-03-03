@@ -22,6 +22,8 @@ matplotlib.rcParams['ps.fonttype'] = 42
 from Kent_fit_utils import fit_Kent_Stats, fit_Kent_bsl, fit_Kent
 dataroot = r"E:\Cluster_Backup\CNN_manifold"
 sumdir = r"E:\Cluster_Backup\CNN_manifold\summary"
+figdir = sumdir
+#%%
 netname = "resnet50_linf_8"  # "resnet50"
 unit_list = [("resnet50", ".ReLUrelu", 5, 57, 57, True), # last entry signify if we do RF resizing or not.
             ("resnet50", ".layer1.Bottleneck1", 5, 28, 28, True),
@@ -97,7 +99,9 @@ nettab = pd.DataFrame(stat_col)
 param_names = ["theta", "phi", "psi", "kappa", "beta", "A", "bsl"]
 param_std_names = [p+"_std" for p in param_names]
 def load_fit_manif2table(unit_list, netname, dataroot, ang_step=9, save=True, GANname="", savestr=""):
-    """Load experiments into table, Algorithmic version"""
+    """Load experiments into table, Algorithmic version
+    Esp. it load evolution information into the tab.
+    """
     theta_arr = np.arange(-90, 90.1, ang_step) / 180 * np.pi
     phi_arr = np.arange(-90, 90.1, ang_step) / 180 * np.pi
     stat_col = []
@@ -189,7 +193,6 @@ def violins_regress(nettab, netname, layerlist, figdir="", varnm="kappa", savest
     plt.show()
     return fig
 #%%
-figdir = sumdir
 #%% CorNet_s model comparison
 unit_list = [("Cornet_s", ".V1.ReLUnonlin1", 5, 57, 57, True),
         ("Cornet_s", ".V1.ReLUnonlin2", 5, 28, 28, True),
@@ -254,14 +257,14 @@ unit_list += [("densenet169", ".features.ReLUrelu0", 5, 57, 57, False),
 nettab_f = load_fit_manif2table(unit_list, netname, dataroot, save=True, savestr="_All")
 #%%
 nettab_d = pd.read_csv(join(sumdir, "densenet169"+"_ManifExpFitSum_RFfit.csv"))
-msk = (nettab_d.R2>0.5) & (nettab_d.evolfinact>0.2)
+msk = (nettab_d.R2>0.5) & (nettab_d.evolfinact>0.4)
 fig1 = violins_regress(nettab_d, netname, layerlist, figdir=figdir, msk=msk,\
                 varnm="kappa", savestr="RFfit_cmb_bsl")
 fig1 = violins_regress(nettab_d, netname, layerlist[:-1], figdir=figdir, msk=msk,\
                 varnm="kappa", savestr="RFfit_cmb-1_bsl")
 fig2 = violins_regress(nettab_d, netname, layerlist, figdir=figdir, msk=msk,\
                 varnm="beta", savestr="RFfit_cmb_bsl")
-msk = (~nettab_f.RFfit) & (nettab_f.R2>0.5) & (nettab_f.evolfinact>0.2)
+msk = (~nettab_f.RFfit) & (nettab_f.R2>0.5) & (nettab_f.evolfinact>0.4)
 fig3 = violins_regress(nettab_f, netname, layerlist, figdir=figdir, msk=msk,\
                 varnm="kappa", savestr="RFfit_nonRF_bsl", titstr="No RF resizing")
 #%% AlexNet
@@ -283,14 +286,14 @@ unit_list += [("alexnet", "conv1_relu", 5, 28, 28, False),
             ("alexnet", "conv5_relu", 5, 6, 6, False),]
 nettab_f = load_fit_manif2table(unit_list, netname, dataroot, save=True, savestr="_All")
 #%%
-msk = (nettab_d.R2>0.5) & (nettab_d.evolfinact>0.2)
+msk = (nettab_d.R2>0.5) & (nettab_d.evolfinact>5)
 fig1 = violins_regress(nettab_d, netname, layerlist, figdir=figdir, msk=msk,\
                 varnm="kappa", savestr="RFfit_cmb_bsl")
 fig1 = violins_regress(nettab_d, netname, layerlist[:-1], figdir=figdir, msk=msk,\
                 varnm="kappa", savestr="RFfit_cmb-1_bsl")
 fig2 = violins_regress(nettab_d, netname, layerlist, figdir=figdir, msk=msk,\
                 varnm="beta", savestr="RFfit_cmb_bsl")
-msk = (~nettab_f.RFfit) & (nettab_f.R2>0.5) & (nettab_f.evolfinact>0.2)
+msk = (~nettab_f.RFfit) & (nettab_f.R2>0.5) & (nettab_f.evolfinact>5)
 fig3 = violins_regress(nettab_f, netname, layerlist, figdir=figdir, msk=msk,\
                 varnm="kappa", savestr="RFfit_nonRF_bsl", titstr="No RF resizing")
 #%% ResNet101
