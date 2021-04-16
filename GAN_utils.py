@@ -7,6 +7,8 @@ Wrapper and loader of various GANs are listed, currently we have
 * BigGAN
 * BigBiGAN
 * StyleGAN2
+* PGGAN
+* DCGAN
 """
 #%%
 # import torch
@@ -80,7 +82,7 @@ RGB_mean = torch.tensor([123.0, 117.0, 104.0])
 RGB_mean = torch.reshape(RGB_mean, (1, 3, 1, 1))
 
 class upconvGAN(nn.Module):
-    def __init__(self, name="fc6", pretrained=True, shuffled=True):
+    def __init__(self, name="fc6", pretrained=True, shuffled=False):
         super(upconvGAN, self).__init__()
         self.name = name
         if name == "fc6" or name == "fc7":
@@ -275,8 +277,17 @@ class BigGAN_wrapper():#nn.Module
         self.BigGAN = BigGAN
         self.space = space
 
+    def sample_vector(self, sampn=1, class_id=None, device="cuda"):
+        if class_id is None:
+            refvec = torch.cat((0.7 * torch.randn(128, sampn).to(device),
+                                self.BigGAN.embeddings.weight[:, torch.randint(1000, size=(sampn,))].to(device),)).T
+        else:
+            refvec = torch.cat((0.7 * torch.randn(128, sampn).to(device),
+                                self.BigGAN.embeddings.weight[:, (class_id*torch.ones(sampn)).long()].to(device),)).T
+        return refvec
+
     def visualize(self, code, scale=1.0, truncation=0.7):
-        imgs = self.BigGAN.generator(code, truncation) # Matlab version default to 0.7
+        imgs = self.BigGAN.generator(code, truncation)  # Matlab version default to 0.7
         return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
 
     def visualize_batch_np(self, codes_all_arr, truncation=0.7, B=15):
@@ -425,6 +436,15 @@ class StyleGAN2_wrapper():#nn.Module
         self.mean_latent = mean_latent
         self.wspace = False
         self.random = True
+
+    def sample_vector(self, sampn=1, device="cuda"):
+        if not self.wspace:
+            refvec = torch.randn((sampn, 512)).to(device)
+        else:
+            refvec_Z = torch.randn((sampn, 512)).cuda()
+            refvec = self.StyleGAN.style(refvec_Z).to(device)
+            # self.StyleGAN
+        return refvec
 
     def select_trunc(self, truncation, truncation_mean=4096):
         self.truncation = truncation
@@ -578,8 +598,12 @@ class PGGAN_wrapper():  # nn.Module
     def __init__(self, PGGAN, ):
         self.PGGAN = PGGAN
 
+    def sample_vector(self, sampn=1, device="cuda"):
+        refvec = torch.randn((sampn, 512)).to(device)
+        return refvec
+
     def visualize(self, code, scale=1.0):
-        imgs = self.PGGAN.forward(code,)  # Matlab version default to 0.7
+        imgs = self.PGGAN.forward(code,)
         return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
 
     def visualize_batch_np(self, codes_all_arr, scale=1.0, B=50):

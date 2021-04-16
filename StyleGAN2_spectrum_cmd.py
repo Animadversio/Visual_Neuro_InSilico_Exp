@@ -1,3 +1,7 @@
+"""
+Commandline tool to compute Spectrum of StyleGAN2 
+Esp. in a period that I cannot compile the StyleGAN2.
+"""
 import sys
 import os
 from os.path import join

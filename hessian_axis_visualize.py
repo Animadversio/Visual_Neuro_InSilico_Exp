@@ -49,7 +49,7 @@ def vis_eigen_frame(eigvect_avg, eigv_avg, G, ref_code=None, figdir="", RND=None
             csr = idx + 1
     return mtg, codes_col
 
-def vis_eigen_explore(ref_code, eigvect_avg, eigv_avg, G, figdir="", RND=None, namestr="", transpose=True,
+def vis_eigen_explore(ref_code, eigvect_avg, eigv_avg, G, figdir="", RND=None, namestr="", transpose=True, save=True,
                       eiglist=[1,2,4,7,16], maxdist=120, rown=5, sphere=False, ImDist=None, distrown=19, scaling=None):
     """This is small scale version of vis_eigen_frame + vis_distance_vector """
     if RND is None: RND = np.random.randint(10000)
@@ -67,8 +67,9 @@ def vis_eigen_explore(ref_code, eigvect_avg, eigv_avg, G, figdir="", RND=None, n
     codes_all = np.concatenate(tuple(codes_page), axis=0)
     img_page = G.render(codes_all)
     mtg = build_montages(img_page, (256, 256), (rown, len(eiglist)), transpose=transpose)[0]
-    imsave(join(figdir, "%s_%d-%d_%04d.jpg" % (namestr, eiglist[0]+1, eiglist[-1]+1, RND)), np.uint8(mtg * 255.0))
-    plt.imsave(join(figdir, "%s_%d-%d_%04d.pdf" % (namestr, eiglist[0]+1, eiglist[-1]+1, RND)), mtg, )
+    if save:
+        imsave(join(figdir, "%s_%d-%d_%04d.jpg" % (namestr, eiglist[0]+1, eiglist[-1]+1, RND)), np.uint8(mtg * 255.0))
+        plt.imsave(join(figdir, "%s_%d-%d_%04d.pdf" % (namestr, eiglist[0]+1, eiglist[-1]+1, RND)), mtg, )
     print("Finish printing page (%.1fs)" % (time() - t0))
     if ImDist is not None: # if distance metric available then compute this
         distmat, ticks, fig = vis_distance_curve(ref_code, eigvect_avg, eigv_avg, G, ImDist, eiglist=eiglist,
@@ -78,7 +79,7 @@ def vis_eigen_explore(ref_code, eigvect_avg, eigv_avg, G, figdir="", RND=None, n
         return mtg, codes_all
 
 def vis_eigen_explore_row(ref_code, eigvect_avg, eigv_avg, G, figdir="", RND=None, namestr="", indivimg=False,
-     transpose=True, eiglist=[1,2,4,7,16], maxdist=120, rown=5, sphere=False, ):  # ImDist=None, distrown=19
+     transpose=True, eiglist=[1,2,4,7,16], maxdist=120, rown=5, sphere=False, save=True):  # ImDist=None, distrown=19
     """This is small scale version of vis_eigen_frame + vis_distance_vector """
     if RND is None: RND = np.random.randint(10000)
     if eiglist is None: eiglist = list(range(len(eigv_avg)))
@@ -94,10 +95,11 @@ def vis_eigen_explore_row(ref_code, eigvect_avg, eigv_avg, G, figdir="", RND=Non
         codes_page.append(interp_codes)
         img_page = G.render(interp_codes)
         mtg = build_montages(img_page, (256, 256), (rown, 1), transpose=transpose)[0]
-        imsave(join(figdir, "%s_eig%d_%04d.jpg" % (namestr, eigi+1, RND)), np.uint8(mtg * 255.0))
-        plt.imsave(join(figdir, "%s_eig%d_%04d.pdf" % (namestr, eigi+1, RND)), mtg, )
+        if save:
+            imsave(join(figdir, "%s_eig%d_%04d.jpg" % (namestr, eigi+1, RND)), np.uint8(mtg * 255.0))
+            plt.imsave(join(figdir, "%s_eig%d_%04d.pdf" % (namestr, eigi+1, RND)), mtg, )
         mtg_col.append(mtg)
-        if indivimg:
+        if indivimg and save:
             for deviation, img in zip(ticks, img_page):
                 imsave(join(figdir, "%s_eig%d_%.1e_%04d.jpg" % (namestr,eigi+1, deviation, RND)), np.uint8(img * 255.0))
     codes_all = np.concatenate(tuple(codes_page), axis=0)

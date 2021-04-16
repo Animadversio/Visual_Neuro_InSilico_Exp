@@ -4,7 +4,7 @@ from GAN_utils import PGGAN_wrapper, DCGAN_wrapper, StyleGAN2_wrapper, BigGAN_wr
 from GAN_utils import loadStyleGAN, StyleGAN_wrapper
 # %%
 from hessian_analysis_tools import average_H, plot_spectra
-from hessian_axis_visualize import vis_eigen_action, vis_distance_curve, vis_eigen_frame
+from hessian_axis_visualize import vis_eigen_action, vis_distance_curve, vis_eigen_frame, vis_eigen_explore
 import numpy as np
 import torch
 from numpy.linalg import norm
@@ -80,9 +80,7 @@ PG = PGGAN_wrapper(PGGAN)
 figdir = join(axesdir, "PGGAN")
 os.makedirs(figdir, exist_ok=True)
 data = np.load(join(rootdir, "PGGAN", "H_avg_%s.npz"%"PGGAN"))#, H_avg=H_avg, eva_avg=eva_avg, evc_avg=evc_avg, feats=feat_col)
-H_avg = data["H_avg"]
-eva_avg = data["eva_avg"]
-evc_avg = data["evc_avg"]
+H_avg, eva_avg, evc_avg = data["H_avg"], data["eva_avg"], data["evc_avg"]
 #%%
 RND = np.random.randint(1E4)
 ref_codes = np.random.randn(8, 512)

@@ -1,14 +1,15 @@
 """Supporting classes and experimental code for in-silico experiment"""
 # Manifold_experiment
-import torch_net_utils #net_utils
-import net_utils
+# import torch_net_utils #net_utils
+# from torch_net_utils import load_caffenet, visualize, preprocess
+# import net_utils
+# from Generator import Generator
+# from Optimizer import Genetic, Optimizer  # CholeskyCMAES, Optimizer is the base class for these things
 import utils
 from ZO_HessAware_Optimizers import HessAware_Gauss_DC, CholeskyCMAES # newer CMAES api
 from utils import load_GAN
-from Generator import Generator
 from time import time, sleep
 import numpy as np
-from Optimizer import Genetic, Optimizer  # CholeskyCMAES, Optimizer is the base class for these things
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 import os
@@ -105,7 +106,6 @@ class CNNmodel:
         else:
             return scores
 #%% A simple torch models! supporting caffe-net
-from torch_net_utils import load_caffenet, visualize, preprocess
 class CNNmodel_Torch:
     """ Basic CNN scorer
     Demo:
@@ -175,12 +175,13 @@ import torch
 from torchvision import transforms
 from torchvision import models
 import torch.nn.functional as F
-from torch_net_utils import layername_dict
 from GAN_utils import upconvGAN
+from layer_hook_utils import layername_dict, register_hook_by_module_names, get_module_names, named_apply
 # mini-batches of 3-channel RGB images of shape (3 x H x W), where H and W are expected to be at least 224. The images have to be loaded in to a range of [0, 1] and then normalized using mean = [0.485, 0.456, 0.406] and std = [0.229, 0.224, 0.225].
 
-activation = {} # global variable is important for hook to work! it's an important channel for communication
+activation = {}  # global variable is important for hook to work! it's an important channel for communication
 def get_activation(name, unit=None):
+    """Return a hook that record the unit activity into the entry in activation dict."""
     if unit is None:
         def hook(model, input, output):
             activation[name] = output.detach()
@@ -193,7 +194,8 @@ def get_activation(name, unit=None):
     return hook
 
 class TorchScorer:
-    """ Torch CNN Scorer using hooks to fetch score from any layer in the net. Allows all models in torchvision zoo
+    """ Pure PyTorch CNN Scorer using hooks to fetch score from any layer in the net.
+    Compatible with all models in torchvision zoo
     Demo:
         scorer = TorchScorer("vgg16")
         scorer.select_unit(("vgg16", "fc2", 10, 10, 10))
@@ -209,15 +211,25 @@ class TorchScorer:
             self.layers = list(self.model.features) + list(self.model.classifier)
             self.layername = layername_dict[model_name]
             self.model.cuda().eval()
+            self.inputsize = (3, 227, 227)
         elif model_name == "alexnet":
             self.model = models.alexnet(pretrained=True)
             self.layers = list(self.model.features) + list(self.model.classifier)
             self.layername = layername_dict[model_name]
             self.model.cuda().eval()
+            self.inputsize = (3, 227, 227)
         elif model_name == "densenet121":
             self.model = models.densenet121(pretrained=True)
             self.layers = list(self.model.features) + [self.model.classifier]
             self.layername = layername_dict[model_name]
+            self.model.cuda().eval()
+            self.inputsize = (3, 227, 227)
+        elif model_name == "resnet101":
+            self.model = models.resnet101(pretrained=True)
+            self.inputsize = (3, 227, 227)
+            self.layername = None
+            # self.layers = list(self.model.features) + [self.model.classifier]
+            # self.layername = layername_dict[model_name]
             self.model.cuda().eval()
         for param in self.model.parameters():
             param.requires_grad_(False)
@@ -225,10 +237,11 @@ class TorchScorer:
         #                                       transforms.Resize(size=(224, 224)),
         #                                       transforms.ToTensor(),
         self.normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                                std=[0.229, 0.224, 0.225]) # Imagenet normalization RGB
+                                               std=[0.229, 0.224, 0.225])  # Imagenet normalization RGB
         self.RGBmean = torch.tensor([0.485, 0.456, 0.406]).view([1, 3, 1, 1]).cuda()
         self.RGBstd = torch.tensor([0.229, 0.224, 0.225]).view([1, 3, 1, 1]).cuda()
         self.artiphys = False
+        self.hooks = []
 
     def preprocess(self, img, input_scale=255):
         """preprocess single image array or a list (minibatch) of images"""
@@ -252,9 +265,14 @@ class TorchScorer:
                                          align_corners=True)
             return resz_out_img
 
-    def set_unit(self, name, layer, unit=None):
-        idx = self.layername.index(layer)
-        handle = self.layers[idx].register_forward_hook(get_activation(name, unit))
+    def set_unit(self, reckey, layer, unit=None):
+        if self.layername is not None:
+            idx = self.layername.index(layer)
+            handle = self.layers[idx].register_forward_hook(get_activation(reckey, unit)) # we can get the layer by indexing
+            self.hooks.append(handle)  # save the hooks in case we will remove it.
+        else:
+            handle, modulelist, moduletype = register_hook_by_module_names(layer, get_activation(reckey, unit), self.model, self.inputsize, device="cuda") # indexing is not available, we need to register by recursion.
+            self.hooks.extend(handle)
         return handle
 
     def select_unit(self, unit_tuple):
@@ -305,11 +323,12 @@ class TorchScorer:
             return scores
 
     def score_tsr(self, img_tsr, with_grad=False, B=42):
-        """Score in batch will accelerate processing greatly! """
+        """Score in batch will accelerate processing greatly!
+        img_tsr is already torch.Tensor"""
         # assume image is using 255 range
+        imgn = img_tsr.shape[0]
         scores = np.zeros(img_tsr.shape[0])
         csr = 0  # if really want efficiency, we should use minibatch processing.
-        imgn = img_tsr.shape[0]
         while csr < imgn:
             csr_end = min(csr + B, imgn)
             img_batch = self.preprocess(img_tsr[csr:csr_end,:,:,:], input_scale=1.0)
@@ -665,6 +684,23 @@ def resize_and_pad(img_list, size, offset, canvas_size=(227, 227)):
             resize_img.append(pad_img.copy())
     return resize_img
 
+
+def resize_and_pad_tsr(img_tsr, size, offset, canvas_size=(227, 227), scale=1.0):
+    '''Resize and Pad a list of images to list of images
+    Note this function is assuming the image is in (0,1) scale so padding with 0.5 as gray background.
+    '''
+    if img_tsr.ndim == 4:
+        imgn = img_tsr.shape[0]
+    else:
+        imgn = 1
+    padded_shape = (imgn, 3,) + canvas_size
+    pad_img = torch.ones(padded_shape) * 0.5 * scale
+    pad_img.to(img_tsr.dtype)
+    rsz_tsr = F.interpolate(img_tsr, size=size)
+    pad_img[:, :, offset[0]:offset[0] + size[0], offset[1]:offset[1] + size[1]] = rsz_tsr
+    return pad_img
+
+
 class ExperimentResizeEvolve:
     """Resize the evolved image before feeding into CNN and see how the evolution goes. """
     def __init__(self, model_unit, imgsize=(227, 227), corner=(0, 0),
@@ -794,6 +830,7 @@ class ExperimentManifold:
         self.codes_all = []
         self.generations = []
         self.pref_unit = model_unit
+        self.backend = backend
         if backend == "caffe":
             self.CNNmodel = CNNmodel(model_unit[0])  # 'caffe-net'
         elif backend == "torch":
@@ -806,8 +843,11 @@ class ExperimentManifold:
         self.CNNmodel.select_unit(model_unit)
         # Allow them to choose from multiple optimizers, substitute generator.visualize and render
         if GAN == "fc6" or GAN == "fc7" or GAN == "fc8":
-            self.G = Generator(name=GAN)
-            self.render = self.G.render
+            from GAN_utils import upconvGAN
+            self.G = upconvGAN(name=GAN).cuda()
+            self.render = self.G.visualize_batch_np
+            # self.G = Generator(name=GAN)
+            # self.render = self.G.render
             if GAN == "fc8":
                 self.code_length = 1000
             else:
@@ -846,11 +886,19 @@ class ExperimentManifold:
                     codes = init_code
             print('\n>>> step %d' % self.istep)
             t0 = time()
-            self.current_images = self.render(codes)
-            t1 = time()  # generate image from code
-            self.current_images = resize_and_pad(self.current_images, self.imgsize, self.corner)  # Fixed Apr.13
-            synscores = self.CNNmodel.score(self.current_images)
-            t2 = time()  # score images
+            if self.backend == "caffe":
+                self.current_images = self.render(codes)
+                t1 = time()  # generate image from code
+                self.current_images = resize_and_pad(self.current_images, self.imgsize, self.corner)  # Fixed Apr.13
+                synscores = self.CNNmodel.score(self.current_images)
+                t2 = time()  # score images
+            elif self.backend == "torch":
+                self.current_images = self.render(codes)
+                t1 = time()  # generate image from code
+                self.current_images = resize_and_pad_tsr(self.current_images, self.imgsize, self.corner)
+                # self.current_images = resize_and_pad_tsr(self.current_images, self.imgsize, self.corner)  # Fixed Jan.14 2021
+                synscores = self.CNNmodel.score_tsr(self.current_images)
+                t2 = time()  # score images
             codes_new = self.optimizer.step_simple(synscores, codes)
             t3 = time()  # use results to update optimizer
             self.codes_all.append(codes)
