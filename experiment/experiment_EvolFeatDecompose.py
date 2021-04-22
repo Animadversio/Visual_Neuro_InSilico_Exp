@@ -7,7 +7,7 @@ Created on Thu Apr 15 18:58:22 2021
 %load_ext autoreload
 %autoreload 2
 #%%
-backup_dir = r'C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-04-16-12-05-37'
+backup_dir = r'C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-04-20-12-22-56'
 threadid = 1
 
 exptime = backup_dir.split("\\")[-1]
@@ -87,7 +87,8 @@ imgcol_examp = [imread(fp) for fp in imgfp_examp]
 from torchvision import models
 from CorrFeatTsr_lib import Corr_Feat_Machine, Corr_Feat_pipeline, loadimg_preprocess, visualize_cctsr
 from featvis_lib import rectify_tsr, tsr_factorize, vis_featmap_corr, vis_feattsr, \
-    vis_feattsr_factor, vis_featvec, vis_featvec_wmaps, vis_featvec_point, load_featnet
+    vis_feattsr_factor, vis_featvec, vis_featvec_wmaps, vis_featvec_point, load_featnet, \
+    score_images, fitnl_predscore
 
 netname = "vgg16"
 ccdir = join(backup_dir, "CCFactor_%s"%netname)
@@ -95,7 +96,7 @@ os.makedirs(join(ccdir, "img"), exist_ok=True)
 featnet, net = load_featnet(netname)
 G = upconvGAN("fc6")
 G.requires_grad_(False).cuda().eval();
-#%%
+#%% Create correlation online 
 layers2plot = ["conv2_2", "conv3_3", "conv4_3",  "conv5_3", ]
 imgpix = int(imgsize * 40) #%224  # 
 #    titstr = "Driver Chan %d, %.1f deg [%s]"%(pref_chan, imgsize, tuple(imgpos))
@@ -104,7 +105,7 @@ featFetcher.register_hooks(net, ["conv2_2", "conv3_3","conv4_3", "conv5_3"])
 featFetcher.init_corr()
 #    score_vect, imgfullpath_vect = load_score_mat(EStats, MStats, Expi, "Evol", wdws=[(50, 200)], stimdrive="S")
 Corr_Feat_pipeline(featnet, featFetcher, scorevec_thread, imgfp_thread,
-        lambda x:loadimg_preprocess(x, borderblur=True, imgpix=120), online_compute=True,
+        lambda x:loadimg_preprocess(x, borderblur=True, imgpix=imgpix), online_compute=True,
         batchsize=100, savedir=ccdir, savenm="Evol" ) #  % (Animal, Expi, expsuffix),
 corrDict = np.load(join(ccdir, "%s_corrTsr.npz" % ("Evol")), allow_pickle=True)
 figh = visualize_cctsr_simple(featFetcher, layers2plot, imgcol_examp, savestr="Alfa_Evol%s_%s"%(exptime,netname), 
@@ -113,10 +114,10 @@ figh = visualize_cctsr_simple(featFetcher, layers2plot, imgcol_examp, savestr="A
 # corrDict = np.load(join(r"S:\corrFeatTsr", "%s_Exp%d_Evol%s_corrTsr.npz" % (Animal, Expi, exp_suffix)), allow_pickle=True)#
 cctsr_dict = corrDict.get("cctsr").item()
 Ttsr_dict = corrDict.get("Ttsr").item()
+featFetcher.clear_hook()
 #%% OK starts decompostion.
-layer = "conv4_3"
+layer = "conv5_3"
 bdr = 1; NF = 3; rect_mode = "abs"
-
 
 Ttsr = Ttsr_dict[layer]
 cctsr = cctsr_dict[layer]
@@ -144,4 +145,18 @@ for i, img in enumerate(imgcol_examp):
     imsave(join(ccdir, "img", "evol_best_%02d_%s.png"%(i, imgid)), img)
 #%%
 np.savez(join(ccdir, "factor_record.npz"), Hmat=Hmat, Hmaps=Hmaps, Tcomponents=Tcomponents, ccfactor=ccfactor, 
+    netname=netname, layer=layer, bdr=bdr, NF=NF, rect_mode=rect_mode, torchseed=torchseed)
+#%%
+
+ccfactor_shfl = np.concatenate(tuple([ccfactor[np.random.permutation(ccfactor.shape[0]),ci:ci+1] 
+                                      for ci in range(ccfactor.shape[1])]),axis=1)
+#%%
+finimgs_col, mtg_col, score_traj_col = vis_featvec(ccfactor_shfl, net, G, layer, netname=netname, 
+                     featnet=featnet, Bsize=5, figdir=ccdir, savestr="shuffle", imshow=False, saveimg=True)
+finimgs_col, mtg_col, score_traj_col = vis_featvec_wmaps(ccfactor_shfl, Hmaps, net, G, layer, netname=netname, \
+                     featnet=featnet, bdr=bdr, Bsize=5, figdir=ccdir, savestr="shuffle", imshow=False, saveimg=True)
+finimgs_col, mtg_col, score_traj_col = vis_featvec_point(ccfactor_shfl, Hmaps, net, G, layer, netname=netname,\
+                     featnet=featnet, bdr=bdr, Bsize=5, figdir=ccdir, savestr="shuffle", imshow=False, saveimg=True)
+#%%
+np.savez(join(ccdir, "factor_record_shuffle.npz"), Hmat=Hmat, Hmaps=Hmaps, Tcomponents=Tcomponents, ccfactor_shfl=ccfactor_shfl, 
     netname=netname, layer=layer, bdr=bdr, NF=NF, rect_mode=rect_mode, torchseed=torchseed)
