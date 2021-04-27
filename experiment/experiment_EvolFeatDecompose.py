@@ -7,7 +7,7 @@ Created on Thu Apr 15 18:58:22 2021
 %load_ext autoreload
 %autoreload 2
 #%%
-backup_dir = r'C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-04-20-12-22-56'
+backup_dir = r'C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-04-27-13-07-55'
 threadid = 1
 
 exptime = backup_dir.split("\\")[-1]
@@ -28,7 +28,7 @@ elif os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':
 
 sys.path.append(join(Python_dir,"Visual_Neuro_InSilico_Exp"))
 sys.path.append(join(Python_dir,"Visual_Neuron_Modelling"))
-sys.path.append(join(Python_dir,"PerceptualSimilarity"))
+# sys.path.append(join(Python_dir,"PerceptualSimilarity"))
 import numpy as np
 import torch
 from pytorch_pretrained_biggan import BigGAN, truncated_noise_sample
@@ -66,6 +66,46 @@ def visualize_cctsr_simple(featFetcher, layers2plot, imgcol, savestr="Evol", tit
     figh.savefig(join(figdir, "%s_corrTsr_vis.png" % (savestr)))
     figh.savefig(join(figdir, "%s_corrTsr_vis.pdf" % (savestr)))
     return figh
+
+def ind2xy(ind, div_n, pH, pW):
+    yi, xi = np.divmod(ind, div_n)
+    return yi * pH, xi * pW
+
+def roll_image(img, yroll, xroll):
+    imggxshift = np.zeros(img.shape, img.dtype)
+    imggyshift = np.zeros(img.shape, img.dtype)
+    #assert xroll * yroll is not 0
+    if xroll is not 0:
+        imggxshift[xroll:,:] = img[:-xroll,:]
+        imggxshift[:xroll,:] = img[-xroll:,:] # roll the lower edge up to fill the blank!
+    else:
+        imggxshift = img.copy()
+    if yroll is not 0:
+        imggyshift[:,yroll:] = imggxshift[:,:-yroll] # same for x axis.
+        imggyshift[:,:yroll] = imggxshift[:,-yroll:]
+    else:
+        imggyshift = imggxshift
+    return imggyshift
+
+def patch_shuffle(img, div_n=8):
+    """div_n, how many patch do you want along each axis"""
+    # div_n = 16
+    H, W = img.shape
+    #assert (H%div_n is 0) and (W%div_n is 0), "`div_n` should divide both W and H of image, like 1,2,4,8,16"
+    patch_n = div_n * div_n
+    pH = int(H / div_n)
+    pW = int(W / div_n)
+    perm_p_id = np.random.permutation(patch_n)
+    imgpshf = np.zeros(img.shape, img.dtype)
+    imgpshf[:,:] = img[:,:]
+    for ind in range(patch_n):
+        targ_y, targ_x = ind2xy(ind, div_n, pH, pW)
+        src_y, src_x = ind2xy(perm_p_id[ind], div_n, pH, pW)
+        imgpshf[targ_y:targ_y + pH, targ_x:targ_x + pW] = img[src_y:src_y + pH, src_x:src_x + pW]
+    
+    return imgpshf
+
+
 #%% Load basic information
 data = loadmat(join(backup_dir, "Evol_ScoreImgTraj.mat"))
 imgfp_col = data.get("imgfp_col")
@@ -88,7 +128,7 @@ from torchvision import models
 from CorrFeatTsr_lib import Corr_Feat_Machine, Corr_Feat_pipeline, loadimg_preprocess, visualize_cctsr
 from featvis_lib import rectify_tsr, tsr_factorize, vis_featmap_corr, vis_feattsr, \
     vis_feattsr_factor, vis_featvec, vis_featvec_wmaps, vis_featvec_point, load_featnet, \
-    score_images, fitnl_predscore
+    score_images, fitnl_predscore, tsr_posneg_factorize, posneg_sep
 
 netname = "vgg16"
 ccdir = join(backup_dir, "CCFactor_%s"%netname)
@@ -114,28 +154,35 @@ figh = visualize_cctsr_simple(featFetcher, layers2plot, imgcol_examp, savestr="A
 # corrDict = np.load(join(r"S:\corrFeatTsr", "%s_Exp%d_Evol%s_corrTsr.npz" % (Animal, Expi, exp_suffix)), allow_pickle=True)#
 cctsr_dict = corrDict.get("cctsr").item()
 Ttsr_dict = corrDict.get("Ttsr").item()
+stdtsr_dict = corrDict.get("featStd").item()
 featFetcher.clear_hook()
 #%% OK starts decompostion.
-layer = "conv5_3"
-bdr = 1; NF = 3; rect_mode = "abs"
+layer = "conv4_3"
+bdr = 2; NF = 3; rect_mode = "pos"
 
 Ttsr = Ttsr_dict[layer]
 cctsr = cctsr_dict[layer]
+stdtsr = stdtsr_dict[layer]
+covtsr = cctsr * stdtsr
 Ttsr_pp = rectify_tsr(Ttsr, rect_mode)  # "mode="thresh", thr=(-5,5))
-Hmat, Hmaps, Tcomponents, ccfactor = tsr_factorize(Ttsr_pp, cctsr, bdr=bdr, Nfactor=NF, figdir=ccdir, savestr="%s-%s"%(netname, layer))
+# Hmat, Hmaps, Tcomponents, ccfactor = tsr_factorize(Ttsr_pp, cctsr, bdr=bdr, Nfactor=NF, figdir=ccdir, savestr="%s-%s"%(netname, layer))
+Hmat, Hmaps, ccfactor, FactStat = tsr_posneg_factorize(rectify_tsr(covtsr, rect_mode), bdr=bdr, Nfactor=NF, 
+                                     figdir=ccdir, savestr="%s-%s"%(netname, layer))
+Tcomponents = None
 #%%
 torchseed = int(time())
 torch.manual_seed(torchseed)
-finimgs, mtg, score_traj = vis_feattsr(cctsr, net, G, layer, netname=netname, 
-                                Bsize=5, figdir=ccdir, savestr="", saveimg=True)
-finimgs, mtg, score_traj = vis_feattsr_factor(ccfactor, Hmaps, net, G, layer, netname=netname, 
-                                Bsize=5, bdr=bdr, figdir=ccdir, savestr="", saveimg=True)
-finimgs_col, mtg_col, score_traj_col = vis_featvec(ccfactor, net, G, layer, netname=netname, 
-                     featnet=featnet, Bsize=5, figdir=ccdir, savestr="", imshow=False, saveimg=True)
-finimgs_col, mtg_col, score_traj_col = vis_featvec_wmaps(ccfactor, Hmaps, net, G, layer, netname=netname, \
-                     featnet=featnet, bdr=bdr, Bsize=5, figdir=ccdir, savestr="", imshow=False, saveimg=True)
-finimgs_col, mtg_col, score_traj_col = vis_featvec_point(ccfactor, Hmaps, net, G, layer, netname=netname,\
-                     featnet=featnet, bdr=bdr, Bsize=5, figdir=ccdir, savestr="", imshow=False, saveimg=True)
+finimgs, mtg, score_traj = vis_feattsr(cctsr, net, G, layer, netname=netname, score_mode="corr", 
+                                Bsize=5, figdir=ccdir, savestr="corr", saveimg=True)
+finimgs, mtg, score_traj = vis_feattsr_factor(ccfactor, Hmaps, net, G, layer, netname=netname, score_mode="corr", 
+                                Bsize=5, bdr=bdr, figdir=ccdir, savestr="corr", saveimg=True)
+finimgs_col, mtg_col, score_traj_col = vis_featvec(ccfactor, net, G, layer, netname=netname, score_mode="corr", 
+                     featnet=featnet, Bsize=10, figdir=ccdir, savestr="corr", imshow=False, saveimg=True)
+#%%
+finimgs_col, mtg_col, score_traj_col = vis_featvec_wmaps(ccfactor, Hmaps, net, G, layer, netname=netname, score_mode="corr", \
+                     featnet=featnet, bdr=bdr, Bsize=10, figdir=ccdir, savestr="corr", imshow=False, saveimg=True)
+finimgs_col, mtg_col, score_traj_col = vis_featvec_point(ccfactor, Hmaps, net, G, layer, netname=netname, score_mode="corr",\
+                     featnet=featnet, bdr=bdr, Bsize=10, figdir=ccdir, savestr="corr", imshow=False, saveimg=True)
 #%%
 score_examp = scorevec_thread[score_idx[:5]]
 imgfp_examp = imgfp_thread[score_idx[:5]]
@@ -151,12 +198,25 @@ np.savez(join(ccdir, "factor_record.npz"), Hmat=Hmat, Hmaps=Hmaps, Tcomponents=T
 ccfactor_shfl = np.concatenate(tuple([ccfactor[np.random.permutation(ccfactor.shape[0]),ci:ci+1] 
                                       for ci in range(ccfactor.shape[1])]),axis=1)
 #%%
-finimgs_col, mtg_col, score_traj_col = vis_featvec(ccfactor_shfl, net, G, layer, netname=netname, 
-                     featnet=featnet, Bsize=5, figdir=ccdir, savestr="shuffle", imshow=False, saveimg=True)
-finimgs_col, mtg_col, score_traj_col = vis_featvec_wmaps(ccfactor_shfl, Hmaps, net, G, layer, netname=netname, \
-                     featnet=featnet, bdr=bdr, Bsize=5, figdir=ccdir, savestr="shuffle", imshow=False, saveimg=True)
-finimgs_col, mtg_col, score_traj_col = vis_featvec_point(ccfactor_shfl, Hmaps, net, G, layer, netname=netname,\
-                     featnet=featnet, bdr=bdr, Bsize=5, figdir=ccdir, savestr="shuffle", imshow=False, saveimg=True)
+finimgs_col, mtg_col, score_traj_col = vis_featvec(ccfactor_shfl, net, G, layer, netname=netname, score_mode="corr",
+                     featnet=featnet, Bsize=10, figdir=ccdir, savestr="shuffle", imshow=False, saveimg=True)
+#%%
+finimgs_col, mtg_col, score_traj_col = vis_featvec_wmaps(ccfactor_shfl, Hmaps, net, G, layer, netname=netname, score_mode="corr",\
+                     featnet=featnet, bdr=bdr, Bsize=10, figdir=ccdir, savestr="shuffle", imshow=False, saveimg=True)
+finimgs_col, mtg_col, score_traj_col = vis_featvec_point(ccfactor_shfl, Hmaps, net, G, layer, netname=netname, score_mode="corr",\
+                     featnet=featnet, bdr=bdr, Bsize=10, figdir=ccdir, savestr="shuffle", imshow=False, saveimg=True)
+#%%
+#%%
+# Hmats_shfl = np.concatenate(tuple([Hmat[np.random.permutation(Hmat.shape[0]),ci:ci+1] 
+#                                       for ci in range(Hmat.shape[1])]),axis=1)
+# Hmaps_shfl = Hmats_shfl.reshape(Hmaps.shape)
+# finimgs_col, mtg_col, score_traj_col = vis_featvec_wmaps(ccfactor_shfl, Hmaps_shfl, net, G, layer, netname=netname, score_mode="corr",\
+#                      featnet=featnet, bdr=bdr, Bsize=10, figdir=ccdir, savestr="map_shuffle", imshow=False, saveimg=True)
+#%%
+Hmaps_patchshffule = np.concatenate(tuple(patch_shuffle(Hmaps[:,:,ci], div_n=6)[:,:,np.newaxis] 
+                                          for ci in range(Hmaps.shape[2])),axis=2)
+finimgs_col, mtg_col, score_traj_col = vis_featvec_wmaps(ccfactor_shfl, Hmaps_patchshffule, net, G, layer, netname=netname, score_mode="corr",\
+                     featnet=featnet, bdr=bdr, Bsize=10, figdir=ccdir, savestr="map_patchshuffle", imshow=False, saveimg=True)
 #%%
 np.savez(join(ccdir, "factor_record_shuffle.npz"), Hmat=Hmat, Hmaps=Hmaps, Tcomponents=Tcomponents, ccfactor_shfl=ccfactor_shfl, 
-    netname=netname, layer=layer, bdr=bdr, NF=NF, rect_mode=rect_mode, torchseed=torchseed)
+    Hmaps_patchshfl=Hmaps_patchshffule, netname=netname, layer=layer, bdr=bdr, NF=NF, rect_mode=rect_mode, torchseed=torchseed)
