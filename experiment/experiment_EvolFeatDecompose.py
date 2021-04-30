@@ -131,7 +131,8 @@ from featvis_lib import rectify_tsr, tsr_factorize, vis_featmap_corr, vis_featts
     score_images, fitnl_predscore, tsr_posneg_factorize, posneg_sep
 
 netname = "vgg16"
-ccdir = join(backup_dir, "CCFactor_%s"%netname)
+# ccdir = join(backup_dir, "CCFactor_%s"%netname)
+ccdir = "debug_tmp"
 os.makedirs(join(ccdir, "img"), exist_ok=True)
 featnet, net = load_featnet(netname)
 G = upconvGAN("fc6")
@@ -173,16 +174,15 @@ Tcomponents = None
 torchseed = int(time())
 torch.manual_seed(torchseed)
 finimgs, mtg, score_traj = vis_feattsr(cctsr, net, G, layer, netname=netname, score_mode="corr", 
-                                Bsize=5, figdir=ccdir, savestr="corr", saveimg=True)
+            Bsize=5, figdir=ccdir, savestr="corr", saveimg=True)
 finimgs, mtg, score_traj = vis_feattsr_factor(ccfactor, Hmaps, net, G, layer, netname=netname, score_mode="corr", 
-                                Bsize=5, bdr=bdr, figdir=ccdir, savestr="corr", saveimg=True)
+            Bsize=5, bdr=bdr, figdir=ccdir, savestr="corr", saveimg=True)
 finimgs_col, mtg_col, score_traj_col = vis_featvec(ccfactor, net, G, layer, netname=netname, score_mode="corr", 
-                     featnet=featnet, Bsize=10, figdir=ccdir, savestr="corr", imshow=False, saveimg=True)
-#%%
+             featnet=featnet, Bsize=10, saveImgN=5, figdir=ccdir, savestr="corr", imshow=False, saveimg=True)
 finimgs_col, mtg_col, score_traj_col = vis_featvec_wmaps(ccfactor, Hmaps, net, G, layer, netname=netname, score_mode="corr", \
-                     featnet=featnet, bdr=bdr, Bsize=10, figdir=ccdir, savestr="corr", imshow=False, saveimg=True)
+             featnet=featnet, bdr=bdr, Bsize=10, saveImgN=5, figdir=ccdir, savestr="corr", imshow=False, saveimg=True)
 finimgs_col, mtg_col, score_traj_col = vis_featvec_point(ccfactor, Hmaps, net, G, layer, netname=netname, score_mode="corr",\
-                     featnet=featnet, bdr=bdr, Bsize=10, figdir=ccdir, savestr="corr", imshow=False, saveimg=True)
+             featnet=featnet, bdr=bdr, Bsize=10, saveImgN=5, figdir=ccdir, savestr="corr", imshow=False, saveimg=True)
 #%%
 score_examp = scorevec_thread[score_idx[:5]]
 imgfp_examp = imgfp_thread[score_idx[:5]]
@@ -199,24 +199,23 @@ ccfactor_shfl = np.concatenate(tuple([ccfactor[np.random.permutation(ccfactor.sh
                                       for ci in range(ccfactor.shape[1])]),axis=1)
 #%%
 finimgs_col, mtg_col, score_traj_col = vis_featvec(ccfactor_shfl, net, G, layer, netname=netname, score_mode="corr",
-                     featnet=featnet, Bsize=10, figdir=ccdir, savestr="shuffle", imshow=False, saveimg=True)
-#%%
+             featnet=featnet, Bsize=10, saveImgN=5, figdir=ccdir, savestr="shuffle", imshow=False, saveimg=True)
 finimgs_col, mtg_col, score_traj_col = vis_featvec_wmaps(ccfactor_shfl, Hmaps, net, G, layer, netname=netname, score_mode="corr",\
-                     featnet=featnet, bdr=bdr, Bsize=10, figdir=ccdir, savestr="shuffle", imshow=False, saveimg=True)
+             featnet=featnet, bdr=bdr, Bsize=10, saveImgN=5, figdir=ccdir, savestr="shuffle", imshow=False, saveimg=True)
 finimgs_col, mtg_col, score_traj_col = vis_featvec_point(ccfactor_shfl, Hmaps, net, G, layer, netname=netname, score_mode="corr",\
-                     featnet=featnet, bdr=bdr, Bsize=10, figdir=ccdir, savestr="shuffle", imshow=False, saveimg=True)
+             featnet=featnet, bdr=bdr, Bsize=10, saveImgN=5, figdir=ccdir, savestr="shuffle", imshow=False, saveimg=True)
 #%%
+Hmaps_patchshffule = np.concatenate(tuple(patch_shuffle(Hmaps[:,:,ci], div_n=6)[:,:,np.newaxis] 
+                                          for ci in range(Hmaps.shape[2])),axis=2)
+finimgs_col, mtg_col, score_traj_col = vis_featvec_wmaps(ccfactor_shfl, Hmaps_patchshffule, net, G, layer, netname=netname, score_mode="corr",\
+                     featnet=featnet, bdr=bdr, Bsize=10, saveImgN=5, figdir=ccdir, savestr="map_patchshuffle", imshow=False, saveimg=True)
 #%%
+np.savez(join(ccdir, "factor_record_shuffle.npz"), Hmat=Hmat, Hmaps=Hmaps, Tcomponents=Tcomponents, ccfactor_shfl=ccfactor_shfl, 
+    Hmaps_patchshfl=Hmaps_patchshffule, netname=netname, layer=layer, bdr=bdr, NF=NF, rect_mode=rect_mode, torchseed=torchseed)
+
+#%% 
 # Hmats_shfl = np.concatenate(tuple([Hmat[np.random.permutation(Hmat.shape[0]),ci:ci+1] 
 #                                       for ci in range(Hmat.shape[1])]),axis=1)
 # Hmaps_shfl = Hmats_shfl.reshape(Hmaps.shape)
 # finimgs_col, mtg_col, score_traj_col = vis_featvec_wmaps(ccfactor_shfl, Hmaps_shfl, net, G, layer, netname=netname, score_mode="corr",\
 #                      featnet=featnet, bdr=bdr, Bsize=10, figdir=ccdir, savestr="map_shuffle", imshow=False, saveimg=True)
-#%%
-Hmaps_patchshffule = np.concatenate(tuple(patch_shuffle(Hmaps[:,:,ci], div_n=6)[:,:,np.newaxis] 
-                                          for ci in range(Hmaps.shape[2])),axis=2)
-finimgs_col, mtg_col, score_traj_col = vis_featvec_wmaps(ccfactor_shfl, Hmaps_patchshffule, net, G, layer, netname=netname, score_mode="corr",\
-                     featnet=featnet, bdr=bdr, Bsize=10, figdir=ccdir, savestr="map_patchshuffle", imshow=False, saveimg=True)
-#%%
-np.savez(join(ccdir, "factor_record_shuffle.npz"), Hmat=Hmat, Hmaps=Hmaps, Tcomponents=Tcomponents, ccfactor_shfl=ccfactor_shfl, 
-    Hmaps_patchshfl=Hmaps_patchshffule, netname=netname, layer=layer, bdr=bdr, NF=NF, rect_mode=rect_mode, torchseed=torchseed)
