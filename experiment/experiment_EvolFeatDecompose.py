@@ -157,7 +157,7 @@ Ttsr_dict = corrDict.get("Ttsr").item()
 stdtsr_dict = corrDict.get("featStd").item()
 featFetcher.clear_hook()
 #%% OK starts decompostion.
-layer = "conv4_3"
+layer = "conv3_3"
 bdr = 2; NF = 3; rect_mode = "pos"
 
 Ttsr = Ttsr_dict[layer]
@@ -178,7 +178,6 @@ finimgs, mtg, score_traj = vis_feattsr_factor(ccfactor, Hmaps, net, G, layer, ne
                                 Bsize=5, bdr=bdr, figdir=ccdir, savestr="corr", saveimg=True)
 finimgs_col, mtg_col, score_traj_col = vis_featvec(ccfactor, net, G, layer, netname=netname, score_mode="corr", 
                      featnet=featnet, Bsize=10, figdir=ccdir, savestr="corr", imshow=False, saveimg=True)
-#%%
 finimgs_col, mtg_col, score_traj_col = vis_featvec_wmaps(ccfactor, Hmaps, net, G, layer, netname=netname, score_mode="corr", \
                      featnet=featnet, bdr=bdr, Bsize=10, figdir=ccdir, savestr="corr", imshow=False, saveimg=True)
 finimgs_col, mtg_col, score_traj_col = vis_featvec_point(ccfactor, Hmaps, net, G, layer, netname=netname, score_mode="corr",\
@@ -200,7 +199,6 @@ ccfactor_shfl = np.concatenate(tuple([ccfactor[np.random.permutation(ccfactor.sh
 #%%
 finimgs_col, mtg_col, score_traj_col = vis_featvec(ccfactor_shfl, net, G, layer, netname=netname, score_mode="corr",
                      featnet=featnet, Bsize=10, figdir=ccdir, savestr="shuffle", imshow=False, saveimg=True)
-#%%
 finimgs_col, mtg_col, score_traj_col = vis_featvec_wmaps(ccfactor_shfl, Hmaps, net, G, layer, netname=netname, score_mode="corr",\
                      featnet=featnet, bdr=bdr, Bsize=10, figdir=ccdir, savestr="shuffle", imshow=False, saveimg=True)
 finimgs_col, mtg_col, score_traj_col = vis_featvec_point(ccfactor_shfl, Hmaps, net, G, layer, netname=netname, score_mode="corr",\
@@ -217,6 +215,9 @@ Hmaps_patchshffule = np.concatenate(tuple(patch_shuffle(Hmaps[:,:,ci], div_n=6)[
                                           for ci in range(Hmaps.shape[2])),axis=2)
 finimgs_col, mtg_col, score_traj_col = vis_featvec_wmaps(ccfactor_shfl, Hmaps_patchshffule, net, G, layer, netname=netname, score_mode="corr",\
                      featnet=featnet, bdr=bdr, Bsize=10, figdir=ccdir, savestr="map_patchshuffle", imshow=False, saveimg=True)
+#%%
+finimgs_col, mtg_col, score_traj_col = vis_featvec_wmaps(ccfactor, Hmaps_patchshffule, net, G, layer, netname=netname, score_mode="corr",\
+                     featnet=featnet, bdr=bdr, Bsize=10, figdir=ccdir, savestr="maponly_patchshuffle", imshow=False, saveimg=True)
 #%%
 np.savez(join(ccdir, "factor_record_shuffle.npz"), Hmat=Hmat, Hmaps=Hmaps, Tcomponents=Tcomponents, ccfactor_shfl=ccfactor_shfl, 
     Hmaps_patchshfl=Hmaps_patchshffule, netname=netname, layer=layer, bdr=bdr, NF=NF, rect_mode=rect_mode, torchseed=torchseed)
