@@ -1,3 +1,7 @@
+"""
+Visualize Examplars for BigGAN, FC6 GAN evolution. 
+ALso visualize optimization trajectories. 
+"""
 import os
 import re
 import numpy as np
@@ -90,9 +94,11 @@ plt.title("Comparing Performance of Optimizers in Activation Maximizing Alexnet 
 plt.axis('auto')
 plt.savefig(join(summarydir, "fc6_optimizer_scores_cmp.jpg"))
 plt.show()
+
+
 #%%
 """
-Load the cluster in silico exp results (newest ones). 
+Load the cluster in silico exp results (newest ones) for summary plot
 """
 rootdir = r"E:\Cluster_Backup\BigGAN_Optim_Tune_new"
 summarydir = join(rootdir, "summary")
@@ -104,7 +110,7 @@ align_tab = pd.read_csv(join(summarydir, "optim_aligned_score_tab_BigGAN.csv"))
 #%% Do a survey of all the exp done (Full version, not Receptive Field Matched)
 unit_strs = os.listdir(rootdir)
 unit_strs = [unit_str for unit_str in unit_strs if "alexnet" in unit_str]  # only keep the full size evolution.
-unit_pat = re.compile("([^_]*)_([^_]*)_(\d*)(_RFrsz)?")  # 'alexnet_fc8_59_RFrsz'
+unit_pat = re.compile("([^_]*)_([^_]*)_(\d*)(_RFrsz)?")  # re pattern for matching 'alexnet_fc8_59_RFrsz'
 # last part is a suffix indicating if it's doing resized evolution (Resize image to match RF)
 unit_tups = [unit_pat.findall(unit_str)[0] for unit_str in unit_strs]
 unit_tups = [(tup[0], tup[1], int(tup[2]), tup[3]) for tup in unit_tups]
@@ -236,6 +242,9 @@ ax.figure.savefig(join(summarydir, "method_cmp_violin_method_all.jpg"))
 ttest_rel(align_tab.HessCMA, align_tab.CholCMA, nan_policy='omit')
 ttest_rel(align_tab.HessCMA, align_tab.HessCMA_class, nan_policy='omit')
 ttest_rel(align_tab.HessCMA, align_tab.HessCMA_noA, nan_policy='omit')
+
+
+
 #%%
 """
 Get sample images for each method! and montage them together.
