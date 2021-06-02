@@ -7,8 +7,12 @@ Created on Thu Apr 15 18:58:22 2021
 %load_ext autoreload
 %autoreload 2
 #%%
-backup_dir = r'C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-04-27-13-07-55'
-backup_dir = r"N:\Stimuli\2021-EvolDecomp\2021-04-27-Alfa-03\2021-04-27-13-07-55"
+backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-05-25-13-25-18"
+#r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-05-25-13-45-47"
+# r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-05-25-13-25-18"
+# r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-05-10-13-29-28"
+#r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-05-10-12-57-47"
+# backup_dir = r"N:\Stimuli\2021-EvolDecomp\2021-04-27-Alfa-03\2021-04-27-13-07-55"
 threadid = 1
 
 exptime = backup_dir.split("\\")[-1]
@@ -31,6 +35,7 @@ sys.path.append(join(Python_dir,"Visual_Neuro_InSilico_Exp"))
 sys.path.append(join(Python_dir,"Visual_Neuron_Modelling"))
 # sys.path.append(join(Python_dir,"PerceptualSimilarity"))
 import numpy as np
+from scipy.stats import sem
 import torch
 from pytorch_pretrained_biggan import BigGAN, truncated_noise_sample
 from GAN_utils import upconvGAN
@@ -118,10 +123,25 @@ imgpos = imgpos[threadid-1, :]
 pref_chan = pref_chan[threadid-1, 0]
 scorevec_thread = score_col[0, threadid-1][:,0]
 imgfp_thread = imgfp_col[0, threadid-1]
+imgpatt = re.compile("block(\d*)_thread")
+blockvec_thread = np.array([int(imgpatt.findall(imgfn)[0]) for imgfn in imgfp_thread])
+blockarr = range(min(blockvec_thread),max(blockvec_thread)+1)
+meanarr = np.array([np.mean(scorevec_thread[blockvec_thread==blocki]) for blocki in blockarr])
+semarr = np.array([sem(scorevec_thread[blockvec_thread==blocki]) for blocki in blockarr])
 #%
 if os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':
     backup_dir_old, _ = os.path.split(imgfp_thread[0])
     imgfp_thread = np.array([fp.replace(backup_dir_old, backup_dir) for fp in imgfp_thread])
+
+figh = plt.figure(figsize=[6,5]);
+plt.scatter(blockvec_thread,scorevec_thread,alpha=0.5)
+plt.plot(blockarr, meanarr, 'k-')
+plt.fill_between(blockarr, meanarr-semarr, meanarr+semarr,alpha=0.4)
+plt.ylabel("Spike rate");
+plt.xlabel("Generations");
+plt.title("Evolution Trajectory prefchan %02d, %.1f deg pos [%.1f %.1f], thread %d"%\
+          (pref_chan,imgsize,imgpos[0],imgpos[1],threadid))
+plt.show()
 #%% Collect some best images
 score_idx = np.argsort(-scorevec_thread)
 score_examp = scorevec_thread[score_idx[:4]]
@@ -133,12 +153,15 @@ from CorrFeatTsr_lib import Corr_Feat_Machine, Corr_Feat_pipeline, loadimg_prepr
 from featvis_lib import rectify_tsr, tsr_factorize, vis_featmap_corr, vis_feattsr, \
     vis_feattsr_factor, vis_featvec, vis_featvec_wmaps, vis_featvec_point, load_featnet, \
     score_images, fitnl_predscore, tsr_posneg_factorize, posneg_sep
-
-netname = "vgg16";layers2plot = ["conv2_2", "conv3_3", "conv4_3",  "conv5_3", ]
+#%%
+netname = "alexnet";layers2plot = ["conv2", "conv3", "conv4", "conv5",]
+# netname = "vgg16";layers2plot = ["conv2_2", "conv3_3", "conv4_3",  "conv5_3", ]
 # netname = "resnet50";layers2plot = ["layer2", "layer3", "layer4", ]
+# netname = "resnet50_linf8";layers2plot = ["layer2", "layer3", "layer4", ]
 ccdir = join(backup_dir, "CCFactor_%s"%netname)
 # ccdir = "debug_tmp_%s"%netname
 os.makedirs(join(ccdir, "img"), exist_ok=True)
+figh.savefig(join(ccdir,"ExpEvolTraj.png"))
 featnet, net = load_featnet(netname)
 G = upconvGAN("fc6")
 G.requires_grad_(False).cuda().eval();
@@ -160,9 +183,12 @@ Ttsr_dict = corrDict.get("Ttsr").item()
 stdtsr_dict = corrDict.get("featStd").item()
 featFetcher.clear_hook()
 #%% OK starts decompostion.
-layer = "conv4_3"
-# layer = "layer3"
-bdr = 3; NF = 3; rect_mode = "Tthresh"; thresh = (None, 4)#"pos"
+layer = "conv4"; bdr = 1; 
+# layer = "conv3_3"; bdr = 2; 
+# layer = "layer3"; bdr = 1; 
+ccdir = join(backup_dir, "CCFactor_%s-%s"%(netname,layer))
+os.makedirs(join(ccdir, "img"), exist_ok=True)
+NF = 3; rect_mode = "Tthresh"; thresh = (None, 3)#"pos"
 Ttsr = Ttsr_dict[layer]
 cctsr = cctsr_dict[layer]
 stdtsr = stdtsr_dict[layer]
@@ -191,7 +217,7 @@ finimgs_col, mtg_col, score_traj_col = vis_featvec_wmaps(ccfactor, Hmaps, net, G
 finimgs_col, mtg_col, score_traj_col = vis_featvec(ccfactor, net, G, layer, netname=netname, score_mode="corr",
              featnet=featnet, Bsize=10, saveImgN=5, figdir=ccdir, savestr="corr", imshow=False, saveimg=True)
 finimgs_col, mtg_col, score_traj_col = vis_featvec_point(ccfactor, Hmaps, net, G, layer, netname=netname, score_mode="corr",\
-             featnet=featnet, bdr=bdr, Bsize=10, saveImgN=5, figdir=ccdir, savestr="corr", imshow=False, saveimg=True)
+             featnet=featnet, bdr=bdr, Bsize=10, saveImgN=5, figdir=ccdir, savestr="corr", imshow=False, saveimg=True, pntsize=4)
 #%%
 score_examp = scorevec_thread[score_idx[:5]]
 imgfp_examp = imgfp_thread[score_idx[:5]]
@@ -218,11 +244,16 @@ H_H, H_W = Hmaps.shape[0], Hmaps.shape[1]
 Hmaps_patchshffule = np.concatenate(tuple(roll_image(patch_shuffle(Hmaps[:,:,ci], div_n=PatchN), \
                  np.random.randint(H_H), np.random.randint(H_W))[:,:,np.newaxis]
                                           for ci in range(Hmaps.shape[2])),axis=2)
+#%%
 finimgs_col, mtg_col, score_traj_col = vis_featvec_wmaps(ccfactor, Hmaps_patchshffule, net, G, layer, netname=netname, score_mode="corr",\
              featnet=featnet, bdr=bdr, Bsize=10, saveImgN=5, figdir=ccdir, savestr="maponly_patchshuffle", imshow=False, saveimg=True)
 finimgs_col, mtg_col, score_traj_col = vis_featvec_wmaps(ccfactor_shfl, Hmaps_patchshffule, net, G, layer, netname=netname, score_mode="corr",\
              featnet=featnet, bdr=bdr, Bsize=10, saveImgN=5, figdir=ccdir, savestr="map_patchshuffle", imshow=False, saveimg=True)
-#%%
+finimgs_col, mtg_col, score_traj_col = vis_feattsr_factor(ccfactor, Hmaps_patchshffule, net, G, layer, netname=netname, score_mode="corr",\
+             featnet=featnet, bdr=bdr, Bsize=10, saveImgN=5, figdir=ccdir, savestr="maponly_patchshuffle", imshow=False, saveimg=True)
+finimgs_col, mtg_col, score_traj_col = vis_feattsr_factor(ccfactor_shfl, Hmaps_patchshffule, net, G, layer, netname=netname, score_mode="corr",\
+             featnet=featnet, bdr=bdr, Bsize=10, saveImgN=5, figdir=ccdir, savestr="map_patchshuffle", imshow=False, saveimg=True)
+    #%%
 np.savez(join(ccdir, "factor_record_shuffle.npz"), Hmat=Hmat, Hmaps=Hmaps, Tcomponents=Tcomponents, ccfactor_shfl=ccfactor_shfl, 
     Hmaps_patchshfl=Hmaps_patchshffule, netname=netname, layer=layer, bdr=bdr, NF=NF, rect_mode=rect_mode,
          thresh=thresh, torchseed=torchseed)
