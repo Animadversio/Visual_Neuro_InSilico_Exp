@@ -11,11 +11,13 @@ from sklearn.decomposition import PCA
 import matplotlib.pylab as plt
 from utils import generator
 import utils
+from GAN_utils import upconvGAN
+G = upconvGAN("fc6").cuda()
 #%%
 '''
 Input the experimental backup folder containing the mat codes files.
 '''
-backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_integrated\2020-04-29-11-49-38"
+backup_dir = r"N:\Stimuli\2021-ProjectPFC\2021-Evolutions\2021-06-30-Caos-01\2021-06-30-10-52-27"
 
 newimg_dir = os.path.join(backup_dir,"PC_imgs")
 
@@ -60,7 +62,9 @@ for j in range(-5, 6):
                                         np.sin(theta) * np.cos(phi),
                                         np.sin(phi)]]) @ PC_vectors[0:3, :]
         code_vec = code_vec / np.sqrt((code_vec**2).sum()) * sphere_norm
-        img = generator.visualize(code_vec)
+        # img = generator.visualize(code_vec)
+        # img_list.append(img.copy())
+        img = G.render(code_vec)[0]
         img_list.append(img.copy())
         plt.imsave(os.path.join(newimg_dir, "norm_%d_PC2_%d_PC3_%d.jpg" % (sphere_norm, PC2_ang_step * j, PC3_ang_step* k)), img)
 
@@ -81,7 +85,9 @@ for j in range(-5, 6):
                                         np.sin(theta) * np.cos(phi),
                                         np.sin(phi)]]) @ PC_vectors[PC_nums, :]
         code_vec = code_vec / np.sqrt((code_vec**2).sum()) * sphere_norm
-        img = generator.visualize(code_vec)
+        # img = generator.visualize(code_vec)
+        # img_list.append(img.copy())
+        img = G.render(code_vec)[0]
         img_list.append(img.copy())
         plt.imsave(os.path.join(newimg_dir, "norm_%d_PC%d_%d_PC%d_%d.jpg" % (sphere_norm,
                                                                             PC_nums[1] + 1, PC2_ang_step * j,
@@ -107,7 +113,9 @@ for j in range(-5, 6):
                                         np.sin(theta) * np.cos(phi),
                                         np.sin(phi)]]) @ vectors
         code_vec = code_vec / np.sqrt((code_vec**2).sum()) * sphere_norm
-        img = generator.visualize(code_vec)
+        # img = generator.visualize(code_vec)
+        # img_list.append(img.copy())
+        img = G.render(code_vec)[0]
         img_list.append(img.copy())
         plt.imsave(os.path.join(newimg_dir, "norm_%d_RND1_%d_RND2_%d.jpg" % (sphere_norm, PC2_ang_step * j, PC3_ang_step * k)), img)
 fig3 = utils.visualize_img_list(img_list)
