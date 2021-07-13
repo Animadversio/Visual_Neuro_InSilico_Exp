@@ -1,17 +1,18 @@
-"""
+""" Extensive analysis code for BigGAN / FC6 evolution in silico.
 Visualize Examplars for BigGAN, FC6 GAN evolution. 
 ALso visualize optimization trajectories. 
 """
 import os
 import re
-import numpy as np
-import matplotlib.pylab as plt
-import seaborn as sns
 from time import time
 from os.path import join
+from easydict import EasyDict
+import numpy as np
 import pandas as pd
-from scipy.stats import ttest_rel, ttest_ind
+import seaborn as sns
 import matplotlib as mpl
+import matplotlib.pylab as plt
+from scipy.stats import ttest_rel, ttest_ind
 mpl.rcParams['pdf.fonttype'] = 42
 #%% Summarize difference between methods when applying to fc6
 """Obsoltete!!"""
@@ -127,6 +128,7 @@ for ui, unit_str in enumerate(unit_strs):
         entry = (unit_str, *unit_tup, parts[0], GANname, int(parts[1]), float(parts[2]))
         rec_col.append(entry)
 
+# Note suffix encodes if the evolution is using RF resized image or not.
 exprec_tab = pd.DataFrame(rec_col, columns=["unitstr", 'net', 'layer', 'unit', 'suffix', "optimizer", "GAN", "RND",
                                             "score"])
 #%% Formulate a experiment record
