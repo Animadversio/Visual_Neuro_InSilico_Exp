@@ -12,9 +12,11 @@ import numpy as np
 from scipy.stats import ttest_rel,ttest_ind
 from os.path import join, exists
 from os import listdir
-import matplotlib
-matplotlib.rcParams['pdf.fonttype'] = 42
-matplotlib.rcParams['ps.fonttype'] = 42
+import matplotlib as mpl
+mpl.rcParams['pdf.fonttype'] = 42
+mpl.rcParams['ps.fonttype'] = 42
+mpl.rcParams['axes.spines.right'] = False
+mpl.rcParams['axes.spines.top'] = False
 #%%
 netname = "caffe-net"
 result_dir = r"E:\OneDrive - Washington University in St. Louis\Artiphysiology\Manifold"
