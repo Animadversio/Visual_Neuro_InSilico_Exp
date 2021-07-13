@@ -150,6 +150,12 @@ def build_montages(image_list, image_shape, montage_shape, transpose=True):
     return image_montages
 #%% Inspired from MakeGrid in torchvision.utils
 def make_grid_np(img_arr, nrow=8, padding=2, pad_value=0):
+    if type(img_arr) is list:
+        try:
+            img_tsr = np.stack(tuple(img_arr), axis=3)
+            img_arr = img_tsr
+        except ValueError:
+            raise ValueError("img_arr is a list and its elements do not have the same shape as each other.")
     nmaps = img_arr.shape[3]
     xmaps = min(nrow, nmaps)
     ymaps = int(np.ceil(float(nmaps) / xmaps))
