@@ -230,23 +230,24 @@ from layer_hook_utils import get_module_names, register_hook_by_module_names, la
 from grad_RF_estim import grad_RF_estimate, gradmap2RF_square
 pos_dict = {"conv5": (7, 7), "conv4": (7, 7), "conv3": (7, 7), "conv2": (14, 14), "conv1": (28, 28)}
 
-cent_pos = None
-if not args.net in layername_dict:
-    module_names, module_types, module_spec = get_module_names(scorer.model, input_size=(3, 227, 227), device="cuda")
-    layer_key = [k for k, v in module_names.items() if v == args.layer][0]
-    feat_outshape = module_spec[layer_key]['outshape']
-    assert len(feat_outshape) == 3
-    cent_pos = (feat_outshape[1]//2, feat_outshape[2]//2)
 
+if not "fc" in args.layer:
+    if not args.net in layername_dict: # TODO:Check the logic
+        module_names, module_types, module_spec = get_module_names(scorer.model, input_size=(3, 227, 227), device="cuda")
+        layer_key = [k for k, v in module_names.items() if v == args.layer][0]
+        feat_outshape = module_spec[layer_key]['outshape']
+        assert len(feat_outshape) == 3 # fc layer will fail
+        cent_pos = (feat_outshape[1]//2, feat_outshape[2]//2)
+    else:
+        cent_pos = pos_dict[args.layer]
+else:
+    cent_pos = None
 
 for unit_id in range(args.chans[0], args.chans[1]):
     if "fc" in args.layer:
         unit = (args.net, args.layer, unit_id)
     else:
-        if args.net in layername_dict:
-            unit = (args.net, args.layer, unit_id, *pos_dict[args.layer])
-        else:  # TODO:Check the logic
-            unit = (args.net, args.layer, unit_id, *cent_pos)
+        unit = (args.net, args.layer, unit_id, *cent_pos)
     scorer.select_unit(unit)
     if args.RFresize:
         if "fc" in args.layer:
@@ -257,7 +258,11 @@ for unit_id in range(args.chans[0], args.chans[1]):
             imgsize = (int((rf_pos[0][1] - rf_pos[0][0]) / 227 * 256 + 1), int((rf_pos[1][1] - rf_pos[1][0]) / 227 * 256 + 1))
             corner = (int(rf_pos[0][0] / 227 * 256 - 1), int(rf_pos[1][0] / 227 * 256 - 1))
     # Save directory named after the unit. Add RFrsz as suffix if resized
-    savedir = join(rootdir, r"%s_%s_%d" % unit[:3]) 
+    if cent_pos is None:
+        savedir = join(rootdir, r"%s_%s_%d" % unit[:3])
+    else:
+        savedir = join(rootdir, r"%s_%s_%d_%d_%d" % unit[:5])
+
     if args.RFresize: savedir+="_RFrsz"
     os.makedirs(savedir, exist_ok=True)
     for triali in range(args.reps):
