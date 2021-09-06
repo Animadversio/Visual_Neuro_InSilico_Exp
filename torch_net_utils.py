@@ -16,9 +16,9 @@ from sys import platform
 if platform == "linux":  # CHPC cluster
     homedir = Path(os.path.expanduser('~'))
     netsdir = os.path.join(homedir, 'Generate_DB/nets')
-    sys.path.append(homedir/"pytorch-caffe")
-    sys.path.append(homedir/"pytorch-receptive-field")
-    sys.path.append(homedir/"PerceptualSimilarity")  # should be added there!
+    sys.path.append(join(homedir,"pytorch-caffe"))
+    sys.path.append(join(homedir,"pytorch-receptive-field"))
+    sys.path.append(join(homedir,"PerceptualSimilarity"))  # should be added there!)
     # ckpt_path = {"vgg16": "/scratch/binxu/torch/vgg16-397923af.pth"}
 else:
     if os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':  # PonceLab-Desktop 3
