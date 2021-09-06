@@ -226,7 +226,7 @@ def resize_and_pad(imgs, corner, size):
 
 # optimizer_col = [label2optimizer(methodlabel, np.random.randn(1, 256), GAN=args.G) for methodlabel in method_col]
 #%%
-from layer_hook_utils import get_module_names, register_hook_by_module_names
+from layer_hook_utils import get_module_names, register_hook_by_module_names, layername_dict
 from grad_RF_estim import grad_RF_estimate, gradmap2RF_square
 pos_dict = {"conv5": (7, 7), "conv4": (7, 7), "conv3": (7, 7), "conv2": (14, 14), "conv1": (28, 28)}
 
