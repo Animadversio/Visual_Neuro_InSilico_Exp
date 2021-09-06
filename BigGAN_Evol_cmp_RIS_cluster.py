@@ -232,7 +232,7 @@ pos_dict = {"conv5": (7, 7), "conv4": (7, 7), "conv3": (7, 7), "conv2": (14, 14)
 
 cent_pos = None
 if not args.net in layername_dict:
-    module_names, module_types, module_spec = get_module_names(scorer.model, input_size=(3, 227, 227))
+    module_names, module_types, module_spec = get_module_names(scorer.model, input_size=(3, 227, 227), device="cuda")
     layer_key = [k for k, v in module_names.items() if v == args.layer][0]
     feat_outshape = module_spec[layer_key]['outshape']
     assert len(feat_outshape) == 3
