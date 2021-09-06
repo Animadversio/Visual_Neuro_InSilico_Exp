@@ -6,7 +6,7 @@ from time import time, sleep
 from scipy.io import loadmat
 import numpy as np
 from PIL import Image
-from cv2 import imread, resize, INTER_CUBIC, INTER_AREA
+# from cv2 import imread, resize, INTER_CUBIC, INTER_AREA
 
 GAN_space = "fc6"
 generator = None
@@ -16,43 +16,43 @@ def load_GAN(name=GAN_space):
     return generator
 
 #%%
-def read_image(image_fpath):
-    # BGR is flipped to RGB. why BGR?:
-    #     Note In the case of color images, the decoded images will have the channels stored in B G R order.
-    #     https://docs.opencv.org/2.4/modules/highgui/doc/reading_and_writing_images_and_video.html
-    imarr = imread(image_fpath)[:, :, ::-1]
-    return imarr
-
-
-def write_images(imgs, names, path, size=None, timeout=0.5, format='bmp'):
-    """
-    Saves images as 24-bit bmp files to given path with given names
-    :param imgs: list of images as numpy arrays with shape (w, h, c) and dtype uint8
-    :param names: filenames of images **including or excluding** '.bmp'
-    :param path: path to save to
-    :param size: size (pixels) to resize image to; default is unchanged
-    :param timeout: timeout for trying to write each image
-    :return: None
-    """
-    for im_arr, name in zip(imgs, names):
-        if size is not None and im_arr.shape[1] != size:
-            if im_arr.shape[1] < size:    # upsampling
-                im_arr = resize(im_arr, (size, size), interpolation=INTER_CUBIC)
-            else:                         # downsampling
-                im_arr = resize(im_arr, (size, size), interpolation=INTER_AREA)
-        img = Image.fromarray(im_arr)
-        trying = True
-        t0 = time()
-        if name.rfind("."+format ) != len(name) - 4:
-            name += "."+format
-        while trying and time() - t0 < timeout:
-            try:
-                img.save(os.path.join(path, name))
-                trying = False
-            except IOError as e:
-                if e.errno != 35:
-                    raise
-                sleep(0.01)
+# def read_image(image_fpath):
+#     # BGR is flipped to RGB. why BGR?:
+#     #     Note In the case of color images, the decoded images will have the channels stored in B G R order.
+#     #     https://docs.opencv.org/2.4/modules/highgui/doc/reading_and_writing_images_and_video.html
+#     imarr = imread(image_fpath)[:, :, ::-1]
+#     return imarr
+#
+#
+# def write_images(imgs, names, path, size=None, timeout=0.5, format='bmp'):
+#     """
+#     Saves images as 24-bit bmp files to given path with given names
+#     :param imgs: list of images as numpy arrays with shape (w, h, c) and dtype uint8
+#     :param names: filenames of images **including or excluding** '.bmp'
+#     :param path: path to save to
+#     :param size: size (pixels) to resize image to; default is unchanged
+#     :param timeout: timeout for trying to write each image
+#     :return: None
+#     """
+#     for im_arr, name in zip(imgs, names):
+#         if size is not None and im_arr.shape[1] != size:
+#             if im_arr.shape[1] < size:    # upsampling
+#                 im_arr = resize(im_arr, (size, size), interpolation=INTER_CUBIC)
+#             else:                         # downsampling
+#                 im_arr = resize(im_arr, (size, size), interpolation=INTER_AREA)
+#         img = Image.fromarray(im_arr)
+#         trying = True
+#         t0 = time()
+#         if name.rfind("."+format ) != len(name) - 4:
+#             name += "."+format
+#         while trying and time() - t0 < timeout:
+#             try:
+#                 img.save(os.path.join(path, name))
+#                 trying = False
+#             except IOError as e:
+#                 if e.errno != 35:
+#                     raise
+#                 sleep(0.01)
 
 
 def write_codes(codes, names, path, timeout=0.5):
@@ -161,6 +161,7 @@ def load_block_mat(matfpath):
     attempts = 0
     while True:
         try:
+            import h5py
             with h5py.File(matfpath, 'r') as f:
                 imgids_refs = np.array(f['stimulusID'])[0]
                 imgids = []
