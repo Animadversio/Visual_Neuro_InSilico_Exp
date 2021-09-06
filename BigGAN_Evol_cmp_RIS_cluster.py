@@ -285,8 +285,8 @@ for unit_id in range(args.chans[0], args.chans[1]):
             codes_all = np.concatenate(tuple(codes_all), axis=0)
             scores_all = np.array(scores_all)
             generations = np.array(generations)
-            mtg_exp = ToPILImage()(make_grid(best_imgs, nrow=10))
-            mtg_exp.save(join(savedir, "besteachgen%s_%05d.jpg" % (methodlab, RND,)))
+            # mtg_exp = ToPILImage()(make_grid(best_imgs, nrow=10))
+            # mtg_exp.save(join(savedir, "besteachgen%s_%05d.jpg" % (methodlab, RND,)))
             mtg = ToPILImage()(make_grid(imgs, nrow=7))
             mtg.save(join(savedir, "lastgen%s_%05d_score%.1f.jpg" % (methodlab, RND, scores.mean())))
             if args.G == "fc6":

@@ -20,3 +20,8 @@ This project serves the purpose of developping and testing computational tools *
 
 ## Usage 
 This Repo can potentially be deployed onto cluster to run at large scale, based on Caffe or TF or torch backend.
+
+## Dependency
+
+* [Pytorch Receptive Field](https://github.com/Fangyh09/pytorch-receptive-field) is used in some of the in silico experiments
+* [pytorch hessian eigenthings](https://github.com/noahgolmant/pytorch-hessian-eigenthings) is used in some scripts
