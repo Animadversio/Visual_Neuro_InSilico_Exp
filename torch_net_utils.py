@@ -47,10 +47,10 @@ else:
         sys.path.append("D:\Github\pytorch-caffe")
         homedir = os.path.expanduser('~')
         netsdir = os.path.join(homedir, 'Documents/nets')
-from caffenet import *  # Pytorch-caffe converter
 from torch_receptive_field import receptive_field, receptive_field_for_unit
 #%% Prepare PyTorch version of the Caffe networks
 def load_caffenet():
+    from caffenet import *  # Pytorch-caffe converter
     protofile = join(netsdir, r"caffenet\caffenet.prototxt")  # 'resnet50/deploy.prototxt'
     weightfile = join(netsdir, r'caffenet\bvlc_reference_caffenet.caffemodel')  # 'resnet50/resnet50.caffemodel'
     save_path = join(netsdir, r"caffenet\caffenet_state_dict.pt")
@@ -90,6 +90,7 @@ def GAN_path(name):
     return save_path, protofile, weightfile
 
 def load_generator(GAN="fc6"):
+    from caffenet import *  # Pytorch-caffe converter
     # netsdir = r"D:/Generator_DB_Windows/nets"
     save_path, protofile, weightfile = GAN_path(GAN)
     Generator = CaffeNet(protofile)

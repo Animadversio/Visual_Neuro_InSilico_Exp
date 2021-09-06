@@ -25,12 +25,12 @@ import os
 import tqdm
 # from cma import CMAEvolutionStrategy
 from ZO_HessAware_Optimizers import CholeskyCMAES, HessCMAES
-def get_BigGAN(version="biggan-deep-256"):
-    cache_path = "/scratch/binxu/torch/"
-    cfg = BigGANConfig.from_json_file(join(cache_path, "%s-config.json" % version))
-    BGAN = BigGAN(cfg)
-    BGAN.load_state_dict(torch.load(join(cache_path, "%s-pytorch_model.bin" % version)))
-    return BGAN
+# def get_BigGAN(version="biggan-deep-256"):
+#     cache_path = "/scratch/binxu/torch/"
+#     cfg = BigGANConfig.from_json_file(join(cache_path, "%s-config.json" % version))
+#     BGAN = BigGAN(cfg)
+#     BGAN.load_state_dict(torch.load(join(cache_path, "%s-pytorch_model.bin" % version)))
+#     return BGAN
 
 #%%
 def visualize_trajectory(scores_all, generations, codes_arr=None, show=False, title_str=""):
@@ -78,7 +78,7 @@ if sys.platform == "linux":
     Hdir_fc6 = join(scratchdir, "Hessian", "Evolution_Avg_Hess.npz")  #r"/scratch/binxu/GAN_hessian/FC6GAN/summary/Evolution_Avg_Hess.npz"
 else:
     # rootdir = r"E:\OneDrive - Washington University in St. Louis\BigGAN_Optim_Tune_tmp"
-    rootdir = r"E:\Cluster_Backup\BigGAN_Optim_Tune_new" #r"E:\Monkey_Data\BigGAN_Optim_Tune_tmp"
+    rootdir = r"D:\Cluster_Backup\GAN_Evol_cmp" #r"E:\Monkey_Data\BigGAN_Optim_Tune_tmp"
     Hdir_BigGAN = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\BigGAN\H_avg_1000cls.npz"
     Hdir_fc6 = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\fc6GAN\Evolution_Avg_Hess.npz"
 
