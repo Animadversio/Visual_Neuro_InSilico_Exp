@@ -7,17 +7,18 @@ from os.path import join
 import torch
 import sys
 import numpy as np
+from pathlib import Path
 #%%
 # Depend on 2 packages, you should clone from
 # https://github.com/Animadversio/pytorch-receptive-field
 # https://github.com/Animadversio/pytorch-caffe.git
 from sys import platform
 if platform == "linux":  # CHPC cluster
-    homedir = os.path.expanduser('~')
+    homedir = Path(os.path.expanduser('~'))
     netsdir = os.path.join(homedir, 'Generate_DB/nets')
-    sys.path.append("/home/binxu/pytorch-caffe")
-    sys.path.append("/home/binxu/pytorch-receptive-field")
-    sys.path.append("/home/binxu/PerceptualSimilarity") # should be added there!
+    sys.path.append(homedir/"pytorch-caffe")
+    sys.path.append(homedir/"pytorch-receptive-field")
+    sys.path.append(homedir/"PerceptualSimilarity")  # should be added there!
     # ckpt_path = {"vgg16": "/scratch/binxu/torch/vgg16-397923af.pth"}
 else:
     if os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':  # PonceLab-Desktop 3

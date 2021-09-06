@@ -67,10 +67,15 @@ def visualize_trajectory(scores_all, generations, codes_arr=None, show=False, ti
     return figh
 #%%
 if sys.platform == "linux":
-    rootdir = r"/scratch/binxu/BigGAN_Optim_Tune_new"
-    Hdir_BigGAN = r"/scratch/binxu/GAN_hessian/BigGAN/summary/H_avg_1000cls.npz"
-    Hdir_fc6 = r"/scratch/binxu/GAN_hessian/FC6GAN/summary/Evolution_Avg_Hess.npz"
+    # rootdir = r"/scratch/binxu/BigGAN_Optim_Tune_new"
+    # Hdir_BigGAN = r"/scratch/binxu/GAN_hessian/BigGAN/summary/H_avg_1000cls.npz"
+    # Hdir_fc6 = r"/scratch/binxu/GAN_hessian/FC6GAN/summary/Evolution_Avg_Hess.npz"
     # Newer cluster interface
+    import os
+    scratchdir = os.environ['SCRATCH1']
+    rootdir = join(scratchdir, "GAN_Evol_cmp")
+    Hdir_BigGAN = join(scratchdir, "Hessian", "H_avg_1000cls.npz")  #r"/scratch/binxu/GAN_hessian/BigGAN/summary/H_avg_1000cls.npz"
+    Hdir_fc6 = join(scratchdir, "Hessian", "Evolution_Avg_Hess.npz")  #r"/scratch/binxu/GAN_hessian/FC6GAN/summary/Evolution_Avg_Hess.npz"
 else:
     # rootdir = r"E:\OneDrive - Washington University in St. Louis\BigGAN_Optim_Tune_tmp"
     rootdir = r"E:\Cluster_Backup\BigGAN_Optim_Tune_new" #r"E:\Monkey_Data\BigGAN_Optim_Tune_tmp"
@@ -92,16 +97,18 @@ if args.G == "BigGAN":
     Hdata = np.load(Hdir_BigGAN)
 elif args.G == "fc6":
     Hdata = np.load(Hdir_fc6)
+else:
+    print("Hessian not found for the specified GAN")
 #%%
 """with a correct cmaes or initialization, BigGAN can match FC6 activation."""
 #%% Select GAN
 from GAN_utils import BigGAN_wrapper, upconvGAN, loadBigGAN
 from insilico_Exp import TorchScorer, ExperimentEvolve
 if args.G == "BigGAN":
-    if sys.platform == "linux":
-        BGAN = get_BigGAN(version="biggan-deep-256")
-    else:
-        BGAN = BigGAN.from_pretrained("biggan-deep-256")
+    # if sys.platform == "linux":
+    #     BGAN = get_BigGAN(version="biggan-deep-256")
+    # else:
+    BGAN = BigGAN.from_pretrained("biggan-deep-256")
     BGAN.eval().cuda()
     for param in BGAN.parameters():
         param.requires_grad_(False)
@@ -153,6 +160,7 @@ class fix_param_wrapper:
 
 #%% Optimizer from label, Use this to translate string labels to optimizer
 def label2optimizer(methodlabel, init_code, GAN="BigGAN", ): # TODO add default init_code
+    """ Input a label output an grad-free optimizer """
     if GAN == "BigGAN":
         if methodlabel == "CholCMA":
             optim_cust = CholeskyCMAES(space_dimen=256, init_code=init_code, init_sigma=0.2,)

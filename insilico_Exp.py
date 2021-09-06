@@ -231,6 +231,20 @@ class TorchScorer:
             # self.layers = list(self.model.features) + [self.model.classifier]
             # self.layername = layername_dict[model_name]
             self.model.cuda().eval()
+        elif model_name == "resnet50":
+            self.model = models.resnet50(pretrained=True)
+            self.inputsize = (3, 227, 227)
+            self.layername = None
+            # self.layers = list(self.model.features) + [self.model.classifier]
+            # self.layername = layername_dict[model_name]
+            self.model.cuda().eval()
+        elif model_name == "resnet50_linf8":
+            self.model = models.resnet50(pretrained=False)
+            self.inputsize = (3, 227, 227)
+            self.layername = None
+            # self.layers = list(self.model.features) + [self.model.classifier]
+            # self.layername = layername_dict[model_name]
+            self.model.cuda().eval()
         for param in self.model.parameters():
             param.requires_grad_(False)
         # self.preprocess = transforms.Compose([transforms.ToPILImage(),
