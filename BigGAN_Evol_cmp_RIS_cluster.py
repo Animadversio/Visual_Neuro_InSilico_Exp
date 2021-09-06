@@ -280,7 +280,7 @@ for unit_id in range(args.chans[0], args.chans[1]):
                 new_codes = optimizer.step_simple(scores, new_codes, )
                 scores_all.extend(list(scores))
                 generations.extend([i] * len(scores))
-                best_imgs.append(imgs[scores.argmax(),:,:,:])
+                # best_imgs.append(imgs[scores.argmax(),:,:,:])
 
             codes_all = np.concatenate(tuple(codes_all), axis=0)
             scores_all = np.array(scores_all)
