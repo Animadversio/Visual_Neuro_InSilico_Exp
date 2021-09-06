@@ -103,7 +103,8 @@ else:
 """with a correct cmaes or initialization, BigGAN can match FC6 activation."""
 #%% Select GAN
 from GAN_utils import BigGAN_wrapper, upconvGAN, loadBigGAN
-from insilico_Exp import TorchScorer, ExperimentEvolve
+# from insilico_Exp import TorchScorer, ExperimentEvolve
+from insilico_Exp_torch import TorchScorer
 if args.G == "BigGAN":
     # if sys.platform == "linux":
     #     BGAN = get_BigGAN(version="biggan-deep-256")
