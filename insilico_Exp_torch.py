@@ -35,7 +35,9 @@ def get_activation(name, unit=None, ingraph=False):
     return hook
 
 if platform == "linux": # cluster
-    torchhome = "/scratch/binxu/torch/checkpoints"
+    # torchhome = "/scratch/binxu/torch/checkpoints"  # CHPC
+    scratchdir = os.environ["SCRATCH1"]
+    torchhome = join(scratchdir, "torch/checkpoints")  # CHPC
 else:
     if os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':  # PonceLab-Desktop 3
         torchhome = r"E:\Cluster_Backup\torch"
@@ -251,8 +253,9 @@ class TorchScorer:
 
 init_sigma = 3
 Aupdate_freq = 10
-from cv2 import resize
-import cv2
+# from cv2 import resize
+# import cv2
+from skimage.transform import rescale, resize
 def resize_and_pad(img_list, size, offset, canvas_size=(227, 227), scale=1.0):
     '''Resize and Pad a list of images to list of images
     Note this function is assuming the image is in (0,1) scale so padding with 0.5 as gray background.
@@ -264,7 +267,7 @@ def resize_and_pad(img_list, size, offset, canvas_size=(227, 227), scale=1.0):
             resize_img.append(img.copy())
         else:
             pad_img = np.ones(padded_shape) * 0.5 * scale
-            pad_img[offset[0]:offset[0]+size[0], offset[1]:offset[1]+size[1], :] = resize(img, size, cv2.INTER_AREA)
+            pad_img[offset[0]:offset[0]+size[0], offset[1]:offset[1]+size[1], :] = resize(img, size, )#cv2.INTER_AREA)
             resize_img.append(pad_img.copy())
     return resize_img
 
@@ -307,10 +310,12 @@ class ExperimentManifold:
         self.pref_unit = model_unit
         self.backend = backend
         if backend == "caffe":
+            from insilico_Exp import CNNmodel # really old version
             self.CNNmodel = CNNmodel(model_unit[0])  # 'caffe-net'
         elif backend == "torch":
             if model_unit[0] == 'caffe-net': # `is` won't work here!
-                self.CNNmodel = CNNmodel_Torch(model_unit[0])
+                from insilico_Exp import CNNmodel_Torch
+                self.CNNmodel = CNNmodel_Torch(model_unit[0])  # really old version
             else:  # AlexNet, VGG, ResNet, DENSE and anything else
                 self.CNNmodel = TorchScorer(model_unit[0])
         else:
