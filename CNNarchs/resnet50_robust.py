@@ -6,6 +6,7 @@ from collections import OrderedDict
 resnetR = resnet50(False)
 #%% Load in the pt
 savedir = r"E:\Cluster_Backup\torch"
+savedir = r"D:\torch\checkpoints"
 for ptname in ["imagenet_linf_8.pt", "imagenet_linf_4.pt", "imagenet_l2_3_0.pt"]:
     data = torch.load(join(savedir, ptname))
     # resnetR.load_state_dict(data["model"])

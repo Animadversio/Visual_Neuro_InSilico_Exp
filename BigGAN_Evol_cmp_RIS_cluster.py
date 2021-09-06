@@ -90,7 +90,7 @@ parser.add_argument("--chans", type=int, nargs='+', default=[0, 25], help="")
 parser.add_argument("--G", type=str, default="BigGAN", help="")
 parser.add_argument("--optim", type=str, nargs='+', default=["HessCMA", "HessCMA_class", "CholCMA", "CholCMA_prod", "CholCMA_class"], help="")
 parser.add_argument("--steps", type=int, default=100, help="")
-parser.add_argument("--reps", type=int, default=5, help="")
+parser.add_argument("--reps", type=int, default=2, help="")
 parser.add_argument("--RFresize", type=bool, default=False, help="")
 args = parser.parse_args() # ["--G", "BigGAN", "--optim", "HessCMA", "CholCMA","--chans",'1','2','--steps','100',"--reps",'2']
 if args.G == "BigGAN":
@@ -226,13 +226,27 @@ def resize_and_pad(imgs, corner, size):
 
 # optimizer_col = [label2optimizer(methodlabel, np.random.randn(1, 256), GAN=args.G) for methodlabel in method_col]
 #%%
+from layer_hook_utils import get_module_names, register_hook_by_module_names
+from grad_RF_estim import grad_RF_estimate, gradmap2RF_square
 pos_dict = {"conv5": (7, 7), "conv4": (7, 7), "conv3": (7, 7), "conv2": (14, 14), "conv1": (28, 28)}
+
+cent_pos = None
+if not args.net in layername_dict:
+    module_names, module_types, module_spec = get_module_names(scorer.model, input_size=(3, 227, 227))
+    layer_key = [k for k, v in module_names.items() if v == args.layer][0]
+    feat_outshape = module_spec[layer_key]['outshape']
+    assert len(feat_outshape) == 3
+    cent_pos = (feat_outshape[1]//2, feat_outshape[2]//2)
+
 
 for unit_id in range(args.chans[0], args.chans[1]):
     if "fc" in args.layer:
         unit = (args.net, args.layer, unit_id)
     else:
-        unit = (args.net, args.layer, unit_id, *pos_dict[args.layer])
+        if args.net in layername_dict:
+            unit = (args.net, args.layer, unit_id, *pos_dict[args.layer])
+        else:  # TODO:Check the logic
+            unit = (args.net, args.layer, unit_id, *cent_pos)
     scorer.select_unit(unit)
     if args.RFresize:
         if "fc" in args.layer:
