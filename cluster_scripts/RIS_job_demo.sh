@@ -2,12 +2,12 @@
 #BSUB -n 1
 #BSUB -q general
 #BSUB -M 10G
-#BSUB -oo ${HOME}/log
+#BSUB -oo $HOME/log/demo$LSB_JOBINDEX.log
 #BSUB -a 'docker(alpine)'
 #BSUM -u binxu.wang@wustl.edu
 #BSUM -N
-#BSUB -R 'select[mem>8000] span[hosts=1]'
-
+#BSUB -R 'select[mem>8000]'
+#BSUB -J 'demo[1-10]'
 param_list='1
 2
 3
@@ -18,6 +18,7 @@ param_list='1
 8
 9
 '
+
 export unit_name="$(echo "$param_list" | head -n $LSB_JOBINDEX | tail -1)"
 # Append the extra command to the script.
 cd ~/Visual_Neuro_InSilico_Exp/
