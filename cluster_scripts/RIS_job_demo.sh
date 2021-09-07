@@ -1,8 +1,9 @@
 #!/bin/bash
 #BSUB -n 1
 #BSUB -q general
+#BSUB -G compute-crponce
 #BSUB -M 10G
-#BSUB -oo $HOME/log/demo$LSB_JOBINDEX.log
+#BSUB -oo /home/binxu.w/log/demo.log
 #BSUB -a 'docker(alpine)'
 #BSUM -u binxu.wang@wustl.edu
 #BSUM -N
