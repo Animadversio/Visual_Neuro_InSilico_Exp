@@ -10,6 +10,7 @@
 #BSUB -a 'docker(alpine)'
 #BSUM -u binxu.wang@wustl.edu
 #BSUM -N
+
 param_list='1
 2
 3
@@ -20,6 +21,8 @@ param_list='1
 8
 9
 '
+
+echo "$LSB_JOBINDEX"
 
 export unit_name="$(echo "$param_list" | head -n $LSB_JOBINDEX | tail -1)"
 # Append the extra command to the script.
