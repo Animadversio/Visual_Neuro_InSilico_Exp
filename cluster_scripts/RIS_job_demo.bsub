@@ -1,12 +1,14 @@
+#!/bin/bash
 #BSUB -n 1
 #BSUB -q general
 #BSUB -G compute-crponce
 #BSUB -R 'select[mem>8000]'
 #BSUB -M 10G
-#BSUB -J 'demo[1-10]'
+#BSUB -J 'demo[1-5]'
 #BSUB -o  /scratch1/fs1/crponce/demo_out.%J
 #BSUB -oo /home/binxu.w/log/demo.log
 #BSUB -a 'docker(alpine)'
 #BSUM -u binxu.wang@wustl.edu
 #BSUM -N
-/bin/bash ~/Visual_Neuro_InSilico_Exp/cluster_scripts/RIS_job.sh
+
+~/Visual_Neuro_InSilico_Exp/cluster_scripts/RIS_job.sh
