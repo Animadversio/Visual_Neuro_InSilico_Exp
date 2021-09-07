@@ -236,6 +236,7 @@ if not "fc" in args.layer:
 else:
     cent_pos = None
 
+print("Target setting network %s layer %s, center pos"%(args.net, args.layer), cent_pos)
 # rf Mapping,
 if args.RFresize:
     if "fc" in args.layer:
