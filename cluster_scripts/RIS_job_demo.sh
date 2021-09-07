@@ -1,4 +1,3 @@
-#!/bin/bash
 #BSUB -n 1
 #BSUB -q general
 #BSUB -G compute-crponce
