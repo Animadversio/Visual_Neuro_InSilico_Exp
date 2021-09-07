@@ -5,7 +5,7 @@
 #BSUB -R 'select[mem>8000]'
 #BSUB -M 10G
 #BSUB -J 'demo[1-10]'
-#BSUB -o '/home/binxu.w/demo_out.%J'
+#BSUB -o  /home/binxu.w/demo_out.txt
 #BSUB -oo /home/binxu.w/log/demo.log
 #BSUB -a 'docker(alpine)'
 #BSUM -u binxu.wang@wustl.edu
