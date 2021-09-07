@@ -1,14 +1,4 @@
-#BSUB -n 1
-#BSUB -q general
-#BSUB -G compute-crponce
-#BSUB -R 'select[mem>8000]'
-#BSUB -M 10G
-#BSUB -J 'demo[1-10]'
-#BSUB -o  /home/binxu.w/demo_out.txt
-#BSUB -oo /home/binxu.w/log/demo.log
-#BSUB -a 'docker(alpine)'
-#BSUM -u binxu.wang@wustl.edu
-#BSUM -N
+#!/bin/bash
 echo "$LSB_JOBINDEX"
 
 param_list='1
