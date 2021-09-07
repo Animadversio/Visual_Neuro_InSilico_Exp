@@ -122,12 +122,6 @@ elif args.G == "fc6":
 #%%
 # net = tv.alexnet(pretrained=True)
 scorer = TorchScorer(args.net)
-if args.RFresize:
-    from torch_net_utils import receptive_field, receptive_field_for_unit
-    from layer_hook_utils import get_module_names, register_hook_by_module_names, layername_dict
-    rf_dict = receptive_field(scorer.model.features, (3, 227, 227), device="cuda")
-    layername = layername_dict[args.net]
-    layer_name_map = {layer: str(i+1) for i, layer in enumerate(layername)}
 # scorer.select_unit(("alexnet", "fc6", 2))
 # imgs = G.visualize(torch.randn(3, 256).cuda()).cpu()
 # scores = scorer.score_tsr(imgs)
@@ -227,36 +221,59 @@ def resize_and_pad(imgs, corner, size):
 # optimizer_col = [label2optimizer(methodlabel, np.random.randn(1, 256), GAN=args.G) for methodlabel in method_col]
 #%%
 from layer_hook_utils import get_module_names, register_hook_by_module_names, layername_dict
-from grad_RF_estim import grad_RF_estimate, gradmap2RF_square
 pos_dict = {"conv5": (7, 7), "conv4": (7, 7), "conv3": (7, 7), "conv2": (14, 14), "conv1": (28, 28)}
 
-
+# Get the center position of the feature map.
 if not "fc" in args.layer:
-    if not args.net in layername_dict: # TODO:Check the logic
+    if not args.net in layername_dict:  # TODO:Check the logic
         module_names, module_types, module_spec = get_module_names(scorer.model, input_size=(3, 227, 227), device="cuda")
         layer_key = [k for k, v in module_names.items() if v == args.layer][0]
         feat_outshape = module_spec[layer_key]['outshape']
-        assert len(feat_outshape) == 3 # fc layer will fail
+        assert len(feat_outshape) == 3  # fc layer will fail
         cent_pos = (feat_outshape[1]//2, feat_outshape[2]//2)
     else:
         cent_pos = pos_dict[args.layer]
 else:
     cent_pos = None
 
+# rf Mapping,
+if args.RFresize:
+    if "fc" in args.layer:
+        imgsize = (256, 256)
+        corner = (0, 0)
+        Xlim = (corner[0], corner[0] + imgsize[0])
+        Ylim = (corner[1], corner[1] + imgsize[1])
+    else:
+        if args.net in layername_dict:
+            from torch_net_utils import receptive_field, receptive_field_for_unit
+            print("Computing RF by RF arithmetics: ")
+            rf_dict = receptive_field(scorer.model.features, (3, 227, 227), device="cuda")
+            layername = layername_dict[args.net]
+            layer_name_map = {layer: str(i+1) for i, layer in enumerate(layername)}  # map layer to numbering
+
+            rf_pos = receptive_field_for_unit(rf_dict, layer_name_map[args.layer], cent_pos)
+            imgsize = (int((rf_pos[0][1] - rf_pos[0][0]) / 227 * 256 + 1), int((rf_pos[1][1] - rf_pos[1][0]) / 227 * 256 + 1))
+            corner = (int(rf_pos[0][0] / 227 * 256 - 1), int(rf_pos[1][0] / 227 * 256 - 1))
+            Xlim = (corner[0], corner[0]+imgsize[0])
+            Ylim = (corner[1], corner[1]+imgsize[1])
+        else:
+            from grad_RF_estim import grad_RF_estimate, gradmap2RF_square
+            print("Computing RF by direct backprop: ")
+            gradAmpmap = grad_RF_estimate(scorer.model, args.layer, (slice(None), *cent_pos), input_size=(3, 227, 227),
+                                          device="cuda", show=False, reps=30, batch=1)
+            Xlim, Ylim = gradmap2RF_square(gradAmpmap, absthresh=1E-8, relthresh=0.01, square=True)
+            corner = (Xlim[0], Ylim[0])
+            imgsize = (Xlim[1] - Xlim[0], Ylim[1] - Ylim[0])
+
+print("Xlim %s Ylim %s \n imgsize %s corner %s" % (Xlim, Ylim, imgsize, corner))
+
+# Start iterating through channels.
 for unit_id in range(args.chans[0], args.chans[1]):
     if "fc" in args.layer:
         unit = (args.net, args.layer, unit_id)
     else:
         unit = (args.net, args.layer, unit_id, *cent_pos)
     scorer.select_unit(unit)
-    if args.RFresize:
-        if "fc" in args.layer:
-            imgsize = (256, 256)
-            corner = (0, 0)
-        else:
-            rf_pos = receptive_field_for_unit(rf_dict, layer_name_map[args.layer], pos_dict[args.layer])
-            imgsize = (int((rf_pos[0][1] - rf_pos[0][0]) / 227 * 256 + 1), int((rf_pos[1][1] - rf_pos[1][0]) / 227 * 256 + 1))
-            corner = (int(rf_pos[0][0] / 227 * 256 - 1), int(rf_pos[1][0] / 227 * 256 - 1))
     # Save directory named after the unit. Add RFrsz as suffix if resized
     if cent_pos is None:
         savedir = join(rootdir, r"%s_%s_%d" % unit[:3])
