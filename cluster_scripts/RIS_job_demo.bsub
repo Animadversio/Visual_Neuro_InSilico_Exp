@@ -5,7 +5,7 @@
 #BSUB -R 'select[mem>1G]'
 #BSUB -M 1G
 #BSUB -J 'demo[1-5]'
-#BSUB -o  /scratch1/fs1/crponce/demo_out.%J-$LSB_JOBINDEX
+#BSUB -o  /scratch1/fs1/crponce/demo_out.%J.%I
 #BSUB -a 'docker(python:3.7.7-slim-stretch)'
 #BSUM -u binxu.wang@wustl.edu
 #BSUM -N
