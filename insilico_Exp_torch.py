@@ -19,28 +19,28 @@ from ZO_HessAware_Optimizers import HessAware_Gauss_DC, CholeskyCMAES
 from utils import visualize_img_list
 # mini-batches of 3-channel RGB images of shape (3 x H x W), where H and W are expected to be at least 224. The images have to be loaded in to a range of [0, 1] and then normalized using mean = [0.485, 0.456, 0.406] and std = [0.229, 0.224, 0.225].
 
-activation = {}  # global variable is important for hook to work! it's an important channel for communication
-def get_activation(name, unit=None, unitmask=None, ingraph=False):
-    """Return a hook that record the unit activity into the entry in activation dict."""
-    if unit is None and unitmask is None:  # if no unit is given, output the full tensor. 
-        def hook(model, input, output): 
-            activation[name] = output if ingraph else output.detach()
+# activation = {}  # global variable is important for hook to work! it's an important channel for communication
+# def get_activation(name, unit=None, unitmask=None, ingraph=False):
+#     """Return a hook that record the unit activity into the entry in activation dict."""
+#     if unit is None and unitmask is None:  # if no unit is given, output the full tensor. 
+#         def hook(model, input, output): 
+#             activation[name] = output if ingraph else output.detach()
 
-    elif unitmask is not None: # has a unit mask, which could be an index list or a tensor mask same shape of the 3 dimensions. 
-        def hook(model, input, output): 
-            out = output if ingraph else output.detach()
-            Bsize = out.shape[0]
-            activation[name] = out.view([Bsize, -1])[:, unitmask.reshape(-1)]
+#     elif unitmask is not None: # has a unit mask, which could be an index list or a tensor mask same shape of the 3 dimensions. 
+#         def hook(model, input, output): 
+#             out = output if ingraph else output.detach()
+#             Bsize = out.shape[0]
+#             activation[name] = out.view([Bsize, -1])[:, unitmask.reshape(-1)]
 
-    else:
-        def hook(model, input, output): 
-            out = output if ingraph else output.detach()
-            if len(output.shape) == 4: 
-                activation[name] = out[:, unit[0], unit[1], unit[2]]
-            elif len(output.shape) == 2: 
-                activation[name] = out[:, unit[0]]
+#     else:
+#         def hook(model, input, output): 
+#             out = output if ingraph else output.detach()
+#             if len(output.shape) == 4: 
+#                 activation[name] = out[:, unit[0], unit[1], unit[2]]
+#             elif len(output.shape) == 2: 
+#                 activation[name] = out[:, unit[0]]
 
-    return hook
+#     return hook
 
 
 if platform == "linux": # cluster
@@ -148,47 +148,41 @@ class TorchScorer:
         self.record_layers = []
         self.recordings = {}
 
-    def preprocess(self, img, input_scale=255):
-        """preprocess single image array or a list (minibatch) of images"""
-        # could be modified to support batch processing. Added batch @ July. 10, 2020
-        # test and optimize the performance by permute the operators. Use CUDA acceleration from preprocessing
-        if type(img) is list: # the following lines have been optimized for speed locally.
-            img_tsr = torch.stack(tuple(torch.from_numpy(im) for im in img)).cuda().float().permute(0, 3, 1, 2) / input_scale
-            img_tsr = (img_tsr - self.RGBmean) / self.RGBstd
-            resz_out_tsr = F.interpolate(img_tsr, (227, 227), mode='bilinear',
-                                         align_corners=True)
-            return resz_out_tsr
-        elif type(img) is torch.Tensor:
-            img_tsr = (img.cuda() / input_scale - self.RGBmean) / self.RGBstd
-            resz_out_tsr = F.interpolate(img_tsr, (227, 227), mode='bilinear',
-                                         align_corners=True)
-            return resz_out_tsr
-        elif type(img) is np.ndarray and img.ndim == 4:
-            img_tsr = torch.tensor(img / input_scale).float().permute(0,3,1,2).cuda()
-            img_tsr = (img_tsr - self.RGBmean) / self.RGBstd
-            resz_out_tsr = F.interpolate(img_tsr, (227, 227), mode='bilinear',
-                                         align_corners=True)
-            return resz_out_tsr
-        elif type(img) is np.ndarray and img.ndim in [2, 3]:  # assume it's individual image
-            img_tsr = transforms.ToTensor()(img / input_scale).float()
-            img_tsr = self.normalize(img_tsr).unsqueeze(0)
-            resz_out_img = F.interpolate(img_tsr, (227, 227), mode='bilinear',
-                                         align_corners=True)
-            return resz_out_img
+        self.activation = {}
+
+    def get_activation(self, name, unit=None, unitmask=None, ingraph=False):
+        """Return a hook that record the unit activity into the entry in activation dict."""
+        if unit is None and unitmask is None:  # if no unit is given, output the full tensor. 
+            def hook(model, input, output): 
+                self.activation[name] = output if ingraph else output.detach()
+
+        elif unitmask is not None: # has a unit mask, which could be an index list or a tensor mask same shape of the 3 dimensions. 
+            def hook(model, input, output): 
+                out = output if ingraph else output.detach()
+                Bsize = out.shape[0]
+                self.activation[name] = out.view([Bsize, -1])[:, unitmask.reshape(-1)]
+
         else:
-            raise ValueError
+            def hook(model, input, output): 
+                out = output if ingraph else output.detach()
+                if len(output.shape) == 4: 
+                    self.activation[name] = out[:, unit[0], unit[1], unit[2]]
+                elif len(output.shape) == 2: 
+                    self.activation[name] = out[:, unit[0]]
+
+        return hook
 
     def set_unit(self, reckey, layer, unit=None):
         if self.layername is not None:
             # if the network is a single stream feedforward structure, we can index it and use it to find the
             # activation
             idx = self.layername.index(layer)
-            handle = self.layers[idx].register_forward_hook(get_activation(reckey, unit)) # we can get the layer by indexing
+            handle = self.layers[idx].register_forward_hook(self.get_activation(reckey, unit)) # we can get the layer by indexing
             self.hooks.append(handle)  # save the hooks in case we will remove it.
         else:
             # if not, we need to parse the architecture of the network.
             # indexing is not available, we need to register by recursively visit the layers and find match.
-            handle, modulelist, moduletype = register_hook_by_module_names(layer, get_activation(reckey, unit),
+            handle, modulelist, moduletype = register_hook_by_module_names(layer, self.get_activation(reckey, unit),
                                 self.model, self.inputsize, device="cuda")
             self.hooks.extend(handle)  # handle here is a list.
         return handle
@@ -198,13 +192,13 @@ class TorchScorer:
             # if the network is a single stream feedforward structure, we can index it and use it to find the
             # activation
             idx = self.layername.index(layer)
-            handle = self.layers[idx].register_forward_hook(get_activation(reckey, unitmask=unit_mask)) # we can get the layer by indexing
+            handle = self.layers[idx].register_forward_hook(self.get_activation(reckey, unitmask=unit_mask)) # we can get the layer by indexing
             self.hooks.append(handle)  # save the hooks in case we will remove it.
         else:
             # if not, we need to parse the architecture of the network indexing is not available. 
             # we need to register by recursively visit the layers and find match.
             handle, modulelist, moduletype = register_hook_by_module_names(layer, 
-                get_activation(reckey, unitmask=unit_mask), self.model, self.inputsize, device="cuda")
+                self.get_activation(reckey, unitmask=unit_mask), self.model, self.inputsize, device="cuda")
             self.hooks.extend(handle)  # handle here is a list.
         return handle
 
@@ -236,6 +230,36 @@ class TorchScorer:
         h = self.set_units_by_mask(record_layer, record_layer, unit_mask=mask)
         self.recordings[record_layer] = []
 
+    def preprocess(self, img, input_scale=255):
+        """preprocess single image array or a list (minibatch) of images"""
+        # could be modified to support batch processing. Added batch @ July. 10, 2020
+        # test and optimize the performance by permute the operators. Use CUDA acceleration from preprocessing
+        if type(img) is list: # the following lines have been optimized for speed locally.
+            img_tsr = torch.stack(tuple(torch.from_numpy(im) for im in img)).cuda().float().permute(0, 3, 1, 2) / input_scale
+            img_tsr = (img_tsr - self.RGBmean) / self.RGBstd
+            resz_out_tsr = F.interpolate(img_tsr, (227, 227), mode='bilinear',
+                                         align_corners=True)
+            return resz_out_tsr
+        elif type(img) is torch.Tensor:
+            img_tsr = (img.cuda() / input_scale - self.RGBmean) / self.RGBstd
+            resz_out_tsr = F.interpolate(img_tsr, (227, 227), mode='bilinear',
+                                         align_corners=True)
+            return resz_out_tsr
+        elif type(img) is np.ndarray and img.ndim == 4:
+            img_tsr = torch.tensor(img / input_scale).float().permute(0,3,1,2).cuda()
+            img_tsr = (img_tsr - self.RGBmean) / self.RGBstd
+            resz_out_tsr = F.interpolate(img_tsr, (227, 227), mode='bilinear',
+                                         align_corners=True)
+            return resz_out_tsr
+        elif type(img) is np.ndarray and img.ndim in [2, 3]:  # assume it's individual image
+            img_tsr = transforms.ToTensor()(img / input_scale).float()
+            img_tsr = self.normalize(img_tsr).unsqueeze(0)
+            resz_out_img = F.interpolate(img_tsr, (227, 227), mode='bilinear',
+                                         align_corners=True)
+            return resz_out_img
+        else:
+            raise ValueError
+
     def score(self, images, with_grad=False, B=42):
         """Score in batch will accelerate processing greatly! """ # assume image is using 255 range
         scores = np.zeros(len(images))
@@ -250,14 +274,15 @@ class TorchScorer:
             with torch.no_grad():
                 # self.model(torch.cat(img_batch).cuda())
                 self.model(img_batch)
-            scores[csr:csr_end] = activation["score"].squeeze().cpu().numpy().squeeze()
-            csr = csr_end
+            if "score" in self.activation: # if score is not there set trace to zero. 
+                scores[csr:csr_end] = self.activation["score"].squeeze().cpu().numpy().squeeze()
+
             if self.artiphys:  # record the whole layer's activation
                 for layer in self.record_layers:
-                    score_full = activation[layer] # temporory storage
-                    # self._pattern_array.append(score_full)
+                    score_full = self.activation[layer] # temporory storage
                     self.recordings[layer].append(score_full.cpu().numpy()) # formulated storage
-            # , input_scale=255 # shape=(3, 227, 227) # assuming input scale is 0,1 output will be 0,255
+            
+            csr = csr_end
         
         for layer in self.recordings: 
             self.recordings[layer] = np.concatenate(self.recordings[layer],axis=0)
@@ -284,14 +309,15 @@ class TorchScorer:
             with torch.no_grad():
                 # self.model(torch.cat(img_batch).cuda())
                 self.model(img_batch)
-            scores[csr:csr_end] = activation["score"].squeeze().cpu().numpy().squeeze()
-            csr = csr_end
+            if "score" in self.activation: # if score is not there set trace to zero. 
+                scores[csr:csr_end] = self.activation["score"].squeeze().cpu().numpy().squeeze()
+
             if self.artiphys:  # record the whole layer's activation
                 for layer in self.record_layers:
-                    score_full = activation[layer]
-                    # self._pattern_array.append(score_full)
+                    score_full = self.activation[layer]
                     self.recordings[layer].append(score_full.cpu().numpy())
-            # , input_scale=255 # shape=(3, 227, 227) # assuming input scale is 0,1 output will be 0,255
+
+            csr = csr_end
 
         for layer in self.recordings: 
             self.recordings[layer] = np.concatenate(self.recordings[layer],axis=0)
