@@ -203,7 +203,7 @@ class upconvGAN(nn.Module):
             csr = csr_end
         return img_all
 
-    def visualize_batch_np(self, codes_all_arr, scale=1.0, B=42):
+    def visualize_batch_np(self, codes_all_arr, scale=1.0, B=42, verbose=False):
         coden = codes_all_arr.shape[0]
         img_all = None
         csr = 0  # if really want efficiency, we should use minibatch processing.
@@ -213,6 +213,9 @@ class upconvGAN(nn.Module):
                 imgs = self.visualize(torch.from_numpy(codes_all_arr[csr:csr_end, :]).float().cuda(), scale).cpu()
                 img_all = imgs if img_all is None else torch.cat((img_all, imgs), dim=0)
                 csr = csr_end
+                if verbose:
+                    clear_output(wait=True)
+                    progress_bar(csr_end, coden, "ploting row of page: %d of %d" % (csr_end, coden))
         return img_all
 
 
