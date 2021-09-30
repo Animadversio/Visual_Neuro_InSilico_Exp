@@ -25,7 +25,7 @@ def open_video(vid_path=r'E:\Datasets\POVfootage\GoPro Hero 8 Running Footage wi
     video_Fnum = int(vidcap.get(cv2.CAP_PROP_FRAME_COUNT))
     print("Video opened: %s "%vid_path)
     print("FPS %.1f Total frame number %d"%(fps, video_Fnum))
-    return vidcap
+    return vidcap, fps, video_Fnum
 
 
 def read_framebatch(vidcap, batch=40):
@@ -57,7 +57,7 @@ def sample_center_units_idx(tsrshape, samplenum=500):
 
 def set_random_population_recording(scorer, targetnames, popsize=500):
     unit_mask_dict = {}
-    module_names, module_types, module_spec = get_module_names(scorer.model, (3,227,227), "cuda", False)
+    module_names, module_types, module_spec = get_module_names(scorer.model, (3, 227, 227), "cuda", False)
     invmap = {v: k for k, v in module_names.items()}
     for layer in targetnames:
         inshape = module_spec[invmap[layer]]["inshape"]
@@ -162,7 +162,7 @@ def autocorrelation(input, dim=0):
     return autocorr.transpose(dim, -1)
 
 
-def calc_acf_all(recordings_all):
+def calc_acf_all(recordings_all, cutoff=10000):
     acf_arr_dict = {}
     for layer in recordings_all:
         # numpy backend
@@ -175,7 +175,7 @@ def calc_acf_all(recordings_all):
         # torch backend
         acfs_tsr = autocorrelation(torch.tensor(recordings_all[layer]), dim=0)  # time lag by popsize
         acf_arr = acfs_tsr.numpy().T  # popsize by time lag
-        acf_arr_dict[layer] = acf_arr
+        acf_arr_dict[layer] = acf_arr[:,:cutoff]
     return acf_arr_dict
 
 
@@ -217,6 +217,19 @@ def shadedErrorbar(x, ymean, ysem, lw=None, c=None, label=None):
     plt.plot(x, ymean, c=c, lw=lw, label=label)
     plt.fill_between(x, ymean-ysem, ymean+ysem, color=c, alpha=0.3)
 
+def visualize_sample(recordings_all, sample_size=50, video_id="", savenm="", savedir="", fps=30):
+    for layer in recordings_all:
+        rand_idx = np.random.choice(recordings_all[layer].shape[1], sample_size, replace=False)
+        plt.figure(figsize=[12, 3])
+        tticks = np.arange(recordings_all[layer].shape[0]) / fps * 1000
+        plt.plot(tticks, recordings_all[layer][:, rand_idx], alpha=0.6, lw=0.5)
+        plt.xlim([0, 10000])
+        plt.title("Population Response in %s\n Video %s" \
+                  % (layer, video_id))
+        plt.title(layer)
+        plt.savefig(join(savedir, "pop_resp_demo_%s-%s.png" % (savenm, layer)))
+
+
 def average_acf_compare(acf_arr_dict, fps=30, xlim=10000, \
             video_id="", run_frames=-1):
     figh = plt.figure(figsize=[7,6])
@@ -255,7 +268,7 @@ def timescale_analysis_pipeline(scorer, targetnames, popsize=500, run_frames=200
     print("Setting up the recording units in neural network... ")
     unit_mask_dict = set_random_population_recording(scorer, targetnames, popsize=popsize)
 
-    vidcap = open_video(vid_path=video_path) 
+    vidcap, fps, video_Fnum = open_video(vid_path=video_path)
     print("Start streaming and recording...")
     recordings_all = {}
     for i in tqdm(range(int(run_frames/seglen))):
@@ -269,14 +282,16 @@ def timescale_analysis_pipeline(scorer, targetnames, popsize=500, run_frames=200
         open(join(savedir, "pop_recordings_%s.pkl"%savenm), "wb"))
 
     print("Start visualizing the recording traces...")
-    for layer in targetnames:
-        plt.figure(figsize=[12, 3])
-        plt.plot(recordings_all[layer], alpha=0.1, lw=0.5)
-        plt.xlim([0, 10000])
-        plt.title("Population Response in %s\n Video %s" \
-                  % (layer, video_id))
-        plt.title(layer)
-        plt.savefig(join(savedir, "pop_resp_demo_%s-%s.png"%(savenm, layer)))
+    visualize_sample(recordings_all, sample_size=50, video_id=video_id,
+                     savenm=savenm, savedir=savedir, fps=fps)
+    # for layer in targetnames:
+    #     plt.figure(figsize=[12, 3])
+    #     plt.plot(recordings_all[layer], alpha=0.1, lw=0.5)
+    #     plt.xlim([0, 10000])
+    #     plt.title("Population Response in %s\n Video %s" \
+    #               % (layer, video_id))
+    #     plt.title(layer)
+    #     plt.savefig(join(savedir, "pop_resp_demo_%s-%s.png"%(savenm, layer)))
     # plt.savefig(join(savedir, "pop_resp_demo_%s-%s.pdf"%(savenm, layer)))
 
     print("Start auto correlation calculation (ACF)...")
@@ -285,14 +300,14 @@ def timescale_analysis_pipeline(scorer, targetnames, popsize=500, run_frames=200
              open(join(savedir, "pop_acf_%s.pkl" % savenm), "wb"))
 
     print("Visualizing auto correlation calculation (ACF)...")
-    figh = average_acf_compare(acf_arr_dict, fps=30, xlim=10000,
+    figh = average_acf_compare(acf_arr_dict, fps=fps, xlim=10000,
                         video_id=video_id, run_frames=run_frames)
     figh.savefig(join(savedir, "resp_acf_curv_cmp_%s.png" % savenm))
     figh.savefig(join(savedir, "resp_acf_curv_cmp_%s.pdf" % savenm))
     plt.show()
 
     print("Fitting Auto correlation function with Exp decay...")
-    df, popt_dict = fit_acf_expoffset(targetnames, acf_arr_dict, fps=30, max_ticks=180)
+    df, popt_dict = fit_acf_expoffset(targetnames, acf_arr_dict, fps=fps, max_ticks=180)
     pkl.dump(EasyDict({"popt_dict": popt_dict, "unit_mask_dict": unit_mask_dict, "video_path":video_path}),
              open(join(savedir, "resp_acf_fit_%s.pkl" % savenm), "wb"))
     df.to_csv(join(savedir, "resp_acf_fit_params_%s.csv" % savenm))
@@ -306,7 +321,7 @@ def timescale_analysis_pipeline(scorer, targetnames, popsize=500, run_frames=200
 
 if __name__=='__main__':
     scorer = TorchScorer("resnet50")
-    targetnames = [".Relurelu",
+    targetnames = [".ReLUrelu",
                    ".layer1.Bottleneck0",
                    ".layer1.Bottleneck2",
                    ".layer2.Bottleneck0",
