@@ -28,8 +28,9 @@ os.makedirs(summarydir, exist_ok=True)
 exptab = pd.read_csv(join(summarydir, "optim_raw_score_tab.csv"))
 exptab.suffix.fillna("", inplace=True)  # substitute nan as ""
 exptab.suffix = exptab.suffix.astype(str)
-rfmsk = exptab.layer.str.contains("fc") | exptab.suffix.str.contains("RF")
-fullmsk = exptab.layer.str.contains("fc") | ~exptab.suffix.str.contains("RF")
+rfmsk = exptab.layer.str.contains("fc") | exptab.suffix.str.contains("RF")  # Experiments that do RFfitting
+fullmsk = exptab.layer.str.contains("fc") | ~exptab.suffix.str.contains("RF")  # Experiments that use full size images
+# two masks are overlapping.
 #%%
 def crop_from_montage(img, imgid:int=-1, imgsize=256, pad=2):
     nrow, ncol = (img.shape[0] - pad) // (imgsize + pad), (img.shape[1] - pad) // (imgsize + pad)
@@ -56,7 +57,8 @@ for optim in ['CholCMA', 'HessCMA', 'CholCMA_fc6']:
     msk = (exptab.unitstr==unitstr) & (exptab.optimizer==optim) & rfmsk
     print(layer, optim, unitstr, exptab[msk].shape)
     # row = exptab[msk].sample(1).iloc[0]
-#%%
+
+#%% Plot the optim trajectory comparison! 
 from PIL import Image
 from build_montages import make_grid_np
 from stats_utils import summary_by_block, saveallforms
@@ -116,3 +118,62 @@ mtg_PIL = Image.fromarray(mtg_full)
 mtg_PIL.show()
 mtg_PIL.save(join(figdir, "proto_cmp_alllayers.jpg"))
 mtg_PIL.save(join(outdir, "proto_cmp_alllayers.jpg"))
+
+#%%
+#%%
+# compare performance across optimizers.
+# BigGAN FC6 pair alignment
+optimnames = ["CholCMA", "HessCMA", "CholCMA_fc6"]
+def BigGANFC6_comparison_plot(norm_scheme="allmax", rffit=True):
+    Scol = []
+    overallmsk = rfmsk if rffit else fullmsk 
+    unitstr_uniq = exptab.loc[overallmsk].unitstr.unique()
+    for unitstr in unitstr_uniq:
+        unitmsk = (exptab.unitstr == unitstr)
+        unit = exptab.unit[unitmsk].iloc[0]
+        layer = exptab.layer[unitmsk].iloc[0]
+        unitfc6msk = unitmsk & overallmsk & (exptab.optimizer=="CholCMA_fc6")
+        unitBGmsk = unitmsk & overallmsk & (exptab.optimizer=="CholCMA")
+        unitBGHmsk = unitmsk & overallmsk & (exptab.optimizer=="HessCMA")
+        unitoptimmsk = unitmsk & overallmsk & ((exptab.optimizer=="CholCMA")\
+                                            |  (exptab.optimizer=="HessCMA")\
+                                            |  (exptab.optimizer=="CholCMA_fc6"))
+        if any([sum(unitfc6msk)==0, sum(unitBGmsk)==0, sum(unitBGHmsk)==0]): continue
+        if norm_scheme is "allmax":
+            normalizer = exptab.score[unitoptimmsk].max()
+        elif norm_scheme is "fc6max":
+            normalizer = exptab.score[unitfc6msk].max()
+        elif norm_scheme is "fc6mean":
+            normalizer = exptab.score[unitfc6msk].mean()
+        else: 
+            raise NotImplementedError
+         # no fc6 to normalize to
+        for optim in optimnames:
+            msk = unitmsk & overallmsk & (exptab.optimizer==optim)
+            scorevec = exptab.score[msk]
+            scorevec_norm = scorevec / normalizer
+            newdicts = [{"layer":layer,"unit":unit,"optimizer":optim,"score":score,"score_norm":score_norm}
+                        for score, score_norm in zip(scorevec, scorevec_norm)]
+            Scol.extend(newdicts)
+
+    BigGANFC6cmptab = pd.DataFrame(Scol)
+    deadunitmsk = (BigGANFC6cmptab.score_norm.isna())
+    fc6failedmsk = np.isinf(BigGANFC6cmptab.score_norm)
+    print("Dead channel trial number:%d"%sum(deadunitmsk))
+    print("Failed trial number:%d"%sum(fc6failedmsk))
+    figh = plt.figure(figsize=[7, 7])
+    ax = sns.violinplot(x='layer', y='score_norm', hue="optimizer", jitter=0.25,
+                       hue_order=['CholCMA', 'HessCMA', 'CholCMA_fc6'], cut=0.1,
+                       data=BigGANFC6cmptab[~deadunitmsk&~fc6failedmsk], alpha=0.4)
+    ax.set_title("Comparison of Optimizer and GAN space over Units of AlexNet %s"%("RFfit" if rffit else "FullImage"))
+    ax.set_ylabel("activ normalized by %s"%norm_scheme)
+    ax.figure.show()
+    ax.figure.savefig(join(summarydir, "BigGANFC6_cmp_%snorm_layer_all%s.jpg"%(norm_scheme, "RFfit" if rffit else
+                    "_Full")))
+    ax.figure.savefig(join(summarydir, "BigGANFC6_cmp_%snorm_layer_all%s.pdf"%(norm_scheme, "RFfit" if rffit else 
+                    "_Full")))
+    return BigGANFC6cmptab, figh
+
+# BigGANFC6_comparison_plot(norm_scheme="fc6max", rffit=True)
+# BigGANFC6_comparison_plot(norm_scheme="allmax", rffit=True)
+BigGANFC6_comparison_plot(norm_scheme="allmax", rffit=False)
