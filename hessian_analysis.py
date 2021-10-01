@@ -12,8 +12,8 @@ import matplotlib.pylab as plt
 import torch
 sys.path.append("D:\Github\pytorch-caffe")
 from caffenet import *
-import utils
-from utils import generator
+import utils_old
+from utils_old import generator
 from insilico_Exp import CNNmodel
 sys.path.append(r"D:\Github\PerceptualSimilarity")
 import models
@@ -190,7 +190,7 @@ if __name__=="__main__":
     eigen_val = Heig[eigen_idx]
     img_list = perturb_images_line(z, Heigvec[:, eigen_idx], PC2_step=stepsize, RNG=RNG)
     scores = CNNmodel.score(img_list)
-    figh = utils.visualize_img_list(img_list[::4], nrow=1, scores=scores[::4]) # visualize sparsely
+    figh = utils_old.visualize_img_list(img_list[::4], nrow=1, scores=scores[::4]) # visualize sparsely
     # Note the maximum found by exact gradient descent has smaller norm than those found by CMA-ES optimization.
     figh.set_figheight(4)
     figh.suptitle("%s\nEigen Vector No. %d, Eigen Value %.3E"%(unit, eigen_idx, eigen_val))

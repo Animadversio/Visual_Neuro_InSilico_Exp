@@ -13,8 +13,8 @@ from caffenet import *
 from hessian import hessian
 from hessian_analysis import perturb_images_line, visualize_img_and_tuning, perturb_images_arc
 #%%
-import utils
-from utils import generator
+import utils_old
+from utils_old import generator
 from insilico_Exp import CNNmodel
 #%%
 import matplotlib

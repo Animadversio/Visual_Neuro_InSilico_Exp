@@ -16,7 +16,7 @@ import torch.nn.functional as F
 from GAN_utils import upconvGAN
 from layer_hook_utils import layername_dict, register_hook_by_module_names, get_module_names, named_apply
 from ZO_HessAware_Optimizers import HessAware_Gauss_DC, CholeskyCMAES
-from utils import visualize_img_list
+from utils_old import visualize_img_list
 # mini-batches of 3-channel RGB images of shape (3 x H x W), where H and W are expected to be at least 224. The images have to be loaded in to a range of [0, 1] and then normalized using mean = [0.485, 0.456, 0.406] and std = [0.229, 0.224, 0.225].
 
 # activation = {}  # global variable is important for hook to work! it's an important channel for communication
@@ -72,7 +72,8 @@ class TorchScorer:
         if model_name == "vgg16":
             self.model = models.vgg16(pretrained=True)
             self.layers = list(self.model.features) + list(self.model.classifier)
-            self.layername = layername_dict[model_name]
+            # self.layername = layername_dict[model_name]
+            self.layername = None
             self.model.cuda().eval()
             self.inputsize = (3, 227, 227)
         elif model_name == "vgg16-face":

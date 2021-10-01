@@ -1,7 +1,7 @@
-import utils
+import utils_old
 import net_utils
-import utils
-from utils import load_GAN
+import utils_old
+from utils_old import load_GAN
 from Generator import Generator
 from time import time, sleep
 import numpy as np

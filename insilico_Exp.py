@@ -5,9 +5,9 @@
 # import net_utils
 # from Generator import Generator
 # from Optimizer import Genetic, Optimizer  # CholeskyCMAES, Optimizer is the base class for these things
-import utils
+import utils_old
 from ZO_HessAware_Optimizers import HessAware_Gauss_DC, CholeskyCMAES # newer CMAES api
-from utils import load_GAN
+from utils_old import load_GAN
 from time import time, sleep
 import numpy as np
 from sklearn.decomposition import PCA
@@ -438,7 +438,7 @@ class ExperimentEvolve:
                     # codes = np.zeros([1, code_length])
                     if type(self.optimizer) is Genetic:
                         # self.optimizer.load_init_population(initcodedir, )
-                        codes, self.optimizer._genealogy = utils.load_codes2(initcodedir, self.optimizer._popsize)
+                        codes, self.optimizer._genealogy = utils_old.load_codes2(initcodedir, self.optimizer._popsize)
                 else:
                     codes = init_code
             print('>>> step %d' % self.istep)
@@ -479,7 +479,7 @@ class ExperimentEvolve:
         select_code = self.codes_all[idx_list, :]
         score_select = self.scores_all[idx_list]
         img_select = self.render(select_code, scale=1.0)
-        fig = utils.visualize_img_list(img_select, score_select, show=show, nrow=None, title_str=title_str)
+        fig = utils_old.visualize_img_list(img_select, score_select, show=show, nrow=None, title_str=title_str)
         if show:
             fig.show()
         return fig
@@ -632,7 +632,7 @@ class ExperimentEvolve_DC:
         select_code = self.codes_all[idx_list, :]
         score_select = self.scores_all[idx_list]
         img_select = self.render(select_code, scale=1.0)
-        fig = utils.visualize_img_list(img_select, score_select, show=show, nrow=None, title_str=title_str)
+        fig = utils_old.visualize_img_list(img_select, score_select, show=show, nrow=None, title_str=title_str)
         if show:
             fig.show()
         return fig
@@ -792,7 +792,7 @@ class ExperimentResizeEvolve:
         select_code = self.codes_all[idx_list, :]
         score_select = self.scores_all[idx_list]
         img_select = self.render(select_code, scale=1)
-        fig = utils.visualize_img_list(img_select, score_select, show=show)
+        fig = utils_old.visualize_img_list(img_select, score_select, show=show)
         fig.savefig(join(self.savedir, "Evolv_Img_Traj_%s.png" % (self.explabel)))
         return fig
 
@@ -1003,7 +1003,7 @@ class ExperimentManifold:
             # subsample images for better visualization
             msk, idx_lin = subsample_mask(factor=2, orig_size=(21, 21))
             img_subsp_list = [img_list[i] for i in range(len(img_list)) if i in idx_lin]
-            fig = utils.visualize_img_list(img_subsp_list, scores=scores[idx_lin], ncol=interv_n + 1, nrow=interv_n + 1, )
+            fig = utils_old.visualize_img_list(img_subsp_list, scores=scores[idx_lin], ncol=interv_n + 1, nrow=interv_n + 1, )
             fig.savefig(join(self.savedir, "%s_%s.png" % (title, self.explabel)))
             scores = np.array(scores).reshape((2*interv_n+1, 2*interv_n+1))
             self.score_sum.append(scores)
@@ -1279,7 +1279,7 @@ class ExperimentRestrictEvolve:
         select_code = self.codes_all[idx_list, :]
         score_select = self.scores_all[idx_list]
         img_select = self.render(select_code)
-        fig = utils.visualize_img_list(img_select, score_select, show=show)
+        fig = utils_old.visualize_img_list(img_select, score_select, show=show)
         return fig
 
     def visualize_best(self, show=False):

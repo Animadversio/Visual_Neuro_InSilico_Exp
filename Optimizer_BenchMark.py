@@ -5,7 +5,7 @@ import sys
 import os
 from os import makedirs
 from os.path import join
-import utils
+import utils_old
 import numpy as np
 from numpy.random import randint
 from numpy.linalg import norm

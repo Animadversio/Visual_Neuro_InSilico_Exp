@@ -71,7 +71,7 @@ def write_codes(codes, names, path, timeout=0.5):
             try:
                 np.save(os.path.join(path, name), code, allow_pickle=False)
                 trying = False
-    #         File "/Users/wuxiao/Documents/MCO/Rotations/Kreiman Lab/scripts/Playtest6/utils.py", line
+    #         File "/Users/wuxiao/Documents/MCO/Rotations/Kreiman Lab/scripts/Playtest6/utils_old.py", line
     #         56, in write_codes
     #         np.save(os.path.join(path, name), code, allow_pickle=False)
     #     File "/usr/local/lib/python3.6/site-packages/numpy/lib/npyio.py", line 514, in save

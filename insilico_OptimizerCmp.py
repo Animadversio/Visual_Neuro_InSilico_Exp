@@ -5,7 +5,7 @@ from sys import platform
 import numpy as np
 from insilico_Exp import ExperimentEvolve
 from Optimizer import Genetic, CholeskyCMAES, Optimizer
-import utils
+import utils_old
 #%% Decide the result storage place based on the computer the code is running
 if platform == "linux": # cluster
     recorddir = "/scratch/binxu/CNN_data/"
@@ -38,7 +38,7 @@ code_length = 4096
 init_sigma = 3
 Aupdate_freq = 10
 # use the mean code of the texture patterns as the initcode
-codes, _ = utils.load_codes2(initcodedir, 40)
+codes, _ = utils_old.load_codes2(initcodedir, 40)
 initcode = np.mean(codes, axis=0, keepdims=True)
 # CholeskyCMAES(recorddir=recorddir, space_dimen=code_length, init_sigma=init_sigma,
 #                   Aupdate_freq=Aupdate_freq, init_code=np.zeros([1, code_length]))
