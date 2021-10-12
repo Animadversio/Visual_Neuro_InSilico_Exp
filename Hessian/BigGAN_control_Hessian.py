@@ -8,11 +8,11 @@ from time import time
 from os.path import join
 import os
 import sys
-from GAN_hessian_compute import hessian_compute, get_full_hessian
+from Hessian.GAN_hessian_compute import hessian_compute, get_full_hessian
 from torchvision.transforms import ToPILImage
 from torchvision.utils import make_grid
 from GAN_utils import loadBigGAN, loadStyleGAN2, BigGAN_wrapper
-from hessian_analysis_tools import plot_spectra, compute_hess_corr
+from Hessian.hessian_analysis_tools import plot_spectra, compute_hess_corr
 from lpips import LPIPS
 #%%
 ImDist = LPIPS(net="squeeze")
@@ -99,7 +99,7 @@ for triali in tqdm(range(100, 101)):
         np.savez(join(savedir, "eig_genBlock%02d_trial%d.npz"%(blocki, triali)), H=H00, eva=eva00, evc=evc00,
                  feat=feat.cpu().detach().numpy())
 #%%
-from hessian_analysis_tools import scan_hess_npz, plot_spectra, compute_hess_corr, plot_consistentcy_mat, plot_consistency_example, plot_consistency_hist, average_H
+from Hessian.hessian_analysis_tools import scan_hess_npz, plot_spectra, compute_hess_corr, plot_consistentcy_mat, plot_consistency_example, plot_consistency_hist, average_H
 savedir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\BigGAN\ctrl_Hessians"
 figdir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\BigGAN"
 modelnm = "BigGAN_shuffle"

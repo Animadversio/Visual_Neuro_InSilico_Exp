@@ -7,16 +7,15 @@ import torch
 import numpy as np
 sys.path.append("E:\Github_Projects\Visual_Neuro_InSilico_Exp")
 sys.path.append("D:\Github\Visual_Neuro_InSilico_Exp")
-import os
 # os.system(r"'C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\VC\Auxiliary\Build\vcvars64.bat'")
 import lpips
 try:
     ImDist = lpips.LPIPS(net="squeeze").cuda()
 except:
     ImDist = lpips.PerceptualLoss(net="squeeze").cuda()
-from GAN_hessian_compute import hessian_compute, get_full_hessian
-from hessian_analysis_tools import compute_vector_hess_corr, compute_hess_corr, plot_layer_consistency_mat
-from GAN_utils import loadStyleGAN2, StyleGAN2_wrapper
+from Hessian.GAN_hessian_compute import get_full_hessian
+from GAN_utils import loadStyleGAN2
+
 #%%
 modelname = "ffhq-256-config-e-003810"  # 109 sec
 SGAN = loadStyleGAN2(modelname+".pt", size=256, channel_multiplier=1)  # 491 sec per BP
@@ -90,7 +89,7 @@ def plot_layer_spectra(eva_col, layernames=None, titstr="GAN", namestr="all_laye
     plt.show()
     return fig
 
-from hessian_analysis_tools import plot_consistentcy_mat, compute_hess_corr, compute_vector_hess_corr, plot_layer_consistency_mat
+from Hessian.hessian_analysis_tools import compute_hess_corr, compute_vector_hess_corr, plot_layer_consistency_mat
 datadir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\StyleGAN2"
 layernames = [("StyleBlock%02d" % blocki) for blocki in range(12)] # if blocki!=8 else "SelfAttention"
 eva_col, evc_col = [], []
@@ -120,7 +119,7 @@ fig0 = plot_layer_spectra(eva_col, layernames=layernames, figdir=datadir, titstr
                           namestr="zspace_all_block")
 fig0 = plot_layer_spectra(eva_col, layernames=layernames, figdir=datadir, titstr="StyleGAN2", normalize=True,
                           namestr="zspace_all_block_norm")
-from hessian_analysis_tools import plot_consistentcy_mat, compute_hess_corr, compute_vector_hess_corr, plot_layer_consistency_mat
+from Hessian.hessian_analysis_tools import compute_hess_corr, compute_vector_hess_corr, plot_layer_consistency_mat
 corr_mat_log, corr_mat_lin = compute_hess_corr(eva_col, evc_col, savelabel="StyleGAN2_zspace", figdir=datadir)
 corr_mat_vec = compute_vector_hess_corr(eva_col, evc_col, savelabel="StyleGAN2_zspace", figdir=datadir)
 fig1, fig2, fig3 = plot_layer_consistency_mat(corr_mat_log, corr_mat_lin, corr_mat_vec, savelabel="StyleGAN2_zspace", figdir=datadir, titstr="StyleGAN2", layernames=layernames)

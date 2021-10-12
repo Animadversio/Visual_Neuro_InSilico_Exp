@@ -1,18 +1,10 @@
-import torch
-import torch.nn.functional as F
 import numpy as np
 import matplotlib.pylab as plt
 from matplotlib import cm
 from tqdm import tqdm
-from time import time
 from os.path import join
-import sys
-import lpips
-from GAN_hessian_compute import hessian_compute, get_full_hessian
-from torchvision.transforms import ToPILImage
-from torchvision.utils import make_grid
-from GAN_utils import loadBigGAN, loadStyleGAN2, BigGAN_wrapper
-from hessian_analysis_tools import plot_spectra, compute_hess_corr
+from GAN_utils import loadBigGAN, BigGAN_wrapper
+
 #%%
 BGAN = loadBigGAN()
 Ln = len(BGAN.generator.layers)
@@ -60,7 +52,7 @@ H_col.append(Havg)
 eva_col.append(eva_Havg)
 evc_col.append(evc_Havg)
 #%%
-from hessian_analysis_tools import plot_layer_consistency_example
+from Hessian.hessian_analysis_tools import plot_layer_consistency_example
 fig = plot_layer_consistency_example(eva_col, evc_col, layernames, layeridx=[1, 9, 13, -1], figdir=figdir,
                                     titstr="BigGAN", savelabel="BigGAN")
 fig.show()
@@ -81,7 +73,7 @@ np.polyfit(np.log10(eva_col[i]), np.log10(vHv), 1)
 embedmat = BGAN.embeddings.weight.cpu().numpy()
 #%%
 from pytorch_pretrained_biggan import truncated_noise_sample
-from hessian_axis_visualize import vis_eigen_explore_row
+from Hessian.hessian_axis_visualize import vis_eigen_explore_row
 classid = 287
 # noisevec = truncated_noise_sample(1, 128, 0.6)
 # ref_code = np.concatenate((noisevec, embedmat[:, classid:classid+1].T), axis=1)

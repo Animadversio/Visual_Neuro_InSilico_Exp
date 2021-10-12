@@ -63,7 +63,7 @@ plt.savefig(join(archdir, "spectrum_Layer_all.pdf"))
 plt.show()
 #%%
 archdir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit"
-from hessian_analysis_tools import scan_hess_npz, compute_hess_corr, plot_consistentcy_mat
+from Hessian.hessian_analysis_tools import scan_hess_npz, compute_hess_corr, plot_consistentcy_mat
 # scan_hess_npz(archdir, npzpat="eig_Layer(\d).npz", evakey='eva_BP', evckey='evc_BP', )
 eva_col = []
 evc_col = []

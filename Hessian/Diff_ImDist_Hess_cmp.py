@@ -4,7 +4,7 @@ from os.path import join
 import pandas as pd
 import numpy as np
 import torch
-from GAN_hessian_compute import hessian_compute
+from Hessian.GAN_hessian_compute import hessian_compute
 # from hessian_analysis_tools import scan_hess_npz, plot_spectra, average_H, compute_hess_corr, plot_consistency_example
 # from hessian_axis_visualize import vis_eigen_explore, vis_eigen_action, vis_eigen_action_row, vis_eigen_explore_row
 from GAN_utils import loadStyleGAN2, StyleGAN2_wrapper, loadBigGAN, BigGAN_wrapper, loadPGGAN, PGGAN_wrapper

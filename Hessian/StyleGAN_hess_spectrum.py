@@ -2,18 +2,16 @@
 import torch
 import torch.nn.functional as F
 import numpy as np
-import matplotlib.pylab as plt
 from tqdm import tqdm
 from time import time
 import os
 from os.path import join
 import sys
 import lpips
-from GAN_hessian_compute import hessian_compute
+from Hessian.GAN_hessian_compute import hessian_compute
 from torchvision.transforms import ToPILImage
 from torchvision.utils import make_grid
-from hessian_analysis_tools import plot_spectra, compute_hess_corr, compute_vector_hess_corr,\
-    plot_consistency_example, plot_consistentcy_mat, average_H, scan_hess_npz
+from Hessian.hessian_analysis_tools import average_H, scan_hess_npz
 
 use_gpu = True if torch.cuda.is_available() else False
 ImDist = lpips.LPIPS(net='squeeze').cuda()
@@ -82,7 +80,7 @@ for EPSi in range(data_FI['H_col'].shape[0]):
     # print("EPS %.1e Correlation of Flattened Hessian matrix BP vs ForwardIter %.3f" % (
     #     EPS, np.corrcoef(H_BP.flatten(), H_FI.flatten())[0, 1]))
 #%%%
-from hessian_analysis_tools import plot_spectra, compute_hess_corr, plot_consistentcy_mat, plot_consistency_example
+from Hessian.hessian_analysis_tools import compute_hess_corr, plot_consistentcy_mat, plot_consistency_example
 import matplotlib.pylab as plt
 import matplotlib
 matplotlib.rcParams['pdf.fonttype'] = 42
@@ -169,7 +167,8 @@ class StyleGAN_wrapper():  # nn.Module
         return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
 G = StyleGAN_wrapper(generator)
 #%%
-from GAN_hessian_compute import hessian_compute, get_full_hessian
+from Hessian.GAN_hessian_compute import hessian_compute
+
 #%%
 for triali in range(1, 15):
     feat = torch.randn(1, 512,).to("cuda")
@@ -305,7 +304,7 @@ plt.savefig(join(figdir, "StyleGAN_BP-FI-HessCorr-cmp.pdf"))
 plt.show()
 #%%
 """ modern API. Analyze the W space geometry """
-from hessian_analysis_tools import scan_hess_npz, compute_hess_corr, compute_vector_hess_corr, average_H, \
+from Hessian.hessian_analysis_tools import scan_hess_npz, compute_hess_corr, compute_vector_hess_corr, average_H, \
     plot_consistentcy_mat, plot_consistency_hist, plot_spectra
 from GAN_utils import loadStyleGAN, StyleGAN_wrapper
 SGAN = loadStyleGAN()

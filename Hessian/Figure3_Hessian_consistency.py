@@ -1,17 +1,12 @@
 #%%
-import os
-import re
-from time import time
 from os.path import join
-from glob import glob
-import sys
 import pandas as pd
 import numpy as np
-from hessian_analysis_tools import scan_hess_npz, plot_spectra, average_H, compute_hess_corr, plot_consistency_example
-from hessian_axis_visualize import vis_eigen_explore, vis_eigen_action, vis_eigen_action_row, vis_eigen_explore_row
-from GAN_utils import loadStyleGAN2, StyleGAN2_wrapper, loadBigGAN, BigGAN_wrapper
+from Hessian.hessian_analysis_tools import scan_hess_npz, compute_hess_corr, plot_consistency_example
+from Hessian.hessian_axis_visualize import vis_eigen_action_row, vis_eigen_explore_row
+from GAN_utils import loadStyleGAN2, StyleGAN2_wrapper
 import matplotlib.pylab as plt
-import matplotlib
+
 summarydir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary"
 #%%
 dataroot = "E:\\Cluster_Backup\\StyleGAN2"

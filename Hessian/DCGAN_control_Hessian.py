@@ -1,19 +1,12 @@
 import torch
-import torch.nn.functional as F
 import numpy as np
-import matplotlib.pylab as plt
-from matplotlib import cm
 from tqdm import tqdm
-from time import time
 from os.path import join
 import os
-import sys
-import lpips
-from GAN_hessian_compute import hessian_compute, get_full_hessian
+from Hessian.GAN_hessian_compute import hessian_compute
 from torchvision.transforms import ToPILImage
-from torchvision.utils import make_grid
-from GAN_utils import loadBigGAN, loadStyleGAN2, BigGAN_wrapper, StyleGAN2_wrapper, loadPGGAN, PGGAN_wrapper, loadDCGAN, DCGAN_wrapper
-from hessian_analysis_tools import plot_spectra, compute_hess_corr
+from GAN_utils import loadDCGAN, DCGAN_wrapper
+from Hessian.hessian_analysis_tools import plot_spectra, compute_hess_corr
 from lpips import LPIPS
 ImDist = LPIPS(net="squeeze")
 datadir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\DCGAN"
@@ -67,7 +60,7 @@ for triali in tqdm(range(0, 100)):
     #     np.savez(join(savedir, "eig_genBlock%02d_trial%d.npz"%(blocki, triali)), H=H00, eva=eva00, evc=evc00,
     #              feat=feat.cpu().detach().numpy())
 #%%
-from hessian_analysis_tools import scan_hess_npz, average_H, compute_vector_hess_corr, plot_consistentcy_mat, \
+from Hessian.hessian_analysis_tools import scan_hess_npz, average_H, compute_vector_hess_corr, plot_consistentcy_mat, \
     plot_consistency_hist, plot_consistency_example
 
 savedir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\DCGAN\ctrl_Hessians"

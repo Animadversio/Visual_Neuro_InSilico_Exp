@@ -18,7 +18,7 @@ try:
     ImDist = lpips.LPIPS(net="squeeze").cuda()
 except:
     ImDist = lpips.PerceptualLoss(net="squeeze").cuda()
-from GAN_hessian_compute import hessian_compute
+from Hessian.GAN_hessian_compute import hessian_compute
 from GAN_utils import loadStyleGAN2, StyleGAN2_wrapper
 rootdir = r"E:\Cluster_Backup\StyleGAN2"
 #%% Configurations for different checkpoints
@@ -156,7 +156,7 @@ for triali in range(0, 100):
 
 #%%
 """Hessian spectra of StyleGAN2 from wspace"""
-from hessian_analysis_tools import scan_hess_npz, average_H, compute_hess_corr, compute_vector_hess_corr, plot_spectra,\
+from Hessian.hessian_analysis_tools import scan_hess_npz, average_H, compute_hess_corr, compute_vector_hess_corr, plot_spectra,\
     plot_consistentcy_mat,plot_consistency_example,plot_consistency_hist
 #%% "ffhq-512-avg-tpurun1"
 modelname = "ffhq-512-avg-tpurun1"

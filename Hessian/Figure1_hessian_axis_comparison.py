@@ -1,5 +1,5 @@
-from hessian_axis_visualize import vis_eigen_frame, vis_eigen_action, vis_distance_curve, vis_eigen_explore
-from hessian_analysis_tools import scan_hess_npz, average_H, compute_hess_corr, plot_consistentcy_mat, \
+from Hessian.hessian_axis_visualize import vis_eigen_frame, vis_eigen_action, vis_distance_curve, vis_eigen_explore
+from Hessian.hessian_analysis_tools import scan_hess_npz, average_H, compute_hess_corr, plot_consistentcy_mat, \
     plot_consistency_hist, plot_consistency_example, plot_spectra
 from GAN_utils import loadBigGAN, loadBigBiGAN, loadStyleGAN2, BigGAN_wrapper, BigBiGAN_wrapper, StyleGAN2_wrapper, upconvGAN
 
@@ -97,7 +97,7 @@ mtg, codes_all = vis_eigen_frame(evc_BG, eva_BG, BG, ref_code=refvec, figdir=fig
 
 #%% StyleGAN2
 """StyleGAN2 model"""
-from hessian_analysis_tools import scan_hess_npz, average_H, compute_hess_corr, plot_consistentcy_mat, plot_consistency_example
+from Hessian.hessian_analysis_tools import scan_hess_npz, average_H, compute_hess_corr, plot_consistentcy_mat, plot_consistency_example
 figdir = join(rootdir, 'StyleGAN2')
 Hessdir = join(rootdir, 'StyleGAN2')
 dataroot = r"E:\Cluster_Backup\StyleGAN2"

@@ -1,19 +1,15 @@
 import torch
 import torch.nn.functional as F
 import numpy as np
-import matplotlib.pylab as plt
-from matplotlib import cm
-from tqdm import tqdm
 from time import time
 from os.path import join
 import os
 import sys
-from GAN_hessian_compute import hessian_compute, get_full_hessian
-from torchvision.transforms import ToPILImage
-from torchvision.utils import make_grid
-from GAN_utils import loadBigGAN, BigGAN_wrapper, loadStyleGAN2, StyleGAN2_wrapper, ckpt_root
-from hessian_analysis_tools import plot_spectra, compute_hess_corr
-from hessian_analysis_tools import scan_hess_npz, average_H, plot_consistentcy_mat, plot_consistency_hist, plot_consistency_example, compute_vector_hess_corr, compute_hess_corr
+from Hessian.GAN_hessian_compute import hessian_compute
+from GAN_utils import loadStyleGAN2, StyleGAN2_wrapper, ckpt_root
+from Hessian.hessian_analysis_tools import plot_spectra
+from Hessian.hessian_analysis_tools import scan_hess_npz, average_H, plot_consistentcy_mat, plot_consistency_hist, plot_consistency_example, \
+    compute_hess_corr
 from lpips import LPIPS
 ImDist = LPIPS(net="squeeze")
 

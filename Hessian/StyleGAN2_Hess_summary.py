@@ -159,7 +159,7 @@ for fdnm in subfdnm:#["FFHQ512"]:
         print(fdnm, "folder failed, please check")
         failnms2.append(fdnm)
 #%%
-from hessian_analysis_tools import plot_spectra, compute_hess_corr, plot_consistentcy_mat, plot_consistency_example
+from Hessian.hessian_analysis_tools import plot_spectra, compute_hess_corr, plot_consistentcy_mat, plot_consistency_example
 def scan_hess_npz(Hdir, evakey='eva_BP', evckey='evc_BP', npzpat="Hess_BP(\d*).npz", ):
     npzpaths = glob(join(Hdir, "*.npz"))
     npzfns = [path.split("\\")[-1] for path in npzpaths]

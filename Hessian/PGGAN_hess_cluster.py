@@ -5,7 +5,7 @@ from time import time
 import sys
 from os.path import join
 import lpips
-from GAN_hessian_compute import hessian_compute
+from Hessian.GAN_hessian_compute import hessian_compute
 from torchvision.transforms import ToPILImage
 from torchvision.utils import make_grid
 ImDist = lpips.LPIPS(net='squeeze').cuda()

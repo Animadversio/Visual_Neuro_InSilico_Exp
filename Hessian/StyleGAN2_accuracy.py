@@ -17,7 +17,7 @@ from GAN_utils import loadBigBiGAN, loadStyleGAN2, BigBiGAN_wrapper, StyleGAN2_w
 # ImDist = models.PerceptualLoss(model='net-lin', net='squeeze', use_gpu=1, gpu_ids=[0])
 import lpips
 ImDist = lpips.LPIPS(net="squeeze").cuda()
-from GAN_hessian_compute import hessian_compute
+from Hessian.GAN_hessian_compute import hessian_compute
 #%%
 SGAN = loadStyleGAN2("ffhq-512-avg-tpurun1.pt", size=512)
 G = StyleGAN2_wrapper(SGAN)

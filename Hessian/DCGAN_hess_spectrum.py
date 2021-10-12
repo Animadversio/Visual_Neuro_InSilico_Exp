@@ -3,11 +3,9 @@ import numpy as np
 from tqdm import tqdm
 from time import time
 from os.path import join
-import sys
 import lpips
-from GAN_hessian_compute import hessian_compute
-from torchvision.transforms import ToPILImage
-from torchvision.utils import make_grid
+from Hessian.GAN_hessian_compute import hessian_compute
+
 #%%
 use_gpu = True if torch.cuda.is_available() else False
 model = torch.hub.load('facebookresearch/pytorch_GAN_zoo:hub', 'DCGAN', pretrained=True, useGPU=use_gpu)
@@ -101,7 +99,7 @@ eva_col = np.array(eva_col)
 #%%
 figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\DCGAN"
 savedir = r"E:\Cluster_Backup\DCGAN"
-from hessian_analysis_tools import plot_spectra, compute_hess_corr, plot_consistency_example, plot_consistentcy_mat, \
+from Hessian.hessian_analysis_tools import plot_spectra, compute_hess_corr, plot_consistency_example, plot_consistentcy_mat, \
     plot_consistency_hist, average_H, scan_hess_npz
 eva_col, evc_col, feat_col, meta = scan_hess_npz(savedir, "Hessian_cmp_(\d*).npz", featkey="feat")
 feat_col = np.array(feat_col).squeeze()

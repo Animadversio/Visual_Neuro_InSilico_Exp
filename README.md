@@ -17,11 +17,17 @@ This project serves the purpose of developping and testing computational tools *
     - A collection of functions to help analyze hessian matrix and spectrum `hessian_analysis`
     - Analysis code for many experiments `hessian_analysis_batch` 
     - A non-gradient Hessian estimation method inspired by the HessAware ZOO paper `ZO_Hessian_Estim`
+* `Hessian` subfolder contains the experimental codes and infrastructures for the Hessian project. For a more structured code base, see [this repo](https://github.com/Animadversio/GAN-Geometry). 
+* `movie_timescale` subfolder contains the code for measuring the response timescale for units across neural network, CNN or Transformers. 
+
 
 ## Usage 
-This Repo can potentially be deployed onto cluster to run at large scale, based on Caffe or TF or torch backend.
+This Repo can potentially be deployed onto cluster to run at large scale, based on torch (preferred) or Caffe or TF backend.
+
 
 ## Dependency
 
-* [Pytorch Receptive Field](https://github.com/Fangyh09/pytorch-receptive-field) is used in some of the in silico experiments
+* [Pytorch Receptive Field](https://github.com/Fangyh09/pytorch-receptive-field) is used in some of the *in silico* experiments
 * [pytorch hessian eigenthings](https://github.com/noahgolmant/pytorch-hessian-eigenthings) is used in some scripts
+
+

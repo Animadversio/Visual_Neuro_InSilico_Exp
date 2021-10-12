@@ -3,8 +3,8 @@ from GAN_utils import PGGAN_wrapper, DCGAN_wrapper, StyleGAN2_wrapper, BigGAN_wr
 #%% Due to naming convention conflict, StyleGAN need to be loaded in a seperate session from other GANs.
 from GAN_utils import loadStyleGAN, StyleGAN_wrapper
 # %%
-from hessian_analysis_tools import average_H, plot_spectra
-from hessian_axis_visualize import vis_eigen_action, vis_distance_curve, vis_eigen_frame, vis_eigen_explore
+from Hessian.hessian_analysis_tools import average_H, plot_spectra
+from Hessian.hessian_axis_visualize import vis_eigen_action, vis_distance_curve, vis_eigen_frame, vis_eigen_explore
 import numpy as np
 import torch
 from numpy.linalg import norm

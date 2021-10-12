@@ -5,8 +5,8 @@ import torch.nn.functional as F
 from torchvision.transforms import ToPILImage, ToTensor
 from hessian_eigenthings.power_iter import Operator, deflated_power_iteration
 from hessian_eigenthings.lanczos import lanczos
-from lanczos_generalized import lanczos_generalized
-from GAN_hvp_operator import GANHVPOperator, GANForwardHVPOperator, compute_hessian_eigenthings, get_full_hessian
+from Hessian.lanczos_generalized import lanczos_generalized
+from Hessian.GAN_hvp_operator import GANHVPOperator, GANForwardHVPOperator, compute_hessian_eigenthings, get_full_hessian
 import sys
 import numpy as np
 import matplotlib.pylab as plt

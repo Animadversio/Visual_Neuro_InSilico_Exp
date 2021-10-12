@@ -8,7 +8,7 @@ import torch
 import numpy as np
 from numpy.linalg import norm
 from torch_utils import show_imgrid, save_imgrid
-from GAN_hessian_compute import hessian_compute
+from Hessian.GAN_hessian_compute import hessian_compute
 import torch.nn.functional as F
 sys.path.append(r"E:\DL_Projects\Vision\GANLatentDiscovery")
 sys.path.append(r"D:\DL_Projects\Vision\GANLatentDiscovery")

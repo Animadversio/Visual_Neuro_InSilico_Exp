@@ -1,19 +1,15 @@
 import torch
-import torch.nn.functional as F
 import numpy as np
 import matplotlib.pylab as plt
-from matplotlib import cm
 from tqdm import tqdm
 from time import time
 from os.path import join
 import os
-import sys
-import lpips
-from GAN_hessian_compute import hessian_compute, get_full_hessian
+from Hessian.GAN_hessian_compute import hessian_compute
 from torchvision.transforms import ToPILImage
 from torchvision.utils import make_grid
-from GAN_utils import loadBigGAN, loadStyleGAN2, BigGAN_wrapper, StyleGAN2_wrapper, loadStyleGAN, StyleGAN_wrapper
-from hessian_analysis_tools import plot_spectra, compute_hess_corr
+from GAN_utils import loadStyleGAN, StyleGAN_wrapper
+from Hessian.hessian_analysis_tools import plot_spectra, compute_hess_corr
 from lpips import LPIPS
 ImDist = LPIPS(net="squeeze")
 datadir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\StyleGAN"
@@ -67,7 +63,7 @@ for triali in tqdm(range(38, 50)):
     #     np.savez(join(savedir, "eig_genBlock%02d_trial%d.npz"%(blocki, triali)), H=H00, eva=eva00, evc=evc00,
     #              feat=feat.cpu().detach().numpy())
 #%%
-from hessian_analysis_tools import scan_hess_npz, average_H, plot_consistentcy_mat, plot_consistency_hist, plot_consistency_example
+from Hessian.hessian_analysis_tools import scan_hess_npz, average_H, plot_consistentcy_mat, plot_consistency_hist, plot_consistency_example
 savedir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\StyleGAN\ctrl_Hessians"
 figdir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\StyleGAN"
 realfigdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\StyleGAN"
@@ -134,7 +130,8 @@ plt.plot(eva_BP)
 plt.plot(np.log10(eva_BP))
 plt.show()
 #%%
-from hessian_analysis_tools import scan_hess_npz, average_H, plot_consistentcy_mat, plot_consistency_hist, plot_consistency_example, compute_vector_hess_corr, compute_hess_corr
+from Hessian.hessian_analysis_tools import scan_hess_npz, average_H, plot_consistentcy_mat, plot_consistency_hist, plot_consistency_example, \
+    compute_hess_corr
 figdir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\StyleGAN"
 modelnm = "StyleGAN_wspace_shuffle"
 # Load the Hessian NPZ

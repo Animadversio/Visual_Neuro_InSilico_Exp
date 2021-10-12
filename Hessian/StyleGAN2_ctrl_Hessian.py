@@ -9,12 +9,12 @@ from os.path import join
 import os
 import sys
 import lpips
-from GAN_hessian_compute import hessian_compute, get_full_hessian
+from Hessian.GAN_hessian_compute import hessian_compute, get_full_hessian
 from torchvision.transforms import ToPILImage
 from torchvision.utils import make_grid
 from GAN_utils import loadBigGAN, loadStyleGAN2, BigGAN_wrapper, StyleGAN2_wrapper
-from hessian_analysis_tools import plot_spectra, compute_hess_corr
-from hessian_analysis_tools import scan_hess_npz, average_H, plot_consistentcy_mat, plot_consistency_hist, plot_consistency_example
+from Hessian.hessian_analysis_tools import plot_spectra, compute_hess_corr
+from Hessian.hessian_analysis_tools import scan_hess_npz, average_H, plot_consistentcy_mat, plot_consistency_hist, plot_consistency_example
 from lpips import LPIPS
 ImDist = LPIPS(net="squeeze")
 datadir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\StyleGAN2"
@@ -76,7 +76,7 @@ for triali in tqdm(range(42, 50)):
         np.savez(join(savedir, "eig_genBlock%02d_trial%d.npz"%(blocki, triali)), H=H00, eva=eva00, evc=evc00,
                  feat=feat.cpu().detach().numpy())
 #%%
-from hessian_analysis_tools import scan_hess_npz, average_H, plot_consistentcy_mat, plot_consistency_hist, plot_consistency_example
+from Hessian.hessian_analysis_tools import scan_hess_npz, average_H, plot_consistentcy_mat, plot_consistency_hist, plot_consistency_example
 savedir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\StyleGAN2\ctrl_Hessians"
 figdir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\StyleGAN2"
 

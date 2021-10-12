@@ -5,8 +5,8 @@ import torch.nn.functional as F
 from torchvision.transforms import ToPILImage, ToTensor
 from hessian_eigenthings.power_iter import Operator, deflated_power_iteration
 from hessian_eigenthings.lanczos import lanczos
-from lanczos_generalized import lanczos_generalized
-from GAN_hvp_operator import GANHVPOperator, GANForwardHVPOperator, compute_hessian_eigenthings, get_full_hessian
+from Hessian.lanczos_generalized import lanczos_generalized
+from Hessian.GAN_hvp_operator import GANHVPOperator, GANForwardHVPOperator, compute_hessian_eigenthings, get_full_hessian
 import sys
 import numpy as np
 import matplotlib.pylab as plt
@@ -319,7 +319,7 @@ plt.savefig(join(figdir, "Hess_consistency_example_rnd%03d.jpg"%np.random.randin
 #%%
 datadir = r"E:\OneDrive - Washington University in St. Louis\HessGANCmp\BigBiGAN"
 figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\BigBiGAN"
-from hessian_analysis_tools import plot_spectra, compute_hess_corr, plot_consistency_example, plot_consistentcy_mat, average_H, scan_hess_npz
+from Hessian.hessian_analysis_tools import plot_spectra, compute_hess_corr, plot_consistency_example, plot_consistentcy_mat, average_H, scan_hess_npz
 eva_col, evc_col, feat_col, meta = scan_hess_npz(datadir, "Hess_norm(\d.*)_(\d\d\d)", featkey='vect',
                                                  evakey="eigvals", evckey="eigvects")
 feat_col = np.array(feat_col).squeeze()

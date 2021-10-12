@@ -11,12 +11,12 @@ from time import time
 from os.path import join
 from imageio import imwrite, imsave
 from PIL import Image
-from build_montages import build_montages, color_framed_montages
+from build_montages import build_montages
 from geometry_utils import SLERP, LERP, LExpMap, SExpMap
-from GAN_utils import upconvGAN, loadBigGAN, loadBigBiGAN, loadStyleGAN2, BigGAN_wrapper, BigBiGAN_wrapper, \
+from GAN_utils import upconvGAN, loadBigGAN, loadStyleGAN2, BigGAN_wrapper, BigBiGAN_wrapper, \
     StyleGAN2_wrapper
-from GAN_hessian_compute import hessian_compute, get_full_hessian
-from hessian_analysis_tools import scan_hess_npz, compute_hess_corr, plot_spectra, average_H
+from Hessian.GAN_hessian_compute import hessian_compute, get_full_hessian
+from Hessian.hessian_analysis_tools import scan_hess_npz, compute_hess_corr, plot_spectra, average_H
 #%%
 # figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary"
 # go through spectrum in batch, and plot B number of axis in a row
@@ -252,8 +252,7 @@ if __name__ == "__main__":
 
     #%% BigGAN on ImageNet Class Specific
     from GAN_utils import BigGAN_wrapper, loadBigGAN
-    from pytorch_pretrained_biggan import BigGAN
-    from torchvision.transforms import ToPILImage
+
     BGAN = loadBigGAN("biggan-deep-256").cuda()
     BG = BigGAN_wrapper(BGAN)
     EmbedMat = BG.BigGAN.embeddings.weight.cpu().numpy()
@@ -298,8 +297,7 @@ if __name__ == "__main__":
     BBG = BigBiGAN_wrapper(BBGAN)
     # EmbedMat = BG.BigGAN.embeddings.weight.cpu().numpy()
     #%%
-    from GAN_hessian_compute import hessian_compute, get_full_hessian
-    from hessian_analysis_tools import scan_hess_npz, compute_hess_corr, plot_spectra
+    from Hessian.hessian_analysis_tools import scan_hess_npz, compute_hess_corr, plot_spectra
     npzdir = r"E:\OneDrive - Washington University in St. Louis\HessGANCmp\BigBiGAN"
     eigval_col, eigvec_col, feat_col, meta = scan_hess_npz(npzdir, npzpat="Hess_norm9_(\d*).npz", evakey='eigvals', evckey='eigvects', featkey="vect")
     feat_arr = np.array(feat_col).squeeze()
@@ -308,7 +306,7 @@ if __name__ == "__main__":
     figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\BigBiGAN"
     mtg = vis_eigen_action(eigvec=eigvec_col[12][:, -eigid-1], ref_codes=feat_arr[[12, 0, 2, 4, 6, 8, 10, 12, ], :], G=BBG, maxdist=2, rown=5, transpose=False, namestr="BigBiGAN_norm9_eig%d"%eigid, figdir=figdir)
     #%% StyleGAN2
-    from GAN_hessian_compute import hessian_compute
+    from Hessian.GAN_hessian_compute import hessian_compute
     from GAN_utils import loadStyleGAN, StyleGAN_wrapper
     figdir = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\StyleGAN2"
     #%% Cats

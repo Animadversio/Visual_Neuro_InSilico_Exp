@@ -8,11 +8,11 @@ from time import time
 from os.path import join
 import sys
 import lpips
-from GAN_hessian_compute import hessian_compute, get_full_hessian
+from Hessian.GAN_hessian_compute import hessian_compute, get_full_hessian
 from torchvision.transforms import ToPILImage
 from torchvision.utils import make_grid
 from GAN_utils import loadBigGAN, loadStyleGAN2, BigGAN_wrapper, StyleGAN2_wrapper, upconvGAN
-from hessian_analysis_tools import plot_spectra, compute_hess_corr
+from Hessian.hessian_analysis_tools import plot_spectra, compute_hess_corr
 #%%
 G = upconvGAN()
 G.G.requires_grad_(False)
@@ -34,7 +34,7 @@ for Li in [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20
 #%%
 layernames_ = layernames[[0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]]
 datadir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\FC6GAN"
-from hessian_analysis_tools import plot_layer_amplif_curves, plot_layer_amplif_consistency, compute_plot_layer_corr_mat
+from Hessian.hessian_analysis_tools import plot_layer_amplif_curves, plot_layer_amplif_consistency, compute_plot_layer_corr_mat
 plot_layer_amplif_curves(eva_col, evc_col, None, layernames=layernames_, savestr="FC6", figdir=datadir)
 plot_layer_amplif_curves(eva_col, evc_col, None, layernames=layernames_, savestr="FC6", maxnorm=True, figdir=datadir)
 #%%

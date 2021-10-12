@@ -269,7 +269,7 @@ print("Correlation between code correlation  and  log Hessian similarity (non-di
 # Correlation between code correlation  and  log Hessian similarity (non-diagonal)  0.022462684881444483
 
 #%% Newer version API
-from hessian_analysis_tools import scan_hess_npz, average_H, compute_hess_corr, compute_vector_hess_corr, \
+from Hessian.hessian_analysis_tools import scan_hess_npz, average_H, compute_hess_corr, compute_vector_hess_corr, \
     plot_consistentcy_mat, plot_consistency_hist, plot_consistency_example, plot_spectra
 savedir = r"E:\Cluster_Backup\fc6_shfl_fixGAN"
 figdir = r"E:\OneDrive - Washington University in St. Louis\HessNetArchit\FC6GAN"
