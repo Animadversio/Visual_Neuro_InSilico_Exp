@@ -9,14 +9,11 @@ import pandas as pd
 import numpy as np
 from glob import glob
 import os, re
-from os.path import join, exists
-from os import listdir
-from tqdm import tqdm
-from time import time
+from os.path import join
 import matplotlib as mpl
 import seaborn as sns
 import matplotlib.pylab as plt
-from scipy.stats import ttest_rel, ttest_ind, ttest_1samp
+from scipy.stats import ttest_1samp
 from scipy.stats import linregress, spearmanr
 from easydict import EasyDict
 mpl.rcParams['pdf.fonttype'] = 42
@@ -25,7 +22,8 @@ mpl.rcParams['axes.spines.right'] = False
 mpl.rcParams['axes.spines.top'] = False
 
 #%% Fit Kent function, append to the list . and form a table.
-from Kent_fit_utils import fit_Kent_Stats, fit_Kent_bsl, fit_Kent
+from Manifold.Kent_fit_utils import fit_Kent_Stats
+
 dataroot = r"E:\Cluster_Backup\CNN_manifold"
 sumdir = r"E:\Cluster_Backup\CNN_manifold\summary"
 figdir = sumdir

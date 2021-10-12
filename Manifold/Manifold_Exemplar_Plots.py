@@ -1,10 +1,5 @@
-
-import os
 from os.path import join
-from easydict import EasyDict
 import numpy as np
-import pandas as pd
-from scipy.stats import linregress, ttest_ind, ttest_rel
 from random import randint
 import matplotlib.pylab as plt
 import matplotlib
@@ -13,7 +8,8 @@ matplotlib.rcParams['ps.fonttype'] = 42
 dataroot = r"E:\Cluster_Backup\CNN_manifold"
 sumdir = r"E:\Cluster_Backup\CNN_manifold\summary"
 #%%
-from Kent_fit_utils import fit_Kent_Stats, KentFunc_bsl, KentFunc
+from Manifold.Kent_fit_utils import fit_Kent_Stats
+
 #%%
 unit_list = [("vgg16", "conv2", 5, 112, 112),
             ("vgg16", "conv3", 5, 56, 56),
