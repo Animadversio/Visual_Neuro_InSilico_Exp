@@ -56,7 +56,7 @@ if __name__=="__main__":
     pop_RND = args.pop_rand_seed
     if args.pop_rand_seed == -1:
         print("using a random number as seed to sample random population")
-        args.pop_rand_seed = np.random.randint(1E6)
+        args.pop_rand_seed = np.random.randint(1E4)
     unit_mask_dict, unit_tsridx_dict = set_random_population_recording(scorer, [args.layer], popsize=args.popsize, 
             seed=pop_RND)
 
@@ -80,7 +80,7 @@ if __name__=="__main__":
     pkl.dump(EasyDict(unit_mask_dict=unit_mask_dict, unit_tsridx_dict=unit_tsridx_dict,
              refimgnms=refimgnms, ref_actmat=ref_actmat, popul_m=popul_m, popul_s=popul_s, popul_mask=popul_mask,
              corner=corner, imgsize=imgsize, gradAmpmap=gradAmpmap, args=args.__dict__),
-             open(join(exproot, "popul_idx", "popul_idx_%s_%s_%06d.pkl" % (args.net, args.layer, pop_RND)), "wb"))
+             open(join(exproot, "popul_idx", "popul_idx_%s-%s-%d-%04d.pkl" % (args.net, args.layer, args.popsize, pop_RND)), "wb"))
     # np.savez(join(exproot, "popul_idx", "popul_idx_%s_%s_%06d.npz" % (args.net, args.layer, pop_RND)),
     #          unit_mask_dict=unit_mask_dict, unit_tsridx_dict=unit_tsridx_dict,
     #          refimgnms=refimgnms, ref_actmat=ref_actmat, popul_m=popul_m, popul_s=popul_s, popul_mask=popul_mask,
@@ -111,9 +111,9 @@ if __name__=="__main__":
         os.makedirs(expdir, exist_ok=True)
         for triali in range(args.reps):
             for score_method in score_method_col:
-                print(f"Current experiment {args.net}-{args.layer}-{pop_RND}\n"
+                print(f"Current experiment {args.net}-{args.layer}-{pop_RND} (N={args.popsize})\n"
                       f"Target {targlabel}, Objective {score_method}, GAN {GANname}, Optim {args.optim}, trial {triali}")
-                explabel = "%s-%s-%s-%s-%s"%(args.net, args.layer, pop_RND, score_method, GANname, )
+                explabel = "%s-%s-%d-%04d_%s_%s"%(args.net, args.layer, args.popsize, pop_RND, score_method, GANname, )
                 objfunc = set_objective(score_method, targ_actmat, popul_mask, popul_m, popul_s)
                 optimizer = CholeskyCMAES(code_length, population_size=None, init_sigma=3,
                                 init_code=np.zeros([1, code_length]), Aupdate_freq=10,
