@@ -5,6 +5,7 @@ from sys import platform
 import numpy as np
 from insilico_Exp import ExperimentEvolve
 from Optimizer import Genetic, CholeskyCMAES, Optimizer
+import matplotlib.pylab as plt
 import utils
 #%% Decide the result storage place based on the computer the code is running
 if platform == "linux": # cluster
@@ -14,16 +15,18 @@ else:
         recorddir = r"D:\Generator_DB_Windows\data\with_CNN"
         initcodedir = r"D:\Generator_DB_Windows\stimuli\texture006"
     elif os.environ['COMPUTERNAME'] == 'DESKTOP-MENSD6S':  ## Home_WorkStation
-        recorddir = r"D:\Monkey_Data\Generator_DB_Windows\data\with_CNN"
+        recorddir = r"E:\Monkey_Data\Generator_DB_Windows\data\with_CNN"
+        initcodedir = r"E:\Monkey_Data\Generator_DB_Windows\stimuli\texture006"
 #%
-unit_arr = [ ('caffe-net', 'conv1', 5, 10, 10),
-             ('caffe-net', 'conv2', 5, 10, 10),
-             ('caffe-net', 'conv3', 5, 10, 10),
-             ('caffe-net', 'conv4', 5, 10, 10),
-             ('caffe-net', 'conv5', 5, 10, 10),
+unit_arr = [ #('caffe-net', 'conv1', 5, 10, 10),
+             #('caffe-net', 'conv2', 5, 10, 10),
+             #('caffe-net', 'conv3', 5, 10, 10),
+             #('caffe-net', 'conv4', 5, 10, 10),
+             #('caffe-net', 'conv5', 5, 10, 10),
              ('caffe-net', 'fc6', 1),
-             ('caffe-net', 'fc7', 1),
-             ('caffe-net', 'fc8', 1), ]
+             #('caffe-net', 'fc7', 1),
+             #('caffe-net', 'fc8', 1),
+            ]
 Optim_arr = ["Genetic", "CholCMA"]
 #%% Genetic Algorithm Parameters AND CMA-ES Parameters
 population_size = 40

@@ -2,9 +2,9 @@
 # Manifold_experiment
 # import torch_net_utils #net_utils
 # from torch_net_utils import load_caffenet, visualize, preprocess
-# import net_utils
+import net_utils
 # from Generator import Generator
-# from Optimizer import Genetic, Optimizer  # CholeskyCMAES, Optimizer is the base class for these things
+from Optimizer import Genetic, Optimizer  # CholeskyCMAES, Optimizer is the base class for these things
 import utils
 from ZO_HessAware_Optimizers import HessAware_Gauss_DC, CholeskyCMAES # newer CMAES api
 from utils import load_GAN
@@ -24,6 +24,7 @@ else:
         initcodedir = r"D:\Generator_DB_Windows\stimuli\texture006"  # Code & image folder to initialize the Genetic Algorithm
     elif os.environ['COMPUTERNAME'] == 'DESKTOP-MENSD6S':  ## Home_WorkStation
         recorddir = r"E:\Monkey_Data\Generator_DB_Windows\data\with_CNN"
+        initcodedir = r"E:\Monkey_Data\Generator_DB_Windows\stimuli\texture006"
     elif os.environ['COMPUTERNAME'] == 'DESKTOP-9LH02U9':  ## Home_WorkStation Victoria
         recorddir = r"C:\Users\zhanq\OneDrive - Washington University in St. Louis\Generator_DB_Windows\data\with_CNN"
 # Basic properties for Optimizer.
@@ -387,6 +388,8 @@ class ExperimentEvolve:
             # self.render = self.G.render
             if GAN == "fc8":
                 code_length = 1000
+            else:
+                code_length = 4096
         elif GAN == "BigGAN":
             from BigGAN_Evolution import BigGAN_embed_render
             self.render = BigGAN_embed_render

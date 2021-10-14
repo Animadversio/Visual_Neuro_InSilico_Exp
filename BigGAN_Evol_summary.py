@@ -95,6 +95,7 @@ plt.show()
 Load the cluster in silico exp results (newest ones). 
 """
 rootdir = r"E:\Cluster_Backup\BigGAN_Optim_Tune_new"
+rootdir = r"E:\OneDrive - Washington University in St. Louis\BigGAN_Optim_Tune"
 summarydir = join(rootdir, "summary")
 os.makedirs(summarydir, exist_ok=True)
 # savedir = r"E:\OneDrive - Washington University in St. Louis\BigGAN_Optim_Tune\%s_%s_%d"
@@ -526,7 +527,19 @@ ax2.set_ylabel("Iterations to Reach Fraction of\nMaximal Activation")
 ax2.set_title("Comparison of Convergence Speed over Layers of AlexNet\n (FC6 GAN)")
 plt.savefig(join(summarydir, "timescale_cmp_errorbar_fc6_cholCMA_50_noRsz.pdf"))
 ax2.figure.show()
-
+#%%
+tau_full_tab = pd.read_csv(join(summarydir, "optim_Timescale_tab_robust.csv"))
+mask = (tau_full_tab.GAN == "fc6") & (tau_full_tab.score > 2) & (tau_full_tab.optimizer == 'CholCMA_fc6')
+# (tau_full_tab.suffix == "") &
+tau_full_tab[mask].groupby("layer").mean()["tau50"]
+tau_full_tab[mask].groupby("layer").std()["tau50"]
+tau_full_tab[mask].groupby("layer").count()["tau50"]
+#%%
+stattab = pd.DataFrame()
+stattab["tau_mean"] = tau_full_tab[mask].groupby("layer").mean()["tau50"]
+stattab["tau_std"] = tau_full_tab[mask].groupby("layer").std()["tau50"]
+stattab["tau_sem"] = tau_full_tab[mask].groupby("layer").sem()["tau50"]
+stattab["N"] = tau_full_tab[mask].groupby("layer").count()["tau50"]
 #%%
 """ Plot a few exemplar traj """
 from GAN_utils import upconvGAN

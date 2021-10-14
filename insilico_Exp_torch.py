@@ -244,7 +244,7 @@ def subsample_mask(factor=2, orig_size=(21, 21)):
 
 
 class ExperimentManifold:
-    def __init__(self, model_unit, max_step=100, imgsize=(227, 227), corner=(0, 0),
+    def __init__(self, model_unit, max_step=100, imgsize=(227, 227), corner=(0, 0), optimizer=None,
                  savedir="", explabel="", backend="torch", GAN="fc6"):
         self.recording = []
         self.scores_all = []
@@ -280,10 +280,12 @@ class ExperimentManifold:
             self.code_length = 256  # 128 # 128d Class Embedding code or 256d full code could be used.
         else:
             raise NotImplementedError
-        self.optimizer = CholeskyCMAES(self.code_length, population_size=None, init_sigma=init_sigma,
+        if optimizer is None:
+            self.optimizer = CholeskyCMAES(self.code_length, population_size=None, init_sigma=init_sigma,
                                        init_code=np.zeros([1, self.code_length]), Aupdate_freq=Aupdate_freq,
-                                       maximize=True, random_seed=None,
-                                       optim_params={})
+                                       maximize=True, random_seed=None, optim_params={})
+        else:
+            self.optimizer = optimizer
 
         self.max_steps = max_step
         self.corner = corner  # up left corner of the image
@@ -316,7 +318,7 @@ class ExperimentManifold:
             self.current_images = self.render_tsr(codes)
             t1 = time()  # generate image from code
             self.current_images = resize_and_pad_tsr(self.current_images, self.imgsize, self.corner)
-             # Fixed Jan.14 2021
+            # Fixed Jan.14 2021
             synscores = self.CNNmodel.score_tsr(self.current_images)
             t2 = time()  # score images
             codes_new = self.optimizer.step_simple(synscores, codes)
