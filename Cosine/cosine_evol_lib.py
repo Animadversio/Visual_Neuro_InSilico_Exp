@@ -25,7 +25,7 @@ def run_evol(scorer, objfunc, optimizer, G, reckey=None, steps=100, label="obj-t
     best_imgs = []
     for i in range(steps,):
         codes_all.append(new_codes.copy())
-        T0 = time.process_time()
+        T0 = time.time() #process_
         imgs = G.visualize_batch_np(new_codes)  # B=1
         latent_code = torch.from_numpy(np.array(new_codes)).float()
         T1 = time.time() #process_
@@ -56,15 +56,15 @@ def run_evol(scorer, objfunc, optimizer, G, reckey=None, steps=100, label="obj-t
     actmat_all = np.concatenate(tuple(actmat_all), axis=0)
     generations = np.array(generations)
     mtg_exp = ToPILImage()(make_grid(best_imgs, nrow=10))
-    mtg_exp.save(join(savedir, "besteachgen%s_%05d.jpg" % (label, RND,)))
+    mtg_exp.save(join(savedir, "besteachgen_%s_%05d.jpg" % (label, RND,)))
     mtg = ToPILImage()(make_grid(imgs, nrow=7))
-    mtg.save(join(savedir, "lastgen%s_%05d_score%.1f.jpg" % (label, RND, scores.mean())))
+    mtg.save(join(savedir, "lastgen_%s_%05d_score%.1f.jpg" % (label, RND, scores.mean())))
     if codes_all.shape[1] == 4096: # then subsample the codes
-        np.savez(join(savedir, "scores%s_%05d.npz" % (label, RND)), generations=generations, scores_all=scores_all, actmat_all=actmat_all, codes_fin=codes_all[-80:,:])
+        np.savez(join(savedir, "scores_%s_%05d.npz" % (label, RND)), generations=generations, scores_all=scores_all, actmat_all=actmat_all, codes_fin=codes_all[-80:,:])
     else:
-        np.savez(join(savedir, "scores%s_%05d.npz" % (label, RND)), generations=generations, scores_all=scores_all, actmat_all=actmat_all, codes_all=codes_all)
+        np.savez(join(savedir, "scores_%s_%05d.npz" % (label, RND)), generations=generations, scores_all=scores_all, actmat_all=actmat_all, codes_all=codes_all)
     visualize_trajectory(scores_all, generations, codes_arr=codes_all, title_str=label).savefig(
-        join(savedir, "traj%s_%05d_score%.1f.jpg" % (label, RND, scores.mean())))
+        join(savedir, "traj_%s_%05d_score%.1f.jpg" % (label, RND, scores.mean())))
     return codes_all, scores_all, actmat_all, generations, RND
 
 #%%

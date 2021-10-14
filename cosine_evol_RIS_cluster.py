@@ -131,5 +131,5 @@ if __name__=="__main__":
                             reckey=args.layer, label=explabel, savedir=expdir,
                             steps=args.steps, RFresize=args.RFresize, corner=corner, imgsize=imgsize,)
                 figh = visualize_popul_act_evol(actmat_all, generations, targ_actmat)
-                figh.savefig(join(expdir, "popul_act_evol_%s_%d.png" % (explabel, RND)))
-                ToPILImage()(target_imgtsr_rsz[0]).save(join(expdir, "targetimg_%s_%d.png" % (explabel, RND)))
+                figh.savefig(join(expdir, "popul_act_evol_%s_%05d.png" % (explabel, RND)))
+                ToPILImage()(target_imgtsr_rsz[0]).save(join(expdir, "targetimg_%s_%05d.png" % (explabel, RND)))
