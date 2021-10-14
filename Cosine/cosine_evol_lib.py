@@ -1,14 +1,16 @@
-
-# Set objective function
-# def select_popul_record(model, layer, size=50, chan="rand", x=None, y=None):
-#     return popul_idxs
 import time
-import matplotlib.pylab as plt
 from os.path import join
+import matplotlib.pylab as plt
+import torch
+import numpy as np
 from torchvision.transforms import ToPILImage
 from torchvision.utils import make_grid
-from insilico_Exp_torch import resize_and_pad_tsr
-from insilico_Exp_torch import visualize_trajectory, resize_and_pad_tsr
+from insilico_Exp_torch import TorchScorer, visualize_trajectory, resize_and_pad_tsr
+from layer_hook_utils import get_module_names, get_layer_names
+
+# def select_popul_record(model, layer, size=50, chan="rand", x=None, y=None):
+#     return popul_idxs
+
 def run_evol(scorer, objfunc, optimizer, G, reckey=None, steps=100, label="obj-target-G", savedir="",
             RFresize=True, corner=(0, 0), imgsize=(224, 224), init_code=None):
     if init_code is None:
@@ -66,9 +68,6 @@ def run_evol(scorer, objfunc, optimizer, G, reckey=None, steps=100, label="obj-t
     return codes_all, scores_all, actmat_all, generations, RND
 
 #%%
-from insilico_Exp_torch import TorchScorer, resize_and_pad
-from layer_hook_utils import get_module_names, get_layer_names
-import numpy as np
 def sample_center_units_idx(tsrshape, samplenum=500, single_col=True, resample=False):
     """
 
@@ -96,7 +95,9 @@ def sample_center_units_idx(tsrshape, samplenum=500, single_col=True, resample=F
     #     np.unravel_index(flat_idx_samp, outshape)
     return flat_idx_samp
 
-def set_random_population_recording(scorer, targetnames, popsize=500, single_col=True, resample=False):
+
+def set_random_population_recording(scorer, targetnames, popsize=500, single_col=True, resample=False,
+                                    seed=None):
     """ Main effect is to set the recordings for the scorer object.
     (additional method for scorer)
 
@@ -108,6 +109,7 @@ def set_random_population_recording(scorer, targetnames, popsize=500, single_col
     :return:
 
     """
+    np.random.seed(seed) # set a seed for reproducing population selection
     unit_mask_dict = {}
     unit_tsridx_dict = {}
     module_names, module_types, module_spec = get_module_names(scorer.model, (3,227,227), "cuda", False)
@@ -126,15 +128,9 @@ def set_random_population_recording(scorer, targetnames, popsize=500, single_col
         print(*invmap.keys(), sep="\n")
         raise KeyError
     return unit_mask_dict, unit_tsridx_dict
-
-#%%
-# Set population recording
-scorer = TorchScorer("resnet50")
-module_names, module_types, module_spec = get_module_names(scorer.model, (3, 227, 227), "cuda", False)
-unit_mask_dict, unit_tsridx_dict = set_random_population_recording(scorer, [".layer3.Bottleneck0"], popsize=500)#
 #%%
 
-# ["cos", "MSE", "L1", "dot", "corr"]
+# 
 def set_objective(score_method, targmat, popul_mask, popul_m, popul_s, grad=False, normalize=True):
     def objfunc(actmat):
         actmat_msk = actmat[:, popul_mask]
@@ -167,7 +163,8 @@ def set_objective(score_method, targmat, popul_mask, popul_m, popul_s, grad=Fals
     return objfunc
 
 
-def encode_image(scorer, imgtsr, key=None):
+def encode_image(scorer, imgtsr, key=None,
+                 RFresize=True, corner=None, imgsize=None):
     """return a 2d array / tensor of activations for a image tensor
     imgtsr: (Nimgs, C, H, W)
     actmat: (Npop, Nimages) torch tensor
@@ -177,6 +174,7 @@ def encode_image(scorer, imgtsr, key=None):
         if key is in the dict, then return a single actmat of shape (imageN, unitN)
     """
     #TODO: make this work for larger image dataset
+    if RFresize: imgtsr = resize_and_pad_tsr(imgtsr, imgsize, corner, )
     _, recordings = scorer.score_tsr(imgtsr)
     if key is None:
         return recordings
@@ -186,7 +184,9 @@ def encode_image(scorer, imgtsr, key=None):
 
 def set_popul_mask(ref_actmat):
     img_var = ref_actmat.var(axis=0) # (unitN, )
-    popul_mask = ~np.isclose(img_var, 0.0)
+    popul_mask = ~np.isclose(img_var, 0.0) 
+    # if these inactive units are not excluded, then the normalization will be nan. 
+    print(popul_mask.sum(), " units still active in the mask.")
     return popul_mask
 
 
@@ -200,6 +200,8 @@ def set_normalizer(ref_actmat):
 
 
 
+from cycler import cycler
+from matplotlib.cm import jet
 def visualize_popul_act_evol(actmat_all, generations, targ_actmat):
     """
     # figh = visualize_popul_act_evol(actmat_all, generations, targ_actmat)
@@ -210,11 +212,12 @@ def visualize_popul_act_evol(actmat_all, generations, targ_actmat):
     :param targ_actmat:
     :return:
     """
-    actmat_tr_avg = np.array([actmat_all[generations==gi,:].mean(axis=0) for gi in range(100)])
+    Ngen = generations.max() + 1
+    actmat_tr_avg = np.array([actmat_all[generations==gi, :].mean(axis=0) for gi in range(Ngen)])
     sortidx = targ_actmat.argsort()[0]
-    figh= plt.figure(figsize=[8, 8])
+    figh= plt.figure(figsize=[10, 8])
     ax = plt.gca()
-    ax.set_prop_cycle(cycler(color=[jet(k) for k in np.linspace(0,1,100)]))
+    ax.set_prop_cycle(cycler(color=[jet(k) for k in np.linspace(0,1,Ngen)]))
     plt.plot(actmat_tr_avg[:,sortidx].T, alpha=0.3, lw=1.5)
     plt.plot(targ_actmat[:,sortidx].T, color='k', alpha=0.8,lw=2.5)
     plt.xlabel("populatiion unit (sorted by target pattern)")
@@ -223,7 +226,8 @@ def visualize_popul_act_evol(actmat_all, generations, targ_actmat):
     plt.tight_layout()
     # plt.show()
     return figh
-#%%
+
+
 import os
 from PIL import Image
 import torch
@@ -243,51 +247,51 @@ def load_ref_imgs(imgdir, preprocess=Compose([Resize((224, 224)), ToTensor()])):
     imgtsr = torch.stack(imgs)
     return imgnms, imgtsr
 
-refimgnms, refimgtsr = load_ref_imgs(imgdir=r"E:\Network_Data_Sync\Stimuli\2019-Selectivity\2019-Selectivity-Big-Set-01", preprocess=Compose([Resize((227, 227)), ToTensor()]))
-ref_actmat = encode_image(scorer, refimgtsr, key=".layer3.Bottleneck0")
-popul_m, popul_s = set_normalizer(ref_actmat)
-popul_mask = set_popul_mask(ref_actmat)
-targnm, target_imgtsr = refimgnms[25], refimgtsr[25:26]
-targ_actmat = encode_image(scorer, target_imgtsr, key=".layer3.Bottleneck0")  # 1, unitN
-targlabel = os.path.splitext(targnm)[0]
-#%%
+if __name__=="__main__":
+    #%%
+    from GAN_utils import upconvGAN, loadBigGAN, BigGAN_wrapper
+    from ZO_HessAware_Optimizers import HessAware_Gauss_DC, CholeskyCMAES
+    refimgdir = r"E:\Network_Data_Sync\Stimuli\2019-Selectivity\2019-Selectivity-Big-Set-01"
+    exproot = r"E:\Cluster_Backup\Cosine_insilico"
+    Optimizer = ["CholCMA", "HessCMA", "Adam"]
+    Glist = ["FC6", "BigGAN"]
+    score_methodlist = ["cos", "MSE", "L1", "dot", "corr"]
+    GANname = "FC6"
+    # Set population recording
+    scorer = TorchScorer("resnet50")
+    module_names, module_types, module_spec = get_module_names(scorer.model, (3, 227, 227), "cuda", False)
+    unit_mask_dict, unit_tsridx_dict = set_random_population_recording(scorer, [".layer3.Bottleneck0"], popsize=500)#
+    # Encode a population of images to set the normalizer and mask. 
+    refimgnms, refimgtsr = load_ref_imgs(imgdir=refimgdir, preprocess=Compose([Resize((227, 227)), ToTensor()]))
+    ref_actmat = encode_image(scorer, refimgtsr, key=".layer3.Bottleneck0")
+    popul_m, popul_s = set_normalizer(ref_actmat)
+    popul_mask = set_popul_mask(ref_actmat)
+    #%%
+    G = upconvGAN("fc6").cuda()
+    G.requires_grad_(False)
+    code_length = G.codelen
+    expdir = os.path.join(exproot,"cosine")
+    #%%
+    for imgid in range(len(refimgnms)):
+        # Select target image and add target vector. 
+        targnm, target_imgtsr = refimgnms[imgid], refimgtsr[imgid:imgid + 1]
+        targ_actmat = encode_image(scorer, target_imgtsr, key=".layer3.Bottleneck0")  # 1, unitN
+        targlabel = os.path.splitext(targnm)[0]
+        # organize data with the targetlabel
+        expdir = os.path.join(exproot, "rec_%s"%targlabel)
+        os.makedirs(expdir, exist_ok=True)
+        for score_method in ["cosine", "corr", "MSE", "dot"]:
+            explabel = "%s-%s-%s"%(targlabel, score_method, GANname)
+            objfunc = set_objective(score_method, targ_actmat, popul_mask, popul_m, popul_s)
+            optimizer = CholeskyCMAES(code_length, population_size=None, init_sigma=3,
+                            init_code=np.zeros([1, code_length]), Aupdate_freq=10,
+                            maximize=True, random_seed=None, optim_params={})
+            codes_all, scores_all, actmat_all, generations, RND = run_evol(scorer, objfunc, optimizer, G, reckey=".layer3.Bottleneck0", label=explabel, savedir=expdir,
+                        steps=100, RFresize=True, corner=(20, 20), imgsize=(187, 187))
+            ToPILImage()(target_imgtsr[0]).save(join(expdir, "targetimg_%s_%d.png"%(explabel, RND)))
+            figh = visualize_popul_act_evol(actmat_all, generations, targ_actmat)
+            figh.savefig(join(expdir, "popul_act_evol_%s_%d.png" % (explabel, RND)))
+    #%%
 
-# scores = objfunc(ref_actmat)
-#%%
-from cycler import cycler
-from matplotlib.cm import jet
-from ZO_HessAware_Optimizers import HessAware_Gauss_DC, CholeskyCMAES
-from GAN_utils import upconvGAN, loadBigGAN, BigGAN_wrapper
-Optimizer = ["CholCMA", "HessCMA", "Adam"]
-Glist = ["FC6", "BigGAN"]
-GANname = "FC6"
-G = upconvGAN("fc6").cuda()
-G.requires_grad_(False)
-code_length = G.codelen
-#%%
-exproot = r"E:\Cluster_Backup\Cosine_insilico"
-expdir = os.path.join(exproot,"cosine")
-#%%
-for imgid in range(len(refimgnms)):
-    targnm, target_imgtsr = refimgnms[imgid], refimgtsr[imgid:imgid + 1]
-    targ_actmat = encode_image(scorer, target_imgtsr, key=".layer3.Bottleneck0")  # 1, unitN
-    targlabel = os.path.splitext(targnm)[0]
-    expdir = os.path.join(exproot, "rec_%s"%targlabel)
-    os.makedirs(expdir, exist_ok=True)
-    for score_method in ["cosine", "corr", "MSE", "dot"]:
-        #%%
-        explabel = "%s-%s-%s"%(targlabel, score_method, GANname)
-        objfunc = set_objective(score_method, targ_actmat, popul_mask, popul_m, popul_s)
-        optimizer = CholeskyCMAES(code_length, population_size=None, init_sigma=3,
-                        init_code=np.zeros([1, code_length]), Aupdate_freq=10,
-                        maximize=True, random_seed=None, optim_params={})
-        codes_all, scores_all, actmat_all, generations, RND = run_evol(scorer, objfunc, optimizer, G, reckey=".layer3.Bottleneck0", label=explabel, savedir=expdir,
-                    steps=100, RFresize=True, corner=(20, 20), imgsize=(187, 187))
-        ToPILImage()(target_imgtsr[0]).save(join(expdir, "targetimg_%s_%d.png"%(explabel, RND)))
-        figh = visualize_popul_act_evol(actmat_all, generations, targ_actmat)
-        figh.savefig(join(expdir, "popul_act_evol_%s_%d.png"%(explabel, RND)))
-
-#%%
-
-# figh = visualize_popul_act_evol(actmat_all, generations, targ_actmat)
-# figh.savefig(join(expdir, "popul_act_evol_%s_%d.png"%(explabel, RND)))
+    # figh = visualize_popul_act_evol(actmat_all, generations, targ_actmat)
+    # figh.savefig(join(expdir, "popul_act_evol_%s_%d.png"%(explabel, RND)))
