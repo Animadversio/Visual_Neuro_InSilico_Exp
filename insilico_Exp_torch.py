@@ -152,12 +152,26 @@ class TorchScorer:
         self.activation = {}
 
     def get_activation(self, name, unit=None, unitmask=None, ingraph=False):
-        """Return a hook that record the unit activity into the entry in activation dict."""
+        """
+        :parameter
+            name: key to retrieve the recorded activation `self.activation[name]`
+            unit: a tuple of 3 element or single element. (chan, i, j ) or (chan)
+            unitmask: used in population recording, it could be a binary mask of the same shape / length as the
+                element number in feature tensor. Or it can be an array of integers.
+
+            *Note*: when unit and unitmask are both None, this function will record the whole output feature tensor.
+
+            ingraph: if True, then the recorded activation is still connected to input, so can pass grad.
+                    if False then cannot
+        :return
+            hook:  Return a hook function that record the unit activity into the entry in activation dict of scorer.
+        """
         if unit is None and unitmask is None:  # if no unit is given, output the full tensor. 
             def hook(model, input, output): 
                 self.activation[name] = output if ingraph else output.detach()
 
-        elif unitmask is not None: # has a unit mask, which could be an index list or a tensor mask same shape of the 3 dimensions. 
+        elif unitmask is not None:
+            # has a unit mask, which could be an index list or a tensor mask same shape of the 3 dimensions.
             def hook(model, input, output): 
                 out = output if ingraph else output.detach()
                 Bsize = out.shape[0]
@@ -193,7 +207,8 @@ class TorchScorer:
             # if the network is a single stream feedforward structure, we can index it and use it to find the
             # activation
             idx = self.layername.index(layer)
-            handle = self.layers[idx].register_forward_hook(self.get_activation(reckey, unitmask=unit_mask)) # we can get the layer by indexing
+            handle = self.layers[idx].register_forward_hook(self.get_activation(reckey, unitmask=unit_mask))
+            # we can get the layer by indexing
             self.hooks.append(handle)  # save the hooks in case we will remove it.
         else:
             # if not, we need to parse the architecture of the network indexing is not available. 
@@ -309,7 +324,7 @@ class TorchScorer:
             # img_batch.append(resz_out_img)
             with torch.no_grad():
                 # self.model(torch.cat(img_batch).cuda())
-                self.model(img_batch)
+                self.model(img_batch.cuda())
             if "score" in self.activation: # if score is not there set trace to zero. 
                 scores[csr:csr_end] = self.activation["score"].squeeze().cpu().numpy().squeeze()
 
@@ -327,6 +342,40 @@ class TorchScorer:
             return scores, self.recordings
         else:
             return scores
+
+
+def visualize_trajectory(scores_all, generations, codes_arr=None, show=False, title_str=""):
+    """ Visualize the Score Trajectory """
+    gen_slice = np.arange(min(generations), max(generations) + 1)
+    AvgScore = np.zeros_like(gen_slice)
+    MaxScore = np.zeros_like(gen_slice)
+    for i, geni in enumerate(gen_slice):
+        AvgScore[i] = np.mean(scores_all[generations == geni])
+        MaxScore[i] = np.max(scores_all[generations == geni])
+    figh, ax1 = plt.subplots()
+    ax1.scatter(generations, scores_all, s=16, alpha=0.6, label="all score")
+    ax1.plot(gen_slice, AvgScore, color='black', label="Average score")
+    ax1.plot(gen_slice, MaxScore, color='red', label="Max score")
+    ax1.set_xlabel("generation #")
+    ax1.set_ylabel("CNN unit score")
+    plt.legend()
+    if codes_arr is not None:
+        ax2 = ax1.twinx()
+        if codes_arr.shape[1] == 256: # BigGAN
+            nos_norm = np.linalg.norm(codes_arr[:, :128], axis=1)
+            cls_norm = np.linalg.norm(codes_arr[:, 128:], axis=1)
+            ax2.scatter(generations, nos_norm, s=5, color="orange", label="noise", alpha=0.2)
+            ax2.scatter(generations, cls_norm, s=5, color="magenta", label="class", alpha=0.2)
+        elif codes_arr.shape[1] == 4096: # FC6GAN
+            norms_all = np.linalg.norm(codes_arr[:, :], axis=1)
+            ax2.scatter(generations, norms_all, s=5, color="magenta", label="all", alpha=0.2)
+        ax2.set_ylabel("L2 Norm", color="red", fontsize=14)
+        plt.legend()
+    plt.title("Optimization Trajectory of Score\n" + title_str)
+    plt.legend()
+    if show:
+        plt.show()
+    return figh
 
 
 init_sigma = 3
