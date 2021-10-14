@@ -349,8 +349,8 @@ class TorchScorer:
 def visualize_trajectory(scores_all, generations, codes_arr=None, show=False, title_str=""):
     """ Visualize the Score Trajectory """
     gen_slice = np.arange(min(generations), max(generations) + 1)
-    AvgScore = np.zeros_like(gen_slice)
-    MaxScore = np.zeros_like(gen_slice)
+    AvgScore = np.zeros(gen_slice.shape)
+    MaxScore = np.zeros(gen_slice.shape)  # Bug fixed Oct. 14th, before there will be dtype casting problem
     for i, geni in enumerate(gen_slice):
         AvgScore[i] = np.mean(scores_all[generations == geni])
         MaxScore[i] = np.max(scores_all[generations == geni])
