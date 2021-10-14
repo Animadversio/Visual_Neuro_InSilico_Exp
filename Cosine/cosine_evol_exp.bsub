@@ -3,7 +3,7 @@
 #BSUB -q general
 #BSUB -G compute-crponce
 #BSUB -J 'cosine_exp_resnet[1-12]'
-#BSUB -gpu "num=1:gmodel=TeslaV100_SXM2_32GB:mode=exclusive_process
+#BSUB -gpu "num=1:gmodel=TeslaV100_SXM2_32GB:mode=exclusive_process"
 #BSUB -R 'gpuhost'
 #BSUB -R 'select[mem>16G]'
 #BSUB -R 'rusage[mem=16GB]'
