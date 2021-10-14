@@ -35,4 +35,4 @@ export unit_name="$(echo "$param_list" | head -n $LSB_JOBINDEX | tail -1)"
 echo "$unit_name"
 
 cd ~/Visual_Neuro_InSilico_Exp/
-python Cosine/cosine_evol_RIS_cluster.py $unit_name
+python cosine_evol_RIS_cluster.py $unit_name
