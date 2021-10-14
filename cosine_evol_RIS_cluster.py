@@ -20,20 +20,6 @@ parser.add_argument("--RFresize", action='store_true', help="Resize image to RFs
 parser.add_argument("--resize_ref", action='store_true', help="Resize image to RFsize for reference and target images?")
 # ["--G", "BigGAN", "--optim", "HessCMA", "CholCMA","--chans",'1','2','--steps','100',"--reps",'2']
 
-# if args.G == "BigGAN":
-#     Hdata = np.load(Hdir_BigGAN)
-# elif args.G == "fc6":
-#     Hdata = np.load(Hdir_fc6)
-# else:
-#     print("Hessian not found for the specified GAN")
-
-# Optimizer = ["CholCMA", "HessCMA", "Adam"]
-# Glist = ["FC6", "BigGAN"]
-# score_methodlist = ["cos", "MSE", "L1", "dot", "corr"]
-# GANname = "FC6"
-# net = "resnet50"
-# layer = ".layer3.Bottleneck0"
-# popsize = 500
 import sys 
 import os
 from os.path import join
@@ -52,7 +38,7 @@ else:
     # refimgdir = r"E:\Network_Data_Sync\Stimuli\2019-Selectivity\2019-Selectivity-Big-Set-01"
 
 os.makedirs(join(exproot, "popul_idx"), exist_ok=True)
-
+import pickle as pkl
 if __name__=="__main__":
     #%%
     args = parser.parse_args() 
@@ -90,10 +76,10 @@ if __name__=="__main__":
     popul_m, popul_s = set_normalizer(ref_actmat)
     popul_mask = set_popul_mask(ref_actmat)
     print("Save basic information and selectivity of the population.")
-    np.savez(join(exproot, "popul_idx", "popul_idx_%s_%s_%06d.npy" % (args.net, args.layer, pop_RND)),
-             unit_mask_dict=unit_mask_dict, unit_tsridx_dict=unit_tsridx_dict,
-             ref_actmat=ref_actmat, popul_m=popul_m, popul_s=popul_s, popul_mask=popul_mask,
-             corner=corner, imgsize=imgsize, args=args.__dict__, )
+    pkl.dump({unit_mask_dict=unit_mask_dict, unit_tsridx_dict=unit_tsridx_dict, 
+             refimgnms=refimgnms, ref_actmat=ref_actmat, popul_m=popul_m, popul_s=popul_s, popul_mask=popul_mask,
+             corner=corner, imgsize=imgsize, gradAmpmap=gradAmpmap, args=args.__dict__},
+             open(join(exproot, "popul_idx", "popul_idx_%s_%s_%06d.pkl" % (args.net, args.layer, pop_RND)), "wb"))
 
     GANname = args.G
     if GANname == "fc6":
