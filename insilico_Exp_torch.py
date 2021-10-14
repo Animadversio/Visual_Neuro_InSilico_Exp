@@ -19,28 +19,28 @@ from ZO_HessAware_Optimizers import HessAware_Gauss_DC, CholeskyCMAES
 from utils_old import visualize_img_list
 # mini-batches of 3-channel RGB images of shape (3 x H x W), where H and W are expected to be at least 224. The images have to be loaded in to a range of [0, 1] and then normalized using mean = [0.485, 0.456, 0.406] and std = [0.229, 0.224, 0.225].
 
-# activation = {}  # global variable is important for hook to work! it's an important channel for communication
-# def get_activation(name, unit=None, unitmask=None, ingraph=False):
-#     """Return a hook that record the unit activity into the entry in activation dict."""
-#     if unit is None and unitmask is None:  # if no unit is given, output the full tensor. 
-#         def hook(model, input, output): 
-#             activation[name] = output if ingraph else output.detach()
+activation = {}  # global variable is important for hook to work! it's an important channel for communication
+def get_activation(name, unit=None, unitmask=None, ingraph=False):
+    """Return a hook that record the unit activity into the entry in activation dict."""
+    if unit is None and unitmask is None:  # if no unit is given, output the full tensor.
+        def hook(model, input, output):
+            activation[name] = output if ingraph else output.detach()
 
-#     elif unitmask is not None: # has a unit mask, which could be an index list or a tensor mask same shape of the 3 dimensions. 
-#         def hook(model, input, output): 
-#             out = output if ingraph else output.detach()
-#             Bsize = out.shape[0]
-#             activation[name] = out.view([Bsize, -1])[:, unitmask.reshape(-1)]
+    elif unitmask is not None: # has a unit mask, which could be an index list or a tensor mask same shape of the 3 dimensions.
+        def hook(model, input, output):
+            out = output if ingraph else output.detach()
+            Bsize = out.shape[0]
+            activation[name] = out.view([Bsize, -1])[:, unitmask.reshape(-1)]
 
-#     else:
-#         def hook(model, input, output): 
-#             out = output if ingraph else output.detach()
-#             if len(output.shape) == 4: 
-#                 activation[name] = out[:, unit[0], unit[1], unit[2]]
-#             elif len(output.shape) == 2: 
-#                 activation[name] = out[:, unit[0]]
+    else:
+        def hook(model, input, output):
+            out = output if ingraph else output.detach()
+            if len(output.shape) == 4:
+                activation[name] = out[:, unit[0], unit[1], unit[2]]
+            elif len(output.shape) == 2:
+                activation[name] = out[:, unit[0]]
 
-#     return hook
+    return hook
 
 
 if platform == "linux": # cluster
@@ -247,7 +247,9 @@ class TorchScorer:
         self.recordings[record_layer] = []
 
     def preprocess(self, img, input_scale=255):
-        """preprocess single image array or a list (minibatch) of images"""
+        """preprocess single image array or a list (minibatch) of images
+        This includes Normalize using RGB mean and std and resize image to (227, 227)
+        """
         # could be modified to support batch processing. Added batch @ July. 10, 2020
         # test and optimize the performance by permute the operators. Use CUDA acceleration from preprocessing
         if type(img) is list: # the following lines have been optimized for speed locally.
@@ -403,10 +405,11 @@ def resize_and_pad_tsr(img_tsr, size, offset, canvas_size=(227, 227), scale=1.0)
     '''Resize and Pad a list of images to list of images
     Note this function is assuming the image is in (0,1) scale so padding with 0.5 as gray background.
     '''
-    if img_tsr.ndim == 4:
-        imgn = img_tsr.shape[0]
-    else:
-        imgn = 1
+    assert img_tsr.ndim in [3, 4]
+    if img_tsr.ndim == 3:
+        img_tsr.unsqueeze_(0)
+    imgn = img_tsr.shape[0]
+
     padded_shape = (imgn, 3,) + canvas_size
     pad_img = torch.ones(padded_shape) * 0.5 * scale
     pad_img.to(img_tsr.dtype)
