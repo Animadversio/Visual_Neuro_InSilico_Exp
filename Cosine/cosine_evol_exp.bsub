@@ -1,9 +1,9 @@
 #!/bin/bash
-#BSUB -n 1
+#BSUB -n 4
 #BSUB -q general
 #BSUB -G compute-crponce
-#BSUB -J 'cosine_exp_resnet[1-16]'
-#BSUB -gpu "num=1:gmodel=TeslaV100_SXM2_32GB"
+#BSUB -J 'cosine_exp_resnet[1-12]'
+#BSUB -gpu "num=1:gmodel=TeslaV100_SXM2_32GB:mode=exclusive_process
 #BSUB -R 'gpuhost'
 #BSUB -R 'select[mem>16G]'
 #BSUB -R 'rusage[mem=16GB]'
@@ -20,19 +20,15 @@ param_list=\
 '--net resnet50 --G fc6 --layer .layer3.Bottleneck0 --popsize 500 --pop_rand_seed 0 --target_idx 0 50 --score_method cosine corr MSE dot --reps 3 --RFresize --resize_ref
 --net resnet50 --G fc6 --layer .layer3.Bottleneck0 --popsize 500 --pop_rand_seed 0 --target_idx 50 100 --score_method cosine corr MSE dot --reps 3 --RFresize --resize_ref
 --net resnet50 --G fc6 --layer .layer3.Bottleneck0 --popsize 500 --pop_rand_seed 0 --target_idx 100 150 --score_method cosine corr MSE dot --reps 3 --RFresize --resize_ref
---net resnet50 --G fc6 --layer .layer3.Bottleneck0 --popsize 500 --pop_rand_seed 0 --target_idx 150 200 --score_method cosine corr MSE dot --reps 3 --RFresize --resize_ref
 --net resnet50 --G fc6 --layer .layer3.Bottleneck0 --popsize 1024 --pop_rand_seed 0 --target_idx 0 50 --score_method cosine corr MSE dot --reps 3 --RFresize --resize_ref
 --net resnet50 --G fc6 --layer .layer3.Bottleneck0 --popsize 1024 --pop_rand_seed 0 --target_idx 50 100 --score_method cosine corr MSE dot --reps 3 --RFresize --resize_ref
 --net resnet50 --G fc6 --layer .layer3.Bottleneck0 --popsize 1024 --pop_rand_seed 0 --target_idx 100 150 --score_method cosine corr MSE dot --reps 3 --RFresize --resize_ref
---net resnet50 --G fc6 --layer .layer3.Bottleneck0 --popsize 1024 --pop_rand_seed 0 --target_idx 150 200 --score_method cosine corr MSE dot --reps 3 --RFresize --resize_ref
 --net resnet50 --G fc6 --layer .layer2.Bottleneck2 --popsize 500 --pop_rand_seed 0 --target_idx 0 50 --score_method cosine corr MSE dot --reps 3 --RFresize --resize_ref
 --net resnet50 --G fc6 --layer .layer2.Bottleneck2 --popsize 500 --pop_rand_seed 0 --target_idx 50 100 --score_method cosine corr MSE dot --reps 3 --RFresize --resize_ref
 --net resnet50 --G fc6 --layer .layer2.Bottleneck2 --popsize 500 --pop_rand_seed 0 --target_idx 100 150 --score_method cosine corr MSE dot --reps 3 --RFresize --resize_ref
---net resnet50 --G fc6 --layer .layer2.Bottleneck2 --popsize 500 --pop_rand_seed 0 --target_idx 150 200 --score_method cosine corr MSE dot --reps 3 --RFresize --resize_ref
 --net resnet50 --G fc6 --layer .layer4.Bottleneck2 --popsize 500 --pop_rand_seed 0 --target_idx 0 50 --score_method cosine corr MSE dot --reps 3 --RFresize --resize_ref
 --net resnet50 --G fc6 --layer .layer4.Bottleneck2 --popsize 500 --pop_rand_seed 0 --target_idx 50 100 --score_method cosine corr MSE dot --reps 3 --RFresize --resize_ref
 --net resnet50 --G fc6 --layer .layer4.Bottleneck2 --popsize 500 --pop_rand_seed 0 --target_idx 100 150 --score_method cosine corr MSE dot --reps 3 --RFresize --resize_ref
---net resnet50 --G fc6 --layer .layer4.Bottleneck2 --popsize 500 --pop_rand_seed 0 --target_idx 150 200 --score_method cosine corr MSE dot --reps 3 --RFresize --resize_ref
 '
 
 export unit_name="$(echo "$param_list" | head -n $LSB_JOBINDEX | tail -1)"

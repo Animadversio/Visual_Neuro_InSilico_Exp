@@ -233,7 +233,7 @@ from PIL import Image
 import torch
 from torchvision.datasets import ImageFolder
 from torchvision.transforms import ToTensor, ToPILImage, Compose, Resize
-def load_ref_imgs(imgdir, preprocess=Compose([Resize((224, 224)), ToTensor()])):
+def load_ref_imgs(imgdir, preprocess=Compose([Resize((224, 224)), ToTensor()]), Nlimit=None):
     imgs = []
     imgnms = []
     valid_images = [".jpg", ".gif", ".png", ".tga"]
@@ -243,7 +243,9 @@ def load_ref_imgs(imgdir, preprocess=Compose([Resize((224, 224)), ToTensor()])):
             continue
         imgs.append(preprocess(Image.open(os.path.join(imgdir, f)).convert('RGB')))
         imgnms.append(f)
-        if len(imgs) > 150: break
+        if Nlimit is not None:
+            if len(imgs) > Nlimit: 
+                break
     imgtsr = torch.stack(imgs)
     return imgnms, imgtsr
 
