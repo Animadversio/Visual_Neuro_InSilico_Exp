@@ -118,16 +118,18 @@ if __name__=="__main__":
         # organize data with the targetlabel
         expdir = os.path.join(exproot, "rec_%s%s"%(targlabel, "_rsz" if args.resize_ref else ""))
         os.makedirs(expdir, exist_ok=True)
-        for score_method in score_method_col:
-            print("Current experiment ", args.net, args.layer, pop_RND, targlabel, score_method, GANname, )
-            explabel = "%s-%s-%s-%s-%s"%(args.net, args.layer, pop_RND, score_method, GANname, )
-            objfunc = set_objective(score_method, targ_actmat, popul_mask, popul_m, popul_s)
-            optimizer = CholeskyCMAES(code_length, population_size=None, init_sigma=3,
-                            init_code=np.zeros([1, code_length]), Aupdate_freq=10,
-                            maximize=True, random_seed=None, optim_params={})
-            codes_all, scores_all, actmat_all, generations, RND = run_evol(scorer, objfunc, optimizer, G, 
-                        reckey=args.layer, label=explabel, savedir=expdir,
-                        steps=args.steps, RFresize=args.RFresize, corner=corner, imgsize=imgsize,)
-            figh = visualize_popul_act_evol(actmat_all, generations, targ_actmat)
-            figh.savefig(join(expdir, "popul_act_evol_%s_%d.png" % (explabel, RND)))
-            ToPILImage()(target_imgtsr_rsz[0]).save(join(expdir, "targetimg_%s_%d.png" % (explabel, RND)))
+        for triali in range(args.reps):
+            for score_method in score_method_col:
+                print(f"Current experiment {args.net}-{args.layer}-{pop_RND}\n"
+                      f"Target {targlabel}, Objective {score_method}, GAN {GANname}, Optim {args.optim}, trial {triali}")
+                explabel = "%s-%s-%s-%s-%s"%(args.net, args.layer, pop_RND, score_method, GANname, )
+                objfunc = set_objective(score_method, targ_actmat, popul_mask, popul_m, popul_s)
+                optimizer = CholeskyCMAES(code_length, population_size=None, init_sigma=3,
+                                init_code=np.zeros([1, code_length]), Aupdate_freq=10,
+                                maximize=True, random_seed=None, optim_params={})
+                codes_all, scores_all, actmat_all, generations, RND = run_evol(scorer, objfunc, optimizer, G, 
+                            reckey=args.layer, label=explabel, savedir=expdir,
+                            steps=args.steps, RFresize=args.RFresize, corner=corner, imgsize=imgsize,)
+                figh = visualize_popul_act_evol(actmat_all, generations, targ_actmat)
+                figh.savefig(join(expdir, "popul_act_evol_%s_%d.png" % (explabel, RND)))
+                ToPILImage()(target_imgtsr_rsz[0]).save(join(expdir, "targetimg_%s_%d.png" % (explabel, RND)))

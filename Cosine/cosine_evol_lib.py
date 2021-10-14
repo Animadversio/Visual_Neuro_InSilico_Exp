@@ -28,16 +28,16 @@ def run_evol(scorer, objfunc, optimizer, G, reckey=None, steps=100, label="obj-t
         T0 = time.process_time()
         imgs = G.visualize_batch_np(new_codes)  # B=1
         latent_code = torch.from_numpy(np.array(new_codes)).float()
-        T1 = time.process_time()
+        T1 = time.time() #process_
         if RFresize: imgs = resize_and_pad_tsr(imgs, imgsize, corner, )
-        T2 = time.process_time()
+        T2 = time.time() #process_
         _, recordings = scorer.score_tsr(imgs)
         actmat = recordings[reckey]
-        T3 = time.process_time()
+        T3 = time.time() #process_
         scores = objfunc(actmat, )  # targ_actmat
-        T4 = time.process_time()
+        T4 = time.time() #process_
         new_codes = optimizer.step_simple(scores, new_codes, )
-        T5 = time.process_time()
+        T5 = time.time() #process_
         if "BigGAN" in str(G.__class__):
             print("step %d score %.3f (%.3f) (norm %.2f noise norm %.2f)" % (
                 i, scores.mean(), scores.std(), latent_code[:, 128:].norm(dim=1).mean(),
