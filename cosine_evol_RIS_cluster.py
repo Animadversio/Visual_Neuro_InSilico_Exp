@@ -39,6 +39,7 @@ else:
 
 os.makedirs(join(exproot, "popul_idx"), exist_ok=True)
 import pickle as pkl
+from easydict import EasyDict
 if __name__=="__main__":
     #%%
     args = parser.parse_args() 
@@ -76,10 +77,14 @@ if __name__=="__main__":
     popul_m, popul_s = set_normalizer(ref_actmat)
     popul_mask = set_popul_mask(ref_actmat)
     print("Save basic information and selectivity of the population.")
-    pkl.dump({unit_mask_dict=unit_mask_dict, unit_tsridx_dict=unit_tsridx_dict, 
+    pkl.dump(EasyDict(unit_mask_dict=unit_mask_dict, unit_tsridx_dict=unit_tsridx_dict,
              refimgnms=refimgnms, ref_actmat=ref_actmat, popul_m=popul_m, popul_s=popul_s, popul_mask=popul_mask,
-             corner=corner, imgsize=imgsize, gradAmpmap=gradAmpmap, args=args.__dict__},
+             corner=corner, imgsize=imgsize, gradAmpmap=gradAmpmap, args=args.__dict__),
              open(join(exproot, "popul_idx", "popul_idx_%s_%s_%06d.pkl" % (args.net, args.layer, pop_RND)), "wb"))
+    # np.savez(join(exproot, "popul_idx", "popul_idx_%s_%s_%06d.npz" % (args.net, args.layer, pop_RND)),
+    #          unit_mask_dict=unit_mask_dict, unit_tsridx_dict=unit_tsridx_dict,
+    #          refimgnms=refimgnms, ref_actmat=ref_actmat, popul_m=popul_m, popul_s=popul_s, popul_mask=popul_mask,
+    #          corner=corner, imgsize=imgsize, gradAmpmap=gradAmpmap, args=args.__dict__, )
 
     GANname = args.G
     if GANname == "fc6":
