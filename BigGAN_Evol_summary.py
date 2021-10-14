@@ -1,111 +1,35 @@
+""" Extensive analysis code for BigGAN / FC6 evolution in silico.
+Visualize Examplars for BigGAN, FC6 GAN evolution. 
+ALso visualize optimization trajectories. 
+"""
 import os
 import re
-import numpy as np
-import matplotlib.pylab as plt
-import seaborn as sns
 from time import time
 from os.path import join
+from easydict import EasyDict
+import numpy as np
 import pandas as pd
-from scipy.stats import ttest_rel, ttest_ind
+import seaborn as sns
 import matplotlib as mpl
+import matplotlib.pylab as plt
+from scipy.stats import ttest_rel, ttest_ind
 mpl.rcParams['pdf.fonttype'] = 42
-#%% Summarize difference between methods when applying to fc6
-"""Obsoltete!!"""
-rootdir = r"E:\OneDrive - Washington University in St. Louis\BigGAN_Optim_Tune"
-summarydir = join(rootdir, "summary")
-os.makedirs(summarydir, exist_ok=True)
-# savedir = r"E:\OneDrive - Washington University in St. Louis\BigGAN_Optim_Tune\%s_%s_%d"
-#%% Do a survey of all the exp done, Put them in a pandas DataFrame
-unit_strs = os.listdir(rootdir)
-unit_strs = [unit_str for unit_str in unit_strs if "alexnet" in unit_str]
-unit_pat = re.compile("(.*)_(.*)_(\d*)")
-unit_tups = [unit_pat.findall(unit_str)[0] for unit_str in unit_strs]
-unit_tups = [(tup[0],tup[1],int(tup[2])) for tup in unit_tups]
-rec_col = []
-for ui, unit_str in enumerate(unit_strs):
-    unit_tup = unit_tups[ui]
-    fns = os.listdir(join(rootdir, unit_str))
-    assert unit_str == "%s_%s_%d"%unit_tup
-    trajfns = [fn for fn in fns if "traj" in fn]
-    traj_fn_pat = re.compile("traj(.*)_(\d*)_score([\d.-]*).jpg")
-    for trajfn in trajfns:
-        parts = traj_fn_pat.findall(trajfn)[0]
-        entry = (unit_str, *unit_tup, parts[0], int(parts[1]), float(parts[2]))
-        rec_col.append(entry)
-
-exprec_tab = pd.DataFrame(rec_col, columns=["unitstr", 'net', 'layer', 'unit', "optimizer", "RND", "score"])
-#%%
-exprec_tab.to_csv(join(summarydir, "optim_raw_score_tab.csv"))
-#%% Align the experiments with same initialization (RND value) make an aligned DataFrame
-align_col = []
-methods = exprec_tab.optimizer.unique()
-for ui, unit_str in enumerate(unit_strs):
-    unit_tup = unit_tups[ui]
-    mask = exprec_tab.unitstr == unit_str
-    RNDs = exprec_tab[mask].RND.unique()
-    for RND in RNDs:
-        entry = [unit_str, *unit_tup, RND, ]
-        for method in methods:
-            maskprm = mask & (exprec_tab.RND==RND) & (exprec_tab.optimizer==method)
-            try:
-                score = exprec_tab[maskprm].score.item()
-            except ValueError:
-                print("Imcomplete Entry %s (RND %d, unit %s)" % (method, RND, unit_str))
-                score = np.nan
-            entry.append(score)
-        align_col.append(tuple(entry))
-align_tab = pd.DataFrame(align_col, columns=["unitstr", "net", "layer", "unit", "RND"]+list(methods))
-#%%
-align_tab.to_csv(join(summarydir, "optim_aligned_score_tab.csv"))
-#%% Hypothesis Testing with unaligned Data
-ttest_rel(exprec_tab[exprec_tab.optimizer=="CMA_class"].score,
-    exprec_tab[exprec_tab.optimizer=="CMA_prod"].score)
-#%%
-ttest_rel(align_tab.CholCMA, align_tab.CMA_all, nan_policy='omit')
-ttest_ind(align_tab.CholCMA, align_tab.CMA_all, nan_policy='omit')
-ttest_rel(align_tab.CholCMA, align_tab.CholCMA_noA, nan_policy='omit')
-ttest_ind(align_tab.CholCMA, align_tab.CholCMA_noA, nan_policy='omit')
-#%% Plot the aligned experiments and the scores comparison
-jitter = 0.1*np.random.randn(align_tab.shape[0])
-plt.figure(figsize=[8,8])
-plt.plot(np.array([[1, 2, 3, 4,5]]).T+jitter[np.newaxis, :], align_tab[["CholCMA","CholCMA_noA","CMA_all","CMA_class",
-                                                           "CMA_prod",]].to_numpy().T, color="gray", alpha=0.5)
-plt.scatter(1+jitter, align_tab.CholCMA, label="CholCMA")
-plt.scatter(2+jitter, align_tab.CholCMA_noA, label="CholCMA_noA")
-plt.scatter(3+jitter, align_tab.CMA_all, label="CMA_all")
-plt.scatter(4+jitter, align_tab.CMA_class, label="CMA_class")
-plt.scatter(5+jitter, align_tab.CMA_prod, label="CMA_prod")
-plt.ylabel("Activation Score")
-plt.xlabel("Optimizer Used")
-plt.xticks([1,2,3,4,5],["CholCMA","CholCMA_noA","CMA_all","CMA_class","CMA_prod"])
-chol_all_t = ttest_rel(align_tab.CholCMA, align_tab.CMA_all, nan_policy='omit')
-chol_prod_t = ttest_rel(align_tab.CholCMA, align_tab.CMA_prod, nan_policy='omit')
-chol_class_t = ttest_rel(align_tab.CholCMA, align_tab.CMA_class, nan_policy='omit')
-chol_noA_t = ttest_rel(align_tab.CholCMA, align_tab.CholCMA_noA, nan_policy='omit')
-plt.title("Comparing Performance of Optimizers in Activation Maximizing Alexnet units\n"
-          "paired-t: CholCMA-CMA_all:t=%.1f(p=%.1E)\nCholCMA-CMA_prod:t=%.1f(p=%.1E)\n CholCMA-CMA_class:t=%.1f("
-          "p=%.1E) \nCholCMA-CholCMA_noA:t=%.1f(p=%.1E)"%
-          (chol_all_t.statistic, chol_all_t.pvalue,chol_prod_t.statistic, chol_prod_t.pvalue,chol_class_t.statistic,
-            chol_class_t.pvalue,chol_noA_t.statistic, chol_noA_t.pvalue,))
-plt.axis('auto')
-plt.savefig(join(summarydir, "fc6_optimizer_scores_cmp.jpg"))
-plt.show()
 #%%
 """
-Load the cluster in silico exp results (newest ones). 
+Load the cluster in silico exp results (newest ones) for summary plot
 """
 rootdir = r"E:\Cluster_Backup\BigGAN_Optim_Tune_new"
 rootdir = r"E:\OneDrive - Washington University in St. Louis\BigGAN_Optim_Tune"
 summarydir = join(rootdir, "summary")
 os.makedirs(summarydir, exist_ok=True)
 # savedir = r"E:\OneDrive - Washington University in St. Louis\BigGAN_Optim_Tune\%s_%s_%d"
-#%%
+#%% Read pre-saved csv files
 exprec_tab = pd.read_csv(join(summarydir, "optim_raw_score_tab.csv"))
 align_tab = pd.read_csv(join(summarydir, "optim_aligned_score_tab_BigGAN.csv"))
 #%% Do a survey of all the exp done (Full version, not Receptive Field Matched)
 unit_strs = os.listdir(rootdir)
 unit_strs = [unit_str for unit_str in unit_strs if "alexnet" in unit_str]  # only keep the full size evolution.
-unit_pat = re.compile("([^_]*)_([^_]*)_(\d*)(_RFrsz)?")  # 'alexnet_fc8_59_RFrsz'
+unit_pat = re.compile("([^_]*)_([^_]*)_(\d*)(_RFrsz)?")  # re pattern for matching 'alexnet_fc8_59_RFrsz'
 # last part is a suffix indicating if it's doing resized evolution (Resize image to match RF)
 unit_tups = [unit_pat.findall(unit_str)[0] for unit_str in unit_strs]
 unit_tups = [(tup[0], tup[1], int(tup[2]), tup[3]) for tup in unit_tups]
@@ -122,6 +46,7 @@ for ui, unit_str in enumerate(unit_strs):
         entry = (unit_str, *unit_tup, parts[0], GANname, int(parts[1]), float(parts[2]))
         rec_col.append(entry)
 
+# Note suffix encodes if the evolution is using RF resized image or not.
 exprec_tab = pd.DataFrame(rec_col, columns=["unitstr", 'net', 'layer', 'unit', 'suffix', "optimizer", "GAN", "RND",
                                             "score"])
 #%% Formulate a experiment record
@@ -176,9 +101,18 @@ align_tab_fc6.to_csv(join(summarydir, "optim_aligned_score_tab_fc6.csv"))
 exprec_tab = pd.read_csv(join(summarydir, "optim_raw_score_tab.csv"))
 align_tab = pd.read_csv(join(summarydir, "optim_aligned_score_tab_BigGAN.csv"))
 align_tab_fc6 = pd.read_csv(join(summarydir, "optim_aligned_score_tab_fc6.csv"))
-#%% Visualization
+#%% Visualization Population statistics
 import seaborn as sns
 sns.set()
+#%% BigGAN FC6 comparison without pairing
+plt.figure(figsize=[7, 7])
+ax = sns.violinplot(x='layer', y='score', hue="optimizer", jitter=0.3,
+                   hue_order=['CholCMA', 'HessCMA', 'CholCMA_fc6'],
+                   data=exprec_tab, alpha=0.4)
+ax.set_title("Comparison of Optimizer and GAN space over Units of AlexNet")
+ax.figure.show()
+ax.figure.savefig(join(summarydir, "BigGANFC6_method_cmp_strip_layer_all.jpg"))
+ax.figure.savefig(join(summarydir, "BigGANFC6_method_cmp_strip_layer_all.pdf"))
 #%%
 plt.figure(figsize=[14, 6])
 ax = sns.stripplot(x='optimizer', y='score', hue="layer", jitter=0.3,
@@ -189,7 +123,7 @@ ax.set_title("Comparison of Optimizer and GAN space over Units of AlexNet")
 ax.figure.show()
 ax.figure.savefig(join(summarydir, "method_cmp_strip_layer_all.jpg"))
 #%%
-plt.figure(figsize=[14,6])
+plt.figure(figsize=[14, 6])
 ax = sns.swarmplot(x='optimizer', y='score', hue="layer",
                    order=['CholCMA', 'CholCMA_prod', 'CholCMA_class', 'HessCMA', 'HessCMA_class',
                     'HessCMA_noA', 'CholCMA_fc6', 'HessCMA500_1_fc6', 'HessCMA800_fc6',],
@@ -237,6 +171,9 @@ ax.figure.savefig(join(summarydir, "method_cmp_violin_method_all.jpg"))
 ttest_rel(align_tab.HessCMA, align_tab.CholCMA, nan_policy='omit')
 ttest_rel(align_tab.HessCMA, align_tab.HessCMA_class, nan_policy='omit')
 ttest_rel(align_tab.HessCMA, align_tab.HessCMA_noA, nan_policy='omit')
+
+
+
 #%%
 """
 Get sample images for each method! and montage them together.
@@ -628,3 +565,90 @@ fig.savefig(join(summarydir, "BigGAN_CMA-Hess_cmp.pdf"))
 fig.savefig(join(summarydir2, "BigGAN_CMA-Hess_cmp.png"))
 fig.savefig(join(summarydir2, "BigGAN_CMA-Hess_cmp.pdf"))
 plt.show()
+
+
+
+
+
+#%% Summarize difference between methods when applying to fc6
+"""Obsoltete!!"""
+rootdir = r"E:\OneDrive - Washington University in St. Louis\BigGAN_Optim_Tune"
+summarydir = join(rootdir, "summary")
+os.makedirs(summarydir, exist_ok=True)
+# savedir = r"E:\OneDrive - Washington University in St. Louis\BigGAN_Optim_Tune\%s_%s_%d"
+#%% Do a survey of all the exp done, Put them in a pandas DataFrame
+unit_strs = os.listdir(rootdir)
+unit_strs = [unit_str for unit_str in unit_strs if "alexnet" in unit_str]
+unit_pat = re.compile("(.*)_(.*)_(\d*)")
+unit_tups = [unit_pat.findall(unit_str)[0] for unit_str in unit_strs]
+unit_tups = [(tup[0],tup[1],int(tup[2])) for tup in unit_tups]
+rec_col = []
+for ui, unit_str in enumerate(unit_strs):
+    unit_tup = unit_tups[ui]
+    fns = os.listdir(join(rootdir, unit_str))
+    assert unit_str == "%s_%s_%d"%unit_tup
+    trajfns = [fn for fn in fns if "traj" in fn]
+    traj_fn_pat = re.compile("traj(.*)_(\d*)_score([\d.-]*).jpg")
+    for trajfn in trajfns:
+        parts = traj_fn_pat.findall(trajfn)[0]
+        entry = (unit_str, *unit_tup, parts[0], int(parts[1]), float(parts[2]))
+        rec_col.append(entry)
+
+exprec_tab = pd.DataFrame(rec_col, columns=["unitstr", 'net', 'layer', 'unit', "optimizer", "RND", "score"])
+#%%
+exprec_tab.to_csv(join(summarydir, "optim_raw_score_tab.csv"))
+#%% Align the experiments with same initialization (RND value) make an aligned DataFrame
+align_col = []
+methods = exprec_tab.optimizer.unique()
+for ui, unit_str in enumerate(unit_strs):
+    unit_tup = unit_tups[ui]
+    mask = exprec_tab.unitstr == unit_str
+    RNDs = exprec_tab[mask].RND.unique()
+    for RND in RNDs:
+        entry = [unit_str, *unit_tup, RND, ]
+        for method in methods:
+            maskprm = mask & (exprec_tab.RND==RND) & (exprec_tab.optimizer==method)
+            try:
+                score = exprec_tab[maskprm].score.item()
+            except ValueError:
+                print("Imcomplete Entry %s (RND %d, unit %s)" % (method, RND, unit_str))
+                score = np.nan
+            entry.append(score)
+        align_col.append(tuple(entry))
+align_tab = pd.DataFrame(align_col, columns=["unitstr", "net", "layer", "unit", "RND"]+list(methods))
+#%%
+align_tab.to_csv(join(summarydir, "optim_aligned_score_tab.csv"))
+#%% Hypothesis Testing with unaligned Data
+ttest_rel(exprec_tab[exprec_tab.optimizer=="CMA_class"].score,
+    exprec_tab[exprec_tab.optimizer=="CMA_prod"].score)
+#%%
+ttest_rel(align_tab.CholCMA, align_tab.CMA_all, nan_policy='omit')
+ttest_ind(align_tab.CholCMA, align_tab.CMA_all, nan_policy='omit')
+ttest_rel(align_tab.CholCMA, align_tab.CholCMA_noA, nan_policy='omit')
+ttest_ind(align_tab.CholCMA, align_tab.CholCMA_noA, nan_policy='omit')
+#%% Plot the aligned experiments and the scores comparison
+jitter = 0.1*np.random.randn(align_tab.shape[0])
+plt.figure(figsize=[8,8])
+plt.plot(np.array([[1, 2, 3, 4,5]]).T+jitter[np.newaxis, :], align_tab[["CholCMA","CholCMA_noA","CMA_all","CMA_class",
+                                                           "CMA_prod",]].to_numpy().T, color="gray", alpha=0.5)
+plt.scatter(1+jitter, align_tab.CholCMA, label="CholCMA")
+plt.scatter(2+jitter, align_tab.CholCMA_noA, label="CholCMA_noA")
+plt.scatter(3+jitter, align_tab.CMA_all, label="CMA_all")
+plt.scatter(4+jitter, align_tab.CMA_class, label="CMA_class")
+plt.scatter(5+jitter, align_tab.CMA_prod, label="CMA_prod")
+plt.ylabel("Activation Score")
+plt.xlabel("Optimizer Used")
+plt.xticks([1,2,3,4,5],["CholCMA","CholCMA_noA","CMA_all","CMA_class","CMA_prod"])
+chol_all_t = ttest_rel(align_tab.CholCMA, align_tab.CMA_all, nan_policy='omit')
+chol_prod_t = ttest_rel(align_tab.CholCMA, align_tab.CMA_prod, nan_policy='omit')
+chol_class_t = ttest_rel(align_tab.CholCMA, align_tab.CMA_class, nan_policy='omit')
+chol_noA_t = ttest_rel(align_tab.CholCMA, align_tab.CholCMA_noA, nan_policy='omit')
+plt.title("Comparing Performance of Optimizers in Activation Maximizing Alexnet units\n"
+          "paired-t: CholCMA-CMA_all:t=%.1f(p=%.1E)\nCholCMA-CMA_prod:t=%.1f(p=%.1E)\n CholCMA-CMA_class:t=%.1f("
+          "p=%.1E) \nCholCMA-CholCMA_noA:t=%.1f(p=%.1E)"%
+          (chol_all_t.statistic, chol_all_t.pvalue,chol_prod_t.statistic, chol_prod_t.pvalue,chol_class_t.statistic,
+            chol_class_t.pvalue,chol_noA_t.statistic, chol_noA_t.pvalue,))
+plt.axis('auto')
+plt.savefig(join(summarydir, "fc6_optimizer_scores_cmp.jpg"))
+plt.show()
+

@@ -3,9 +3,10 @@ import torch
 import torch.optim as optim
 import torch.nn.functional as F
 from torchvision.transforms import ToPILImage, ToTensor
-from hessian_eigenthings.power_iter import Operator, deflated_power_iteration
-from hessian_eigenthings.lanczos import lanczos
-from lanczos_generalized import lanczos_generalized
+# from hessian_eigenthings.power_iter import Operator, deflated_power_iteration
+# from hessian_eigenthings.lanczos import lanczos
+# from hessian_eigenthings.utils import progress_bar
+# from lanczos_generalized import lanczos_generalized
 from GAN_hvp_operator import GANHVPOperator, GANForwardHVPOperator, compute_hessian_eigenthings, get_full_hessian
 import sys
 import numpy as np
@@ -20,10 +21,9 @@ from torchvision.utils import make_grid
 from pytorch_pretrained_biggan.model import BigGAN, BigGANConfig
 from pytorch_pretrained_biggan.utils import truncated_noise_sample, save_as_images, one_hot_from_names
 from IPython.display import clear_output
-from hessian_eigenthings.utils import progress_bar
 import os
 import tqdm
-from cma import CMAEvolutionStrategy
+# from cma import CMAEvolutionStrategy
 from ZO_HessAware_Optimizers import CholeskyCMAES, HessCMAES
 def get_BigGAN(version="biggan-deep-256"):
     cache_path = "/scratch/binxu/torch/"
@@ -31,6 +31,7 @@ def get_BigGAN(version="biggan-deep-256"):
     BGAN = BigGAN(cfg)
     BGAN.load_state_dict(torch.load(join(cache_path, "%s-pytorch_model.bin" % version)))
     return BGAN
+
 #%%
 def visualize_trajectory(scores_all, generations, codes_arr=None, show=False, title_str=""):
     """ Visualize the Score Trajectory """
@@ -66,12 +67,13 @@ def visualize_trajectory(scores_all, generations, codes_arr=None, show=False, ti
     return figh
 #%%
 if sys.platform == "linux":
-    rootdir = r"/scratch/binxu/BigGAN_Optim_Tune_new" # _new
+    rootdir = r"/scratch/binxu/BigGAN_Optim_Tune_new"
     Hdir_BigGAN = r"/scratch/binxu/GAN_hessian/BigGAN/summary/H_avg_1000cls.npz"
     Hdir_fc6 = r"/scratch/binxu/GAN_hessian/FC6GAN/summary/Evolution_Avg_Hess.npz"
+    # Newer cluster interface
 else:
     # rootdir = r"E:\OneDrive - Washington University in St. Louis\BigGAN_Optim_Tune_tmp"
-    rootdir = r"E:\Monkey_Data\BigGAN_Optim_Tune_tmp"
+    rootdir = r"E:\Cluster_Backup\BigGAN_Optim_Tune_new" #r"E:\Monkey_Data\BigGAN_Optim_Tune_tmp"
     Hdir_BigGAN = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\BigGAN\H_avg_1000cls.npz"
     Hdir_fc6 = r"E:\OneDrive - Washington University in St. Louis\Hessian_summary\fc6GAN\Evolution_Avg_Hess.npz"
 
@@ -93,7 +95,7 @@ elif args.G == "fc6":
 #%%
 """with a correct cmaes or initialization, BigGAN can match FC6 activation."""
 #%% Select GAN
-from GAN_utils import BigGAN_wrapper, upconvGAN
+from GAN_utils import BigGAN_wrapper, upconvGAN, loadBigGAN
 from insilico_Exp import TorchScorer, ExperimentEvolve
 if args.G == "BigGAN":
     if sys.platform == "linux":
@@ -113,7 +115,8 @@ elif args.G == "fc6":
 # net = tv.alexnet(pretrained=True)
 scorer = TorchScorer(args.net)
 if args.RFresize:
-    from torch_net_utils import receptive_field, receptive_field_for_unit, layername_dict
+    from torch_net_utils import receptive_field, receptive_field_for_unit
+    from layer_hook_utils import get_module_names, register_hook_by_module_names, layername_dict
     rf_dict = receptive_field(scorer.model.features, (3, 227, 227), device="cuda")
     layername = layername_dict[args.net]
     layer_name_map = {layer: str(i+1) for i, layer in enumerate(layername)}
@@ -227,7 +230,7 @@ for unit_id in range(args.chans[0], args.chans[1]):
             imgsize = (256, 256)
             corner = (0, 0)
         else:
-            rf_pos = receptive_field_for_unit(rf_dict, (3, 227, 227), layer_name_map[args.layer], pos_dict[args.layer])
+            rf_pos = receptive_field_for_unit(rf_dict, layer_name_map[args.layer], pos_dict[args.layer])
             imgsize = (int((rf_pos[0][1] - rf_pos[0][0]) / 227 * 256 + 1), int((rf_pos[1][1] - rf_pos[1][0]) / 227 * 256 + 1))
             corner = (int(rf_pos[0][0] / 227 * 256 - 1), int(rf_pos[1][0] / 227 * 256 - 1))
     # Save directory named after the unit. Add RFrsz as suffix if resized

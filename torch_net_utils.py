@@ -7,17 +7,18 @@ from os.path import join
 import torch
 import sys
 import numpy as np
+from pathlib import Path
 #%%
 # Depend on 2 packages, you should clone from
 # https://github.com/Animadversio/pytorch-receptive-field
 # https://github.com/Animadversio/pytorch-caffe.git
 from sys import platform
 if platform == "linux":  # CHPC cluster
-    homedir = os.path.expanduser('~')
+    homedir = Path(os.path.expanduser('~'))
     netsdir = os.path.join(homedir, 'Generate_DB/nets')
-    sys.path.append("/home/binxu/pytorch-caffe")
-    sys.path.append("/home/binxu/pytorch-receptive-field")
-    sys.path.append("/home/binxu/PerceptualSimilarity") # should be added there!
+    sys.path.append(join(homedir,"pytorch-caffe"))
+    sys.path.append(join(homedir,"pytorch-receptive-field"))
+    sys.path.append(join(homedir,"PerceptualSimilarity"))  # should be added there!)
     # ckpt_path = {"vgg16": "/scratch/binxu/torch/vgg16-397923af.pth"}
 else:
     if os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':  # PonceLab-Desktop 3
@@ -46,10 +47,10 @@ else:
         sys.path.append("D:\Github\pytorch-caffe")
         homedir = os.path.expanduser('~')
         netsdir = os.path.join(homedir, 'Documents/nets')
-from caffenet import *  # Pytorch-caffe converter
 from torch_receptive_field import receptive_field, receptive_field_for_unit
 #%% Prepare PyTorch version of the Caffe networks
 def load_caffenet():
+    from caffenet import CaffeNet  # Pytorch-caffe converter
     protofile = join(netsdir, r"caffenet\caffenet.prototxt")  # 'resnet50/deploy.prototxt'
     weightfile = join(netsdir, r'caffenet\bvlc_reference_caffenet.caffemodel')  # 'resnet50/resnet50.caffemodel'
     save_path = join(netsdir, r"caffenet\caffenet_state_dict.pt")
@@ -89,6 +90,7 @@ def GAN_path(name):
     return save_path, protofile, weightfile
 
 def load_generator(GAN="fc6"):
+    from caffenet import CaffeNet  # Pytorch-caffe converter
     # netsdir = r"D:/Generator_DB_Windows/nets"
     save_path, protofile, weightfile = GAN_path(GAN)
     Generator = CaffeNet(protofile)

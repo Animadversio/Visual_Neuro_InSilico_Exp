@@ -4,11 +4,10 @@
 # from torch_net_utils import load_caffenet, visualize, preprocess
 import net_utils
 # from Generator import Generator
-from Optimizer import Genetic, Optimizer  # CholeskyCMAES, Optimizer is the base class for these things
-import utils
+# from Optimizer import Genetic, Optimizer  # CholeskyCMAES, Optimizer is the base class for these things
+import utils_old
 from ZO_HessAware_Optimizers import HessAware_Gauss_DC, CholeskyCMAES # newer CMAES api
-from utils import load_GAN
-from time import time, sleep
+from time import time
 import numpy as np
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
@@ -177,7 +176,8 @@ from torchvision import transforms
 from torchvision import models
 import torch.nn.functional as F
 from GAN_utils import upconvGAN
-from layer_hook_utils import layername_dict, register_hook_by_module_names, get_module_names, named_apply
+from layer_hook_utils import layername_dict, register_hook_by_module_names
+
 # mini-batches of 3-channel RGB images of shape (3 x H x W), where H and W are expected to be at least 224. The images have to be loaded in to a range of [0, 1] and then normalized using mean = [0.485, 0.456, 0.406] and std = [0.229, 0.224, 0.225].
 
 activation = {}  # global variable is important for hook to work! it's an important channel for communication
@@ -227,6 +227,20 @@ class TorchScorer:
             self.inputsize = (3, 227, 227)
         elif model_name == "resnet101":
             self.model = models.resnet101(pretrained=True)
+            self.inputsize = (3, 227, 227)
+            self.layername = None
+            # self.layers = list(self.model.features) + [self.model.classifier]
+            # self.layername = layername_dict[model_name]
+            self.model.cuda().eval()
+        elif model_name == "resnet50":
+            self.model = models.resnet50(pretrained=True)
+            self.inputsize = (3, 227, 227)
+            self.layername = None
+            # self.layers = list(self.model.features) + [self.model.classifier]
+            # self.layername = layername_dict[model_name]
+            self.model.cuda().eval()
+        elif model_name == "resnet50_linf8":
+            self.model = models.resnet50(pretrained=False)
             self.inputsize = (3, 227, 227)
             self.layername = None
             # self.layers = list(self.model.features) + [self.model.classifier]
@@ -396,7 +410,7 @@ class ExperimentEvolve:
             code_length = 256  # 128
             # 128d Class Embedding code or 256d full code could be used.
         elif GAN == "BigBiGAN":
-            from BigBiGAN import BigBiGAN_render
+            from NN_playground.BigBiGAN import BigBiGAN_render
             self.render = BigBiGAN_render
             code_length = 120  # 120 d space for Unconditional generation in BigBiGAN
         else:
@@ -427,7 +441,7 @@ class ExperimentEvolve:
                     # codes = np.zeros([1, code_length])
                     if type(self.optimizer) is Genetic:
                         # self.optimizer.load_init_population(initcodedir, )
-                        codes, self.optimizer._genealogy = utils.load_codes2(initcodedir, self.optimizer._popsize)
+                        codes, self.optimizer._genealogy = utils_old.load_codes2(initcodedir, self.optimizer._popsize)
                 else:
                     codes = init_code
             print('>>> step %d' % self.istep)
@@ -468,7 +482,7 @@ class ExperimentEvolve:
         select_code = self.codes_all[idx_list, :]
         score_select = self.scores_all[idx_list]
         img_select = self.render(select_code, scale=1.0)
-        fig = utils.visualize_img_list(img_select, score_select, show=show, nrow=None, title_str=title_str)
+        fig = utils_old.visualize_img_list(img_select, score_select, show=show, nrow=None, title_str=title_str)
         if show:
             fig.show()
         return fig
@@ -621,7 +635,7 @@ class ExperimentEvolve_DC:
         select_code = self.codes_all[idx_list, :]
         score_select = self.scores_all[idx_list]
         img_select = self.render(select_code, scale=1.0)
-        fig = utils.visualize_img_list(img_select, score_select, show=show, nrow=None, title_str=title_str)
+        fig = utils_old.visualize_img_list(img_select, score_select, show=show, nrow=None, title_str=title_str)
         if show:
             fig.show()
         return fig
@@ -781,7 +795,7 @@ class ExperimentResizeEvolve:
         select_code = self.codes_all[idx_list, :]
         score_select = self.scores_all[idx_list]
         img_select = self.render(select_code, scale=1)
-        fig = utils.visualize_img_list(img_select, score_select, show=show)
+        fig = utils_old.visualize_img_list(img_select, score_select, show=show)
         fig.savefig(join(self.savedir, "Evolv_Img_Traj_%s.png" % (self.explabel)))
         return fig
 
@@ -992,7 +1006,7 @@ class ExperimentManifold:
             # subsample images for better visualization
             msk, idx_lin = subsample_mask(factor=2, orig_size=(21, 21))
             img_subsp_list = [img_list[i] for i in range(len(img_list)) if i in idx_lin]
-            fig = utils.visualize_img_list(img_subsp_list, scores=scores[idx_lin], ncol=interv_n + 1, nrow=interv_n + 1, )
+            fig = utils_old.visualize_img_list(img_subsp_list, scores=scores[idx_lin], ncol=interv_n + 1, nrow=interv_n + 1, )
             fig.savefig(join(self.savedir, "%s_%s.png" % (title, self.explabel)))
             scores = np.array(scores).reshape((2*interv_n+1, 2*interv_n+1))
             self.score_sum.append(scores)
@@ -1268,7 +1282,7 @@ class ExperimentRestrictEvolve:
         select_code = self.codes_all[idx_list, :]
         score_select = self.scores_all[idx_list]
         img_select = self.render(select_code)
-        fig = utils.visualize_img_list(img_select, score_select, show=show)
+        fig = utils_old.visualize_img_list(img_select, score_select, show=show)
         return fig
 
     def visualize_best(self, show=False):

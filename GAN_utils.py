@@ -203,7 +203,7 @@ class upconvGAN(nn.Module):
             csr = csr_end
         return img_all
 
-    def visualize_batch_np(self, codes_all_arr, scale=1.0, B=42):
+    def visualize_batch_np(self, codes_all_arr, scale=1.0, B=42, verbose=False):
         coden = codes_all_arr.shape[0]
         img_all = None
         csr = 0  # if really want efficiency, we should use minibatch processing.
@@ -213,6 +213,9 @@ class upconvGAN(nn.Module):
                 imgs = self.visualize(torch.from_numpy(codes_all_arr[csr:csr_end, :]).float().cuda(), scale).cpu()
                 img_all = imgs if img_all is None else torch.cat((img_all, imgs), dim=0)
                 csr = csr_end
+                if verbose:
+                    clear_output(wait=True)
+                    progress_bar(csr_end, coden, "ploting row of page: %d of %d" % (csr_end, coden))
         return img_all
 
 
@@ -290,7 +293,7 @@ class BigGAN_wrapper():#nn.Module
         imgs = self.BigGAN.generator(code, truncation)  # Matlab version default to 0.7
         return torch.clamp((imgs + 1.0) / 2.0, 0, 1) * scale
 
-    def visualize_batch_np(self, codes_all_arr, truncation=0.7, B=15):
+    def visualize_batch_np(self, codes_all_arr, truncation=0.7, B=15, verbose=False):
         csr = 0
         img_all = None
         imgn = codes_all_arr.shape[0]
@@ -301,8 +304,9 @@ class BigGAN_wrapper():#nn.Module
                 img_list = self.visualize(code_batch, truncation=truncation, ).cpu()
                 img_all = img_list if img_all is None else torch.cat((img_all, img_list), dim=0)
                 csr = csr_end
-                clear_output(wait=True)
-                progress_bar(csr_end, imgn, "ploting row of page: %d of %d" % (csr_end, imgn))
+                if verbose:
+                    clear_output(wait=True)
+                    progress_bar(csr_end, imgn, "ploting row of page: %d of %d" % (csr_end, imgn))
         return img_all
 
     def render(self, codes_all_arr, truncation=0.7, B=15):

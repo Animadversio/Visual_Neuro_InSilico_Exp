@@ -11,7 +11,7 @@ Find important Nuisanced + Class transformations in Noise + Class space for a Bi
 # Put the backup folder and the thread to analyze here 
 #backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-07-22-10-14-22"
 # backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2020-08-06-10-18-55"#2020-08-04-09-54-25"#
-backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2020-09-16-10-53-04"
+backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-04-08-11-48-20"
 threadid = 1
 
 score_rank_avg = False  # If True, it will try to read "scores_record.mat", from the backup folder and read "scores_record"
@@ -260,7 +260,10 @@ VisFinalGen = True
 if VisFinalGen:
     #% If you want to regenerate the images from last generation here.
     print("Review the last generation codes w.r.t. the center code for manifold.")
-    imgs_final = G.visualize_batch_np(np.concatenate((ref_noise_vec.repeat(25,axis=0), final_gen_codes[:,:]), axis=1))
+    if evolspace == "BigGAN":
+        imgs_final = G.visualize_batch_np(final_gen_codes[:,:])
+    elif evolspace == "BigGAN_class":
+        imgs_final = G.visualize_batch_np(np.concatenate((ref_noise_vec.repeat(25,axis=0), final_gen_codes[:,:]), axis=1))
     ToPILImage()(make_grid(imgs_final,nrow=5)).show()
     #G.visualize(torch.from_numpy(np.concatenate((ref_noise_vec.repeat(5,axis=0), final_gen_codes[:5,:]), axis=1)).float().cuda()).cpu()
     #ToPILImage()(make_grid(imgs.cpu())).show()
@@ -337,21 +340,35 @@ plt.plot(np.log10(eigvals_nois[::-1]), label="noise")
 plt.ylabel("log(eigval)");plt.legend()
 plt.savefig(join(summary_dir, "spectrum.jpg"))
 #%% Optional: Angle with PC1 vector
-if evolspace == "BigGAN_class":
-    innerprod2PC1 = PC1_vect @ eigvects_clas.T
-elif evolspace == "BigGAN_noise":
-    innerprod2PC1 = PC1_vect @ eigvects_nois.T
-elif evolspace == "BigGAN":
-    innerprod2PC1 = PC1_vect @ eigvects.T
-print("Eigen vector: Innerproduct max %.3E min %.3E std %.3E"% (innerprod2PC1.max(), innerprod2PC1.min(), innerprod2PC1.std()))
+if evolspace != "BigGAN":
+    if evolspace == "BigGAN_class":
+        innerprod2PC1 = PC1_vect @ eigvects_clas.T
+    elif evolspace == "BigGAN_noise":
+        innerprod2PC1 = PC1_vect @ eigvects_nois.T
+    print("Eigen vector: Innerproduct max %.3E min %.3E std %.3E"% (innerprod2PC1.max(), innerprod2PC1.min(), innerprod2PC1.std()))
+
+#elif evolspace == "BigGAN":
+#    innerprod2PC1 = PC1_vect @ eigvects.T
 print("EigenDecomposition of Hessian of Image Similarity Metric\nEigen value: Class space max %.3E min %.3E std %.3E; Noise space max %.3E min %.3E std %.3E"%
       (eigvals_clas.max(), eigvals_clas.min(), eigvals_clas.std(), eigvals_nois.max(), eigvals_nois.min(), eigvals_nois.std(), )) 
 if Hess_all: 
     print("EigenDecomposition of Hessian of Image Similarity Metric\nEigen value: All: max %.3E min %.3E std %.3E"%
       (eigvals.max(), eigvals.min(), eigvals.std(),))
 
+#%% Load from saved data.
+del dsim
+del mov_vect
+torch.cuda.empty_cache()
+with np.load(join(summary_dir, "Hess_mat.npz")) as data:
+#    ref_vect#H=H, eigvals=eigvals, eigvects=eigvects, 
+    eigvects_clas = data["eigvects_clas"]
+    eigvects_nois = data["eigvects_nois"]
+    eigvals_clas = data["eigvals_clas"]
+    eigvals_nois = data["eigvals_nois"]
+#             H_clas=H_clas, eigvals_clas=eigvals_clas, eigvects_clas=eigvects_clas, 
+#             H_nois=H_nois, eigvals_nois=eigvals_nois, eigvects_nois=eigvects_nois, 
+#             vect=ref_vect.cpu().numpy(), noisevec=noisevec.cpu().numpy(), classvec=classvec.cpu().numpy())
 #%% Do interpolation along each axes
-#%%
 if not exact_distance:
     #% Interpolation in the class space, but inversely scale the step size w.r.t. eigenvalue
     codes_all = []
@@ -368,7 +385,7 @@ if not exact_distance:
     codes_all_arr = np.concatenate(tuple(codes_all), axis=0)
     img_all = G.visualize_batch_np(codes_all_arr, truncation=0.7, B=10)
     imggrid = make_grid(img_all, nrow=11)
-    PILimg2 = ToPILImage()(imggrid)#.show()
+    PILimg2 = ToPILImage()(imggrid) #.show()
     PILimg2.save(join(summary_dir, "eigvect_clas_interp_exp%.1f_d%d.jpg"%(expon, scale)))
     npimgs = img_all.permute([2,3,1,0]).numpy()
     for imgi in range(npimgs.shape[-1]):  imwrite(join(newimg_dir, img_names[imgi]), np.uint8(npimgs[:,:,:,imgi]*255))

@@ -1,7 +1,7 @@
 """Old (2018-19) adapted from Will Xiao's code"""
 from Generator import Generator
 from DynamicParameter import DynamicParameter
-import utils
+import utils_old
 import numpy as np
 import os
 from shutil import copyfile, rmtree
@@ -66,11 +66,11 @@ class Optimizer:
         raise NotImplementedError
 
     def save_current_state(self, image_size=None):
-        utils.write_images(self._curr_images, self._curr_sample_ids, self._recorddir, image_size)
-        utils.write_codes(self._curr_samples, self._curr_sample_ids, self._recorddir)
+        utils_old.write_images(self._curr_images, self._curr_sample_ids, self._recorddir, image_size)
+        utils_old.write_codes(self._curr_samples, self._curr_sample_ids, self._recorddir)
 
     def save_current_codes(self):
-        utils.write_codes(self._curr_samples, self._curr_sample_ids, self._recorddir)
+        utils_old.write_codes(self._curr_samples, self._curr_sample_ids, self._recorddir)
 
     @property
     def current_images(self):  # Wrapper of `_curr_images`
@@ -186,7 +186,7 @@ class Genetic(Optimizer):
         # make sure size <= population size
         assert size <= self._popsize, 'size %d too big for population of size %d' % (size, self._popsize)
         # load codes
-        init_population, genealogy = utils.load_codes2(initcodedir, size)
+        init_population, genealogy = utils_old.load_codes2(initcodedir, size)
         # fill the rest of population if size==len(codes) < population size
         if len(init_population) < self._popsize:
             remainder_size = self._popsize - len(init_population)
@@ -387,7 +387,7 @@ class Genetic(Optimizer):
             if size > len(self._curr_samples) - self._n_conserve:
                 print('Warning: some conserved codes are being overwritten')
 
-        immigrants, immigrant_codefns = utils.load_codes2(codedir, size)
+        immigrants, immigrant_codefns = utils_old.load_codes2(codedir, size)
         n_immi = len(immigrants)
         n_conserve = len(self._curr_samples) - n_immi
         self._curr_samples = np.concatenate((self._curr_samples[:n_conserve], immigrants))
@@ -445,7 +445,7 @@ class Genetic(Optimizer):
         savefpath = os.path.join(self._recorddir, 'genealogy_gen%03d.npz' % self._istep)
         save_kwargs = {'image_ids': np.array(self._curr_sample_ids, dtype=str),
                        'genealogy': np.array(self._genealogy, dtype=str)}
-        utils.savez(savefpath, save_kwargs)
+        utils_old.savez(savefpath, save_kwargs)
 
     @property
     def generation(self):
@@ -603,9 +603,9 @@ class CMAES(Optimizer):
             optim_setting = {"space_dimen": self.space_dimen, "population_size": self.lambda_,
                              "select_num": self.mu, "weights": self.weights,
                              "cc": self.cc, "cs": self.cs, "c1": self.c1, "cmu": self.cmu, "damps": self.damps}
-            utils.savez(os.path.join(self._recorddir, "optimizer_setting.npz"), optim_setting)
-        utils.savez(os.path.join(self._recorddir, "optimizer_state_block%03d.npz" % self._istep),
-                    {"sigma": self.sigma, "C": self.C, "D": self.D, "ps": self.ps, "pc": self.pc})
+            utils_old.savez(os.path.join(self._recorddir, "optimizer_setting.npz"), optim_setting)
+        utils_old.savez(os.path.join(self._recorddir, "optimizer_state_block%03d.npz" % self._istep),
+                        {"sigma": self.sigma, "C": self.C, "D": self.D, "ps": self.ps, "pc": self.pc})
 
     def load_init_population(self, initcodedir, size):
         # make sure we are at the beginning of experiment
@@ -613,7 +613,7 @@ class CMAES(Optimizer):
         # make sure size <= population size
         assert size <= self.lambda_, 'size %d too big for population of size %d' % (size, self.lambda_)
         # load codes
-        init_population, genealogy = utils.load_codes2(initcodedir, size)  # find `size` # of images in the target dir.
+        init_population, genealogy = utils_old.load_codes2(initcodedir, size)  # find `size` # of images in the target dir.
         # if needed can be control the number
         # apply
         self._init_population = init_population
@@ -897,9 +897,9 @@ class CholeskyCMAES(Optimizer):
             optim_setting = {"space_dimen": self.space_dimen, "population_size": self.lambda_,
                              "select_num": self.mu, "weights": self.weights,
                              "cc": self.cc, "cs": self.cs, "c1": self.c1, "damps": self.damps, "init_x": self.init_x}
-            utils.savez(os.path.join(self._recorddir, "optimizer_setting.npz"), optim_setting)
-        utils.savez(os.path.join(self._recorddir, "optimizer_state_block%03d.npz" % self._istep),
-                    {"sigma": self.sigma, "A": self.A, "Ainv": self.Ainv, "ps": self.ps, "pc": self.pc})
+            utils_old.savez(os.path.join(self._recorddir, "optimizer_setting.npz"), optim_setting)
+        utils_old.savez(os.path.join(self._recorddir, "optimizer_state_block%03d.npz" % self._istep),
+                        {"sigma": self.sigma, "A": self.A, "Ainv": self.Ainv, "ps": self.ps, "pc": self.pc})
 
     def load_init_population(self, initcodedir, size):
         # make sure we are at the beginning of experiment
@@ -907,7 +907,7 @@ class CholeskyCMAES(Optimizer):
         # make sure size <= population size
         assert size <= self.lambda_, 'size %d too big for population of size %d' % (size, self.lambda_)
         # load codes
-        init_population, genealogy = utils.load_codes2(initcodedir, size)  # find `size` # of images in the target dir.
+        init_population, genealogy = utils_old.load_codes2(initcodedir, size)  # find `size` # of images in the target dir.
         # if needed can be control the number
         # apply
         self._init_population = init_population
