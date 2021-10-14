@@ -44,6 +44,7 @@ if sys.platform == "linux":
     rootdir = join(scratchdir, "GAN_Evol_cmp")
     Hdir_BigGAN = join(scratchdir, "Hessian", "H_avg_1000cls.npz")  #r"/scratch/binxu/GAN_hessian/BigGAN/summary/H_avg_1000cls.npz"
     Hdir_fc6 = join(scratchdir, "Hessian", "Evolution_Avg_Hess.npz")  #r"/scratch/binxu/GAN_hessian/FC6GAN/summary/Evolution_Avg_Hess.npz"
+    sys.path.append("/home/binxu.w/Visual_Neuro_InSilico_Exp")
 
 else:
     refimgdir = r"E:\Network_Data_Sync\Stimuli\cos_refimgs"

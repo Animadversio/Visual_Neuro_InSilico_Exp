@@ -17,8 +17,18 @@ echo "$LSB_JOBINDEX"
 # --net resnet50 --layer .layer3.Bottleneck0 --popsize 500 --pop_rand_seed 0 --target_idx 0 150 --G fc6 --optim CholCMA --score_method cosine corr MSE dot --steps 100 --reps 5 --RFresize
 
 param_list=\
-'--net resnet50 --G fc6 --layer .layer3.Bottleneck0 --popsize 500 --pop_rand_seed 0 --target_idx 0 50 --score_method cosine corr MSE dot --reps 5 --RFresize
---net resnet50 --G fc6 --layer .layer3.Bottleneck0 --popsize 500 --pop_rand_seed 0 --target_idx 50 100 --score_method cosine corr MSE dot --reps 5 --RFresize
+'--net resnet50 --G fc6 --layer .layer3.Bottleneck0 --popsize 500 --pop_rand_seed 0 --target_idx 0 50 --score_method cosine corr MSE dot --reps 5 --RFresize --resize_ref
+--net resnet50 --G fc6 --layer .layer3.Bottleneck0 --popsize 500 --pop_rand_seed 0 --target_idx 50 100 --score_method cosine corr MSE dot --reps 5 --RFresize --resize_ref
+--net resnet50 --G fc6 --layer .layer3.Bottleneck0 --popsize 500 --pop_rand_seed 0 --target_idx 100 150 --score_method cosine corr MSE dot --reps 5 --RFresize --resize_ref
+--net resnet50 --G fc6 --layer .layer3.Bottleneck0 --popsize 500 --pop_rand_seed 0 --target_idx 150 200 --score_method cosine corr MSE dot --reps 5 --RFresize --resize_ref
+--net resnet50 --G fc6 --layer .layer2.Bottleneck2 --popsize 500 --pop_rand_seed 0 --target_idx 0 50 --score_method cosine corr MSE dot --reps 5 --RFresize --resize_ref
+--net resnet50 --G fc6 --layer .layer2.Bottleneck2 --popsize 500 --pop_rand_seed 0 --target_idx 50 100 --score_method cosine corr MSE dot --reps 5 --RFresize --resize_ref
+--net resnet50 --G fc6 --layer .layer2.Bottleneck2 --popsize 500 --pop_rand_seed 0 --target_idx 100 150 --score_method cosine corr MSE dot --reps 5 --RFresize --resize_ref
+--net resnet50 --G fc6 --layer .layer2.Bottleneck2 --popsize 500 --pop_rand_seed 0 --target_idx 150 200 --score_method cosine corr MSE dot --reps 5 --RFresize --resize_ref
+--net resnet50 --G fc6 --layer .layer4.Bottleneck2 --popsize 500 --pop_rand_seed 0 --target_idx 0 50 --score_method cosine corr MSE dot --reps 5 --RFresize --resize_ref
+--net resnet50 --G fc6 --layer .layer4.Bottleneck2 --popsize 500 --pop_rand_seed 0 --target_idx 50 100 --score_method cosine corr MSE dot --reps 5 --RFresize --resize_ref
+--net resnet50 --G fc6 --layer .layer4.Bottleneck2 --popsize 500 --pop_rand_seed 0 --target_idx 100 150 --score_method cosine corr MSE dot --reps 5 --RFresize --resize_ref
+--net resnet50 --G fc6 --layer .layer4.Bottleneck2 --popsize 500 --pop_rand_seed 0 --target_idx 150 200 --score_method cosine corr MSE dot --reps 5 --RFresize --resize_ref
 '
 
 export unit_name="$(echo "$param_list" | head -n $LSB_JOBINDEX | tail -1)"
