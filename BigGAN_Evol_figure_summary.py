@@ -14,10 +14,44 @@ import seaborn as sns
 import matplotlib as mpl
 import matplotlib.pylab as plt
 from scipy.stats import ttest_rel, ttest_ind
+from PIL import Image
+from build_montages import make_grid_np
+from stats_utils import summary_by_block, saveallforms
+def load_data_from_row(row, imgid=-1):
+    npzpath = join(dataroot, row.unitstr, 'scores%s_%05d.npz' % (row.optimizer, row.RND))
+    imgtrajpath = glob(join(dataroot, row.unitstr, "besteachgen%s_%05d.jpg" % (row.optimizer, row.RND)))[0]
+    data = np.load(npzpath)
+    evolmtg = imread(imgtrajpath)
+    proto = crop_from_montage(evolmtg, imgid=imgid)
+    scorevec = data['scores_all']
+    genvec = data["generations"]
+    score_m, score_s, blockarr = summary_by_block(scorevec, genvec, sem=False)
+    return scorevec, genvec, score_m, score_s, blockarr, proto
+
+
+def shadedErrorbar(blockarr, score_m, score_s, alpha=0.2, linealpha=1.0, label=None, color=None, linecolor=None):
+    L = plt.plot(blockarr, score_m, label=label, c=linecolor, alpha=linealpha)
+    if color is None: color = L[0]._color
+    plt.fill_between(blockarr, score_m-score_s, score_m+score_s, alpha=alpha, color=color)
+
+
+def crop_from_montage(img, imgid:int=-1, imgsize=256, pad=2):
+    nrow, ncol = (img.shape[0] - pad) // (imgsize + pad), (img.shape[1] - pad) // (imgsize + pad)
+    if imgid == "rand":  imgid = np.random.randint(nrow * ncol)
+    elif imgid < 0: imgid = nrow * ncol + imgid
+    ri, ci = np.unravel_index(imgid, (nrow, ncol))
+    img_crop = img[pad + (pad+imgsize)*ri:pad + imgsize + (pad+imgsize)*ri, \
+                   pad + (pad+imgsize)*ci:pad + imgsize + (pad+imgsize)*ci, :]
+    return img_crop
+
+pd.set_option('display.width', 200)
+pd.set_option("max_colwidth", 60)
+pd.set_option('display.max_columns', None)
 mpl.rcParams['pdf.fonttype'] = 42
 mpl.rcParams['axes.spines.right'] = False
 mpl.rcParams['axes.spines.top'] = False
-#%%
+
+#%% Data using alexnet
 dataroot = r"E:\Cluster_Backup\BigGAN_Optim_Tune_new"
 figdir = r"O:\BigGAN_FC6_insilico"
 outdir = r"O:\ThesisProposal\BigGAN"
@@ -32,14 +66,6 @@ rfmsk = exptab.layer.str.contains("fc") | exptab.suffix.str.contains("RF")  # Ex
 fullmsk = exptab.layer.str.contains("fc") | ~exptab.suffix.str.contains("RF")  # Experiments that use full size images
 # two masks are overlapping.
 #%%
-def crop_from_montage(img, imgid:int=-1, imgsize=256, pad=2):
-    nrow, ncol = (img.shape[0] - pad) // (imgsize + pad), (img.shape[1] - pad) // (imgsize + pad)
-    if imgid < 0: imgid = nrow * ncol + imgid
-    ri, ci = np.unravel_index(imgid, (nrow, ncol))
-    img_crop = img[pad + (pad+imgsize)*ri:pad + imgsize + (pad+imgsize)*ri, \
-                   pad + (pad+imgsize)*ci:pad + imgsize + (pad+imgsize)*ci, :]
-    return img_crop
-
 row = exptab.loc[25]
 npzpath = join(dataroot, row.unitstr, 'scores%s_%05d.npz'%(row.optimizer, row.RND))
 imgtrajpath = glob(join(dataroot, row.unitstr, "besteachgen%s_%05d.jpg"%(row.optimizer, row.RND)))[0]
@@ -57,27 +83,7 @@ for optim in ['CholCMA', 'HessCMA', 'CholCMA_fc6']:
     msk = (exptab.unitstr==unitstr) & (exptab.optimizer==optim) & rfmsk
     print(layer, optim, unitstr, exptab[msk].shape)
     # row = exptab[msk].sample(1).iloc[0]
-
-#%% Plot the optim trajectory comparison! 
-from PIL import Image
-from build_montages import make_grid_np
-from stats_utils import summary_by_block, saveallforms
-def load_data_from_row(row, imgid=-1):
-    npzpath = join(dataroot, row.unitstr, 'scores%s_%05d.npz' % (row.optimizer, row.RND))
-    imgtrajpath = glob(join(dataroot, row.unitstr, "besteachgen%s_%05d.jpg" % (row.optimizer, row.RND)))[0]
-    data = np.load(npzpath)
-    evolmtg = imread(imgtrajpath)
-    proto = crop_from_montage(evolmtg, imgid=imgid)
-    scorevec = data['scores_all']
-    genvec = data["generations"]
-    score_m, score_s, blockarr = summary_by_block(scorevec, genvec, sem=False)
-    return scorevec, genvec, score_m, score_s, blockarr, proto
-
-def shadedErrorbar(blockarr, score_m, score_s, alpha=0.2, linealpha=1.0, label=None, color=None, linecolor=None):
-    L = plt.plot(blockarr, score_m, label=label, c=linecolor, alpha=linealpha)
-    if color is None: color = L[0]._color
-    plt.fill_between(blockarr, score_m-score_s, score_m+score_s, alpha=alpha, color=color)
-
+#%% Plot the optim trajectory comparison!
 # unitstr = "alexnet_conv5_31_RFrsz"
 # unitstr = "alexnet_conv1_33_RFrsz"
 
@@ -119,7 +125,128 @@ mtg_PIL.show()
 mtg_PIL.save(join(figdir, "proto_cmp_alllayers.jpg"))
 mtg_PIL.save(join(outdir, "proto_cmp_alllayers.jpg"))
 
+#%% New data sourse using ResNet50-robust
+sumdir = r"E:\Cluster_Backup\GAN_Evol_cmp\summary"
+rootdir = r"E:\Cluster_Backup\GAN_Evol_cmp"
+expdirs = os.listdir(rootdir)
+expdirs = [*filter(lambda nm: "resnet50_linf" in nm, expdirs)]
+# re.findall("resnet50_linf_8_([^_]*)_(\d*)_(\d*)_(\d*)(_RFrsz|)", "resnet50_linf_8_.layer4.Bottleneck2_46_4_4_RFrsz")
+# "scoresCholCMA_93259.npz"
+exp_col = []
+trial_col = []
+for expdir in expdirs:
+    unit_tup = expdir.split("resnet50_linf_8_")[1].split("_")
+    do_resize = ("RFrsz" in unit_tup)
+    if do_resize: unit_tup = unit_tup[:-1]
+    if len(unit_tup) == 4:
+        layer, chan, xid, yid = unit_tup[0], int(unit_tup[1]), int(unit_tup[2]), int(unit_tup[3])
+    elif len(unit_tup) == 2:
+        layer, chan, xid, yid = unit_tup[0], int(unit_tup[1]), None, None
+    else:
+        raise ValueError("unit parsing error for %s"%expdir)
+    exp_col.append((expdir, layer, chan, xid, yid, do_resize))
+    imgtrajpaths = [*map(os.path.basename, glob(join(rootdir, expdir, "traj*.jpg")))]
+    for trialnm in imgtrajpaths:
+        patt = re.findall("traj(.*)_(\d*)_score([\d.]*).jpg", trialnm)
+        if len(patt) == 0:
+            raise ValueError(trialnm)
+        optimstr, RND, score = patt[0][0], int(patt[0][1]), float(patt[0][2])
+        GANstr = "fc6" if "fc6" in optimstr else "BigGAN" 
+        trial_col.append((expdir, layer, chan, xid, yid, do_resize, optimstr, GANstr, RND, score))
+
+unit_tab = pd.DataFrame(exp_col, columns=["expdir", "layer", "chan", "xid", "yid", "RFrsz", ])
+exptab = pd.DataFrame(trial_col, columns=["expdir", "layer", "chan", "xid", "yid", "RFrsz", "optimstr", "GANstr", "RND", "score", ])
+unit_tab.to_csv(join(sumdir, "unit_tab.csv"))
+exptab.to_csv(join(sumdir, "trial_tab.csv"))
+
+
+#%% Fancy pandas way to do trial averaging quick 
+exptab_trial_m = exptab.groupby(["expdir", "optimstr"]).mean()
+exptab_trial_m = exptab_trial_m.reset_index()
+exptab_trial_mW = exptab_trial_m.pivot(index='expdir', columns='optimstr', values='score')
+unit_score_tab = unit_tab.copy()
+for optim in ["CholCMA", "HessCMA", "HessCMA500_fc6"]:
+    unit_score_tab[optim] = np.nan
+
+for ri, row in unit_score_tab.iterrows():
+    for optim in ["CholCMA", "HessCMA", "HessCMA500_fc6"]:
+        unit_score_tab[optim][ri] = exptab_trial_mW.loc[row.expdir][optim]
+
+maxscore = unit_score_tab[["CholCMA", "HessCMA", "HessCMA500_fc6"]].max(axis=1, skipna=True)
+for optimstr in ["CholCMA", "HessCMA", "HessCMA500_fc6"]:
+    unit_score_tab[optimstr+"_norm"] = unit_score_tab[optimstr] / maxscore
+
+unit_score_tab.to_csv(join(sumdir, "unit_score_tab.csv"))
 #%%
+# Melt is the wide to long transform, making each optimizer a row in the table
+unit_score_tab_L = unit_score_tab.melt(id_vars=["layer","chan","xid","yid","RFrsz", "expdir"],
+                    value_vars=["CholCMA", "HessCMA", "HessCMA500_fc6"], var_name="optimstr", value_name="score")
+RFrsz_msk = unit_score_tab_L.RFrsz | (unit_score_tab_L.layer == ".Linearfc")
+figh = plt.figure(figsize=[7, 6])
+sns.violinplot(x='layer', y='score', hue="optimstr", jitter=0.25,
+               hue_order=['CholCMA', 'HessCMA', 'HessCMA500_fc6'], cut=0.1,
+               data=unit_score_tab_L[RFrsz_msk], alpha=0.4)
+plt.xticks(rotation=20)
+figh.savefig(join(sumdir, "resnet_linf8_raw_score_cmp_RFresize.png"))
+figh.savefig(join(sumdir, "resnet_linf8_raw_score_cmp_RFresize.pdf"))
+plt.show()
+#%%
+# Melt is the wide to long transform, making each optimizer a row in the table
+unit_score_tab_norm_L = unit_score_tab.melt(id_vars=["layer","chan","xid","yid","RFrsz", "expdir"],
+                    value_vars=["CholCMA_norm", "HessCMA_norm", "HessCMA500_fc6_norm"],
+                    var_name="optimstr", value_name="norm_score")
+RFrsz_msk = unit_score_tab_norm_L.RFrsz | (unit_score_tab_norm_L.layer == ".Linearfc")
+figh = plt.figure(figsize=[7, 6])
+ax = sns.violinplot(x='layer', y='norm_score', hue="optimstr", jitter=0.1, width=0.7, scale="width",
+               hue_order=['CholCMA_norm', 'HessCMA_norm', 'HessCMA500_fc6_norm'], cut=0.1,
+               data=unit_score_tab_norm_L[RFrsz_msk], alpha=0.2)
+plt.xticks(rotation=20)
+figh.savefig(join(sumdir, "resnet_linf8_norm_score_cmp_RFresize.png"))
+figh.savefig(join(sumdir, "resnet_linf8_norm_score_cmp_RFresize.pdf"))
+plt.show()
+
+
+#%% Visualize the prototypes as showed by different GANs
+# from build_montages import make_grid_np
+from PIL import Image
+from tqdm import tqdm
+def plot_scoremap(score_mat, expdir=""):
+    plt.figure(figsize=[6,5])
+    ax = sns.heatmap(score_mat, annot=True, fmt=".1f",
+                     xticklabels=['CholCMA', 'HessCMA', 'HessCMA500_fc6'], )
+    plt.ylabel("Trials")
+    plt.xlabel("Optimizers")
+    plt.axis("image")
+    plt.title(expdir+"\nScore map with BigGAN or FC6")
+    plt.savefig(join(sumdir, "proto_cmp", "%s_scoremat.jpg" % expdir))
+    # plt.show()
+
+for expdir in tqdm(unit_tab.expdir[845:]):
+    trial_rows = exptab[exptab.expdir == expdir]
+    score_mat = np.zeros((3, 3), dtype=float)
+    proto_list = []
+    for opti, optim in enumerate(['CholCMA', 'HessCMA', 'HessCMA500_fc6']):
+        rows_w_optim = trial_rows[trial_rows.optimstr==optim]
+        trN = rows_w_optim.shape[0]
+        for itr in range(3):
+            if itr < trN:
+                row = rows_w_optim.iloc[itr]
+                score_mat[itr, opti] = row.score
+                # imgnm = "lastgen%s_%05d_score%.1f.jpg"%(row.optimstr, row.RND, row.score)
+                # imgfp = join(rootdir, row.expdir, imgnm)
+                # assert os.path.exists(imgfp)
+                # proto = crop_from_montage(plt.imread(imgfp), 2)
+                # proto_list.append(proto)
+            else:
+                score_mat[itr, opti] = np.nan
+                # proto_list.append(np.zeros((256, 256, 3), dtype=np.uint8))
+
+    # mtg = make_grid_np(proto_list, nrow=3, padding=8, rowfirst=False)
+    # Image.fromarray(mtg).save(join(sumdir, "proto_cmp", "%s_proto.jpg"%expdir))
+    plot_scoremap(score_mat, expdir=expdir)
+#%%
+
+
 #%%
 # compare performance across optimizers.
 # BigGAN FC6 pair alignment
