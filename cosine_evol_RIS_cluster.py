@@ -38,7 +38,7 @@ import sys
 import os
 from os.path import join
 if sys.platform == "linux":
-    expdroot = "/scratch1/fs1/crponce/Cosine_insilico"
+    exproot = "/scratch1/fs1/crponce/Cosine_insilico"
     refimgdir = "/scratch1/fs1/crponce/cos_refimgs"
     scratchdir = os.environ['SCRATCH1']
     rootdir = join(scratchdir, "GAN_Evol_cmp")
@@ -47,9 +47,9 @@ if sys.platform == "linux":
     sys.path.append("/home/binxu.w/Visual_Neuro_InSilico_Exp")
 
 else:
+    exproot = r"E:\insilico_exps\Cosine_insilico"
     refimgdir = r"E:\Network_Data_Sync\Stimuli\cos_refimgs"
     # refimgdir = r"E:\Network_Data_Sync\Stimuli\2019-Selectivity\2019-Selectivity-Big-Set-01"
-    exproot = r"E:\Cluster_Backup\Cosine_insilico"
 
 os.makedirs(join(exproot, "popul_idx"), exist_ok=True)
 
