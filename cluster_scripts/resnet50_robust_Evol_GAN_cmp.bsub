@@ -8,6 +8,7 @@
 #BSUB -R 'select[mem>10G]'
 #BSUB -R 'rusage[mem=10GB]'
 #BSUB -M 10G
+#BSUB -N
 #BSUB -u binxu.wang@wustl.edu
 #BSUB -o  /scratch1/fs1/crponce/resnet_rob_gan_cmp.%J.%I
 #BSUB -a 'docker(pytorchlightning/pytorch_lightning:base-cuda-py3.9-torch1.9)'
