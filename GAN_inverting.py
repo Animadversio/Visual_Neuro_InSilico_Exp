@@ -1,13 +1,63 @@
-import utils_old
-import net_utils
-import utils_old
-from utils_old import load_GAN
-from Generator import Generator
-from time import time, sleep
+import torch
+from imageio import imread
+import matplotlib.pylab as plt
+from skimage.transform import resize
+from lpips import LPIPS
+from GAN_utils import upconvGAN
+G = upconvGAN("fc6").cuda().requires_grad_(False)
+ImDist = LPIPS(net="squeeze").cuda()
+#%%
+
+G.visualize(torch.randn(4,4096).cuda()).min()
+#%%
+def FC6GAN_invert(G, ImDist, targtsr, sampn=4, step=300, lr=0.05):
+    if targtsr.ndim == 3:
+        targtsr.unsqueeze_(0)
+    targtsr = targtsr.to("cuda")
+    initvec = torch.randn(4, 4096).cuda()
+    codevec = initvec.requires_grad_(True)
+    optimizer = torch.optim.Adam([codevec], lr=lr,
+                     betas=(0.9, 0.999), eps=1e-08, weight_decay=0.001)
+    for i in range(step):
+        optimizer.zero_grad()
+        imgs = G.visualize(codevec)
+        loss = (imgs - targtsr).pow(2).mean(dim=[1,2,3]).sum()
+        lpipsloss = ImDist(imgs, targtsr).sum()
+        loss += lpipsloss
+        loss.backward()
+        optimizer.step()
+        if i % 10 == 0:
+            print("step%d" % i, loss.item(), lpipsloss.item())
+    return codevec.detach().cpu(), imgs, loss
+#%%
+from os.path import join
+from imageio import imread, imsave
+from torchvision.utils import make_grid
+from torchvision.transforms import ToPILImage
+savedir = r"E:\OneDrive - Harvard University\CommitteeMeetings\ThesisProposalPre\GANinv"
+imgfolder = r"E:\Cluster_Backup\Datasets\ImageTranslation\GAN_real\B\train"
+for imgnm in ["val_crop_00000278","val_crop_00000280","val_crop_00000283"]:
+    img = imread(join(imgfolder,imgnm+".JPEG"))
+    imgtsr = torch.tensor(img).permute([2, 0, 1]).unsqueeze(0).float() / 255.0
+    ivt_codes, ivtimgs, loss = FC6GAN_invert(G,ImDist,imgtsr,lr=0.05)
+    pilimg = ToPILImage()(make_grid(ivtimgs))
+    pilimg.show()
+    pilimg.save(join(savedir,imgnm+"_fc6_lpips_inv.png"))
+# %%
+G.visualize().min()
+
+
+#%%
+# import utils_old
+# import net_utils
+# import utils_old
+# from utils_old import load_GAN
+# from Generator import Generator
+# from time import time, sleep
 import numpy as np
-from Optimizer import CholeskyCMAES, Genetic, Optimizer  # Optimizer is the base class for these things
-from sklearn.decomposition import PCA
-import matplotlib.pyplot as plt
+# from Optimizer import CholeskyCMAES, Genetic, Optimizer  # Optimizer is the base class for these things
+# from sklearn.decomposition import PCA
+# import matplotlib.pyplot as plt
 import os
 from os.path import join
 from sys import platform
@@ -51,9 +101,6 @@ code = code.reshape(-1, 4096)
 feat = torch.from_numpy(code).float().requires_grad_(True)
 img = visualize(G, feat)
 #%%
-from imageio import imread
-import matplotlib.pylab as plt
-from skimage.transform import resize
 target_img = imread(r"E:\Monkey_Data\Generator_DB_Windows\nets\upconv\Cat.jpg")
 tsr_target = target_img.astype(float)/255
 rsz_target = resize(tsr_target, (256, 256), anti_aliasing=True)

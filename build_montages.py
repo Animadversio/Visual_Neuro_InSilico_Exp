@@ -226,3 +226,17 @@ def color_framed_montages(image_list, image_shape, montage_shape, scores, cmap=p
     if start_new_img is False:
         image_montages.append(montage_image)  # add unfinished montage
     return image_montages
+
+#%%
+import numpy as np
+def crop_from_montage(img, imgid:tuple=(0,0), imgsize=256, pad=2):
+    nrow, ncol = (img.shape[0] - pad) // (imgsize + pad), (img.shape[1] - pad) // (imgsize + pad)
+    if imgid == "rand":  imgid = np.random.randint(nrow * ncol)
+    elif type(imgid) is tuple:
+        ri, ci = imgid
+    elif imgid < 0:
+        imgid = nrow * ncol + imgid
+        ri, ci = np.unravel_index(imgid, (nrow, ncol))
+    img_crop = img[pad + (pad+imgsize)*ri:pad + imgsize + (pad+imgsize)*ri, \
+                   pad + (pad+imgsize)*ci:pad + imgsize + (pad+imgsize)*ci, :]
+    return img_crop
