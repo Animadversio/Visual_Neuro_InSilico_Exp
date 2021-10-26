@@ -10,11 +10,9 @@ Depending on the `Visual_Neuron_Modelling` repository.
 %load_ext autoreload
 %autoreload 2
 #%%
-backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-05-25-13-25-18"
-#r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-05-25-13-45-47"
-# r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-05-25-13-25-18"
-# r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-05-10-13-29-28"
-#r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-05-10-12-57-47"
+backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-07-23-12-23-21"
+# r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-06-28-12-34-03"
+# r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-06-04-11-54-42"
 # backup_dir = r"N:\Stimuli\2021-EvolDecomp\2021-04-27-Alfa-03\2021-04-27-13-07-55"
 threadid = 1
 
