@@ -8,9 +8,12 @@ import numpy as np
 import pandas as pd
 from os.path import join
 from imageio import imread
-import GPy
-import GPyOpt
-from GPyOpt.methods import BayesianOptimization
+try:
+    import GPy
+    import GPyOpt
+    from GPyOpt.methods import BayesianOptimization
+except:
+    print("Gaussian process optimization is not available...")
 #%%
 BGAN = BigGAN.from_pretrained("biggan-deep-256")
 BGAN.cuda()
@@ -19,10 +22,12 @@ for param in BGAN.parameters():
     param.requires_grad_(False)
 #%%
 import sys
-sys.path.append(r"D:\Github\PerceptualSimilarity")
-sys.path.append(r"E:\Github_Projects\PerceptualSimilarity")
-import models  # from PerceptualSimilarity folder
-ImDist = models.PerceptualLoss(model='net-lin', net='squeeze', use_gpu=1, gpu_ids=[0])
+# sys.path.append(r"D:\Github\PerceptualSimilarity")
+# sys.path.append(r"E:\Github_Projects\PerceptualSimilarity")
+# import models  # from PerceptualSimilarity folder
+# ImDist = models.PerceptualLoss(model='net-lin', net='squeeze', use_gpu=1, gpu_ids=[0])
+import lpips
+ImDist = lpips.LPIPS(net='squeeze', )
 #%
 def L1loss(target, img):
     return (img - target).abs().sum(axis=1).mean()

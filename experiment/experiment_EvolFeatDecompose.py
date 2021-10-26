@@ -3,6 +3,9 @@
 Created on Thu Apr 15 18:58:22 2021
 
 @author: Binxu Wang
+
+Code to build model of neurons by analyzing their image and score trajectory.
+Depending on the `Visual_Neuron_Modelling` repository.
 """
 %load_ext autoreload
 %autoreload 2
@@ -154,10 +157,10 @@ from featvis_lib import rectify_tsr, tsr_factorize, vis_featmap_corr, vis_featts
     vis_feattsr_factor, vis_featvec, vis_featvec_wmaps, vis_featvec_point, load_featnet, \
     score_images, fitnl_predscore, tsr_posneg_factorize, posneg_sep
 #%%
-netname = "alexnet";layers2plot = ["conv2", "conv3", "conv4", "conv5",]
+# netname = "alexnet";layers2plot = ["conv2", "conv3", "conv4", "conv5",]
 # netname = "vgg16";layers2plot = ["conv2_2", "conv3_3", "conv4_3",  "conv5_3", ]
 # netname = "resnet50";layers2plot = ["layer2", "layer3", "layer4", ]
-# netname = "resnet50_linf8";layers2plot = ["layer2", "layer3", "layer4", ]
+netname = "resnet50_linf8";layers2plot = ["layer2", "layer3", "layer4", ]
 ccdir = join(backup_dir, "CCFactor_%s"%netname)
 # ccdir = "debug_tmp_%s"%netname
 os.makedirs(join(ccdir, "img"), exist_ok=True)
@@ -183,9 +186,9 @@ Ttsr_dict = corrDict.get("Ttsr").item()
 stdtsr_dict = corrDict.get("featStd").item()
 featFetcher.clear_hook()
 #%% OK starts decompostion.
-layer = "conv4"; bdr = 1; 
+# layer = "conv4"; bdr = 1;
 # layer = "conv3_3"; bdr = 2; 
-# layer = "layer3"; bdr = 1; 
+layer = "layer3"; bdr = 1;
 ccdir = join(backup_dir, "CCFactor_%s-%s"%(netname,layer))
 os.makedirs(join(ccdir, "img"), exist_ok=True)
 NF = 3; rect_mode = "Tthresh"; thresh = (None, 3)#"pos"
@@ -228,7 +231,7 @@ for i, img in enumerate(imgcol_examp):
 #%%
 np.savez(join(ccdir, "factor_record.npz"), Hmat=Hmat, Hmaps=Hmaps, Tcomponents=Tcomponents, ccfactor=ccfactor, 
     netname=netname, layer=layer, bdr=bdr, NF=NF, rect_mode=rect_mode, torchseed=torchseed)
-#%%
+#%% Scramble the feature vectors
 ccfactor_shfl = np.concatenate(tuple([ccfactor[np.random.permutation(ccfactor.shape[0]),ci:ci+1] 
                                       for ci in range(ccfactor.shape[1])]),axis=1)
 #%%
@@ -238,7 +241,8 @@ finimgs_col, mtg_col, score_traj_col = vis_featvec_point(ccfactor_shfl, Hmaps, n
              featnet=featnet, bdr=bdr, Bsize=10, saveImgN=5, figdir=ccdir, savestr="shuffle", imshow=False, saveimg=True)
 finimgs_col, mtg_col, score_traj_col = vis_featvec_wmaps(ccfactor_shfl, Hmaps, net, G, layer, netname=netname, score_mode="corr",\
              featnet=featnet, bdr=bdr, Bsize=10, saveImgN=5, figdir=ccdir, savestr="shuffle", imshow=False, saveimg=True)
-#%%
+
+#%% Patch shuffling + rolling to scramble the spatial masks for factors.
 PatchN = 6
 H_H, H_W = Hmaps.shape[0], Hmaps.shape[1]
 Hmaps_patchshffule = np.concatenate(tuple(roll_image(patch_shuffle(Hmaps[:,:,ci], div_n=PatchN), \
@@ -253,7 +257,7 @@ finimgs_col, mtg_col, score_traj_col = vis_feattsr_factor(ccfactor, Hmaps_patchs
              featnet=featnet, bdr=bdr, Bsize=10, saveImgN=5, figdir=ccdir, savestr="maponly_patchshuffle", imshow=False, saveimg=True)
 finimgs_col, mtg_col, score_traj_col = vis_feattsr_factor(ccfactor_shfl, Hmaps_patchshffule, net, G, layer, netname=netname, score_mode="corr",\
              featnet=featnet, bdr=bdr, Bsize=10, saveImgN=5, figdir=ccdir, savestr="map_patchshuffle", imshow=False, saveimg=True)
-    #%%
+#%% Save the relevant information for mask shuffling, for reproducibility.
 np.savez(join(ccdir, "factor_record_shuffle.npz"), Hmat=Hmat, Hmaps=Hmaps, Tcomponents=Tcomponents, ccfactor_shfl=ccfactor_shfl, 
     Hmaps_patchshfl=Hmaps_patchshffule, netname=netname, layer=layer, bdr=bdr, NF=NF, rect_mode=rect_mode,
          thresh=thresh, torchseed=torchseed)
