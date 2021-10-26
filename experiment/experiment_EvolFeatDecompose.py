@@ -7,11 +7,9 @@ Created on Thu Apr 15 18:58:22 2021
 %load_ext autoreload
 %autoreload 2
 #%%
-backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-05-25-13-25-18"
-#r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-05-25-13-45-47"
-# r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-05-25-13-25-18"
-# r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-05-10-13-29-28"
-#r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-05-10-12-57-47"
+backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-07-23-12-23-21"
+# r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-06-28-12-34-03"
+# r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-06-04-11-54-42"
 # backup_dir = r"N:\Stimuli\2021-EvolDecomp\2021-04-27-Alfa-03\2021-04-27-13-07-55"
 threadid = 1
 
@@ -154,10 +152,10 @@ from featvis_lib import rectify_tsr, tsr_factorize, vis_featmap_corr, vis_featts
     vis_feattsr_factor, vis_featvec, vis_featvec_wmaps, vis_featvec_point, load_featnet, \
     score_images, fitnl_predscore, tsr_posneg_factorize, posneg_sep
 #%%
-netname = "alexnet";layers2plot = ["conv2", "conv3", "conv4", "conv5",]
+# netname = "alexnet";layers2plot = ["conv2", "conv3", "conv4", "conv5",]
 # netname = "vgg16";layers2plot = ["conv2_2", "conv3_3", "conv4_3",  "conv5_3", ]
 # netname = "resnet50";layers2plot = ["layer2", "layer3", "layer4", ]
-# netname = "resnet50_linf8";layers2plot = ["layer2", "layer3", "layer4", ]
+netname = "resnet50_linf8";layers2plot = ["layer2", "layer3", "layer4", ]
 ccdir = join(backup_dir, "CCFactor_%s"%netname)
 # ccdir = "debug_tmp_%s"%netname
 os.makedirs(join(ccdir, "img"), exist_ok=True)
@@ -183,9 +181,9 @@ Ttsr_dict = corrDict.get("Ttsr").item()
 stdtsr_dict = corrDict.get("featStd").item()
 featFetcher.clear_hook()
 #%% OK starts decompostion.
-layer = "conv4"; bdr = 1; 
+# layer = "conv4"; bdr = 1; 
 # layer = "conv3_3"; bdr = 2; 
-# layer = "layer3"; bdr = 1; 
+layer = "layer3"; bdr = 1; 
 ccdir = join(backup_dir, "CCFactor_%s-%s"%(netname,layer))
 os.makedirs(join(ccdir, "img"), exist_ok=True)
 NF = 3; rect_mode = "Tthresh"; thresh = (None, 3)#"pos"
