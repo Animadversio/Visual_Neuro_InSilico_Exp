@@ -7,12 +7,13 @@ Created on Thu Apr 15 18:58:22 2021
 %load_ext autoreload
 %autoreload 2
 #%%
-backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-07-23-12-23-21"
+# backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-07-23-12-23-21"
+backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_integrated\2021-10-25-11-05-37"
 # r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-06-28-12-34-03"
 # r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-06-04-11-54-42"
 # backup_dir = r"N:\Stimuli\2021-EvolDecomp\2021-04-27-Alfa-03\2021-04-27-13-07-55"
 threadid = 1
-
+Animal = "Beto"
 exptime = backup_dir.split("\\")[-1]
 #%%
 from time import time
@@ -148,9 +149,10 @@ imgcol_examp = [imread(fp) for fp in imgfp_examp]
 #%%
 from torchvision import models
 from CorrFeatTsr_lib import Corr_Feat_Machine, Corr_Feat_pipeline, loadimg_preprocess, visualize_cctsr
+from CorrFeatTsr_predict_lib import score_images, softplus, fitnl_predscore
 from featvis_lib import rectify_tsr, tsr_factorize, vis_featmap_corr, vis_feattsr, \
     vis_feattsr_factor, vis_featvec, vis_featvec_wmaps, vis_featvec_point, load_featnet, \
-    score_images, fitnl_predscore, tsr_posneg_factorize, posneg_sep
+    tsr_posneg_factorize, posneg_sep
 #%%
 # netname = "alexnet";layers2plot = ["conv2", "conv3", "conv4", "conv5",]
 # netname = "vgg16";layers2plot = ["conv2_2", "conv3_3", "conv4_3",  "conv5_3", ]
@@ -173,8 +175,8 @@ Corr_Feat_pipeline(featnet, featFetcher, scorevec_thread, imgfp_thread,
         lambda x:loadimg_preprocess(x, borderblur=True, imgpix=imgpix), online_compute=True,
         batchsize=100, savedir=ccdir, savenm="Evol" ) #  % (Animal, Expi, expsuffix),
 corrDict = np.load(join(ccdir, "%s_corrTsr.npz" % ("Evol")), allow_pickle=True)
-figh = visualize_cctsr_simple(featFetcher, layers2plot, imgcol_examp, savestr="Alfa_Evol%s_%s"%(exptime,netname), 
-                              titstr="Alfa_Evol%s_%s"%(exptime,netname), figdir=ccdir)
+figh = visualize_cctsr_simple(featFetcher, layers2plot, imgcol_examp, savestr="%s_Evol%s_%s"%(Animal,exptime,netname), 
+                              titstr="%s_Evol%s_%s"%(Animal,exptime,netname), figdir=ccdir)
 
 cctsr_dict = corrDict.get("cctsr").item()
 Ttsr_dict = corrDict.get("Ttsr").item()
