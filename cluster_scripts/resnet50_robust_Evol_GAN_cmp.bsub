@@ -1,0 +1,59 @@
+#!/bin/bash
+#BSUB -n 1
+#BSUB -q general
+#BSUB -G compute-crponce
+#BSUB -J 'resnet_rob_gan_cmp[9-18]'
+#BSUB -gpu "num=1:gmodel=TeslaV100_SXM2_32GB"
+#BSUB -R 'gpuhost'
+#BSUB -R 'select[mem>10G]'
+#BSUB -R 'rusage[mem=10GB]'
+#BSUB -M 10G
+#BSUB -N
+#BSUB -u binxu.wang@wustl.edu
+#BSUB -o  /scratch1/fs1/crponce/resnet_rob_gan_cmp.%J.%I
+#BSUB -a 'docker(pytorchlightning/pytorch_lightning:base-cuda-py3.9-torch1.9)'
+
+echo "$LSB_JOBINDEX"
+
+param_list=\
+'--chans 0 50 --G BigGAN --net resnet50_linf_8 --layer .layer2.Bottleneck3 --optim HessCMA CholCMA --rep 3 
+--chans 0 50 --G BigGAN --net resnet50_linf_8 --layer .layer3.Bottleneck4 --optim HessCMA CholCMA --rep 3
+--chans 0 50 --G BigGAN --net resnet50_linf_8 --layer .layer4.Bottleneck2 --optim HessCMA CholCMA --rep 3 
+--chans 0 50 --G BigGAN --net resnet50_linf_8 --layer .Linearfc --optim HessCMA CholCMA --rep 3 
+--chans 0 50 --G fc6 --net resnet50_linf_8 --layer .layer2.Bottleneck3 --optim HessCMA500  --rep 3 
+--chans 0 50 --G fc6 --net resnet50_linf_8 --layer .layer3.Bottleneck4 --optim HessCMA500  --rep 3 
+--chans 0 50 --G fc6 --net resnet50_linf_8 --layer .layer4.Bottleneck2 --optim HessCMA500  --rep 3 
+--chans 0 50 --G fc6 --net resnet50_linf_8 --layer .Linearfc --optim HessCMA500  --rep 3 
+--chans 0 50 --G fc6 --net resnet50_linf_8 --layer .layer1.Bottleneck1 --optim HessCMA500 --rep 3 
+--chans 0 50 --G fc6 --net resnet50_linf_8 --layer .layer2.Bottleneck0 --optim HessCMA500 --rep 3 
+--chans 0 50 --G fc6 --net resnet50_linf_8 --layer .layer3.Bottleneck0 --optim HessCMA500 --rep 3 
+--chans 0 50 --G fc6 --net resnet50_linf_8 --layer .layer3.Bottleneck2 --optim HessCMA500 --rep 3 
+--chans 0 50 --G fc6 --net resnet50_linf_8 --layer .layer4.Bottleneck0 --optim HessCMA500 --rep 3 
+--chans 0 50 --G BigGAN --net resnet50_linf_8 --layer .layer1.Bottleneck1 --optim HessCMA CholCMA --rep 3 
+--chans 0 50 --G BigGAN --net resnet50_linf_8 --layer .layer2.Bottleneck0 --optim HessCMA CholCMA --rep 3 
+--chans 0 50 --G BigGAN --net resnet50_linf_8 --layer .layer3.Bottleneck0 --optim HessCMA CholCMA --rep 3 
+--chans 0 50 --G BigGAN --net resnet50_linf_8 --layer .layer3.Bottleneck2 --optim HessCMA CholCMA --rep 3 
+--chans 0 50 --G BigGAN --net resnet50_linf_8 --layer .layer4.Bottleneck0 --optim HessCMA CholCMA --rep 3 
+--chans 0 50 --G fc6 --net resnet50_linf_8 --layer .layer1.Bottleneck1 --optim HessCMA500 --rep 3 --RFresize 1
+--chans 0 50 --G fc6 --net resnet50_linf_8 --layer .layer2.Bottleneck0 --optim HessCMA500 --rep 3 --RFresize 1
+--chans 0 50 --G fc6 --net resnet50_linf_8 --layer .layer2.Bottleneck3 --optim HessCMA500 --rep 3 --RFresize 1
+--chans 0 50 --G fc6 --net resnet50_linf_8 --layer .layer3.Bottleneck0 --optim HessCMA500 --rep 3 --RFresize 1
+--chans 0 50 --G fc6 --net resnet50_linf_8 --layer .layer3.Bottleneck2 --optim HessCMA500 --rep 3 --RFresize 1
+--chans 0 50 --G fc6 --net resnet50_linf_8 --layer .layer3.Bottleneck4 --optim HessCMA500 --rep 3 --RFresize 1
+--chans 0 50 --G fc6 --net resnet50_linf_8 --layer .layer4.Bottleneck0 --optim HessCMA500 --rep 3 --RFresize 1
+--chans 0 50 --G fc6 --net resnet50_linf_8 --layer .layer4.Bottleneck2 --optim HessCMA500 --rep 3 --RFresize 1
+--chans 0 50 --G BigGAN --net resnet50_linf_8 --layer .layer1.Bottleneck1 --optim HessCMA CholCMA --rep 3 --RFresize 1
+--chans 0 50 --G BigGAN --net resnet50_linf_8 --layer .layer2.Bottleneck0 --optim HessCMA CholCMA --rep 3 --RFresize 1
+--chans 0 50 --G BigGAN --net resnet50_linf_8 --layer .layer2.Bottleneck3 --optim HessCMA CholCMA --rep 3 --RFresize 1
+--chans 0 50 --G BigGAN --net resnet50_linf_8 --layer .layer3.Bottleneck0 --optim HessCMA CholCMA --rep 3 --RFresize 1
+--chans 0 50 --G BigGAN --net resnet50_linf_8 --layer .layer3.Bottleneck2 --optim HessCMA CholCMA --rep 3 --RFresize 1
+--chans 0 50 --G BigGAN --net resnet50_linf_8 --layer .layer3.Bottleneck4 --optim HessCMA CholCMA --rep 3 --RFresize 1
+--chans 0 50 --G BigGAN --net resnet50_linf_8 --layer .layer4.Bottleneck0 --optim HessCMA CholCMA --rep 3 --RFresize 1
+--chans 0 50 --G BigGAN --net resnet50_linf_8 --layer .layer4.Bottleneck2 --optim HessCMA CholCMA --rep 3 --RFresize 1
+'
+
+export unit_name="$(echo "$param_list" | head -n $LSB_JOBINDEX | tail -1)"
+echo "$unit_name"
+
+cd ~/Visual_Neuro_InSilico_Exp/
+python BigGAN_Evol_cmp_RIS_cluster.py $unit_name

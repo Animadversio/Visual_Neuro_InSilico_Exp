@@ -1,3 +1,4 @@
+"""Small lib to calculate RF by back prop towards the image."""
 import numpy as np
 import matplotlib.pylab as plt
 from layer_hook_utils import register_hook_by_module_names, get_module_names

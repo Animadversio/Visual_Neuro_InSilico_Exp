@@ -18,7 +18,7 @@ print("For image , unit %s "%(unit,))
 print("Caffenet run in Caffe scores %.3f "%(caffe_act, ))
 print("Caffenet run in PyTorch scores %.3f "%(torch_act, ))
 #%% Test that the
-from utils import generator
+from utils_old import generator
 from torch_net_utils import load_generator, visualize
 G_torch = load_generator()  # Torch generative network
 G_caffe = generator  # Caffe GAN

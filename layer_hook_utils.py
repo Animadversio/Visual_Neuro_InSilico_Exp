@@ -80,7 +80,7 @@ def named_apply(model, name, func, prefix=None):
     func(model, name, "" if prefix is None else prefix)
 
 
-def get_module_names(model, input_size, device="cpu", ):
+def get_module_names(model, input_size, device="cpu", show=True):
     module_names = OrderedDict()
     module_types = OrderedDict()
     module_spec = OrderedDict()
@@ -145,22 +145,22 @@ def get_module_names(model, input_size, device="cpu", ):
     # remove these hooks
     for h in hooks:
         h.remove()
-
-    print("------------------------------------------------------------------------------")
-    line_new = "{:>14}  {:>12}   {:>12}   {:>12}   {:>25} ".format("Layer Id", "inshape", "outshape", "Type", "ReadableStr", )
-    print(line_new)
-    print("==============================================================================")
-    for layer in module_names:
-        # input_shape, output_shape, trainable, nb_params
-        line_new = "{:7} {:8} {:>12} {:>12} {:>15}  {:>25}".format(
-            "",
-            layer,
-            str(module_spec[layer]["inshape"]),
-            str(module_spec[layer]["outshape"]),
-            module_types[layer],
-            module_names[layer],
-        )
+    if show:
+        print("------------------------------------------------------------------------------")
+        line_new = "{:>14}  {:>12}   {:>12}   {:>12}   {:>25} ".format("Layer Id", "inshape", "outshape", "Type", "ReadableStr", )
         print(line_new)
+        print("==============================================================================")
+        for layer in module_names:
+            # input_shape, output_shape, trainable, nb_params
+            line_new = "{:7} {:8} {:>12} {:>12} {:>15}  {:>25}".format(
+                "",
+                layer,
+                str(module_spec[layer]["inshape"]),
+                str(module_spec[layer]["outshape"]),
+                module_types[layer],
+                module_names[layer],
+            )
+            print(line_new)
     return module_names, module_types, module_spec
 
 
