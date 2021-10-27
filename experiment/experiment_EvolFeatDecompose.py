@@ -11,7 +11,8 @@ Depending on the `Visual_Neuron_Modelling` repository.
 %autoreload 2
 #%%
 # backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-07-23-12-23-21"
-backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_integrated\2021-10-25-11-05-37"
+# backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_integrated\2021-10-25-11-05-37"
+backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2021-10-27-12-15-46"
 # r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-06-28-12-34-03"
 # r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-06-04-11-54-42"
 # backup_dir = r"N:\Stimuli\2021-EvolDecomp\2021-04-27-Alfa-03\2021-04-27-13-07-55"
