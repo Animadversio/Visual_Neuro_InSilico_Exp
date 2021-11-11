@@ -160,22 +160,22 @@ class TorchScorer:
                                          align_corners=True)
             return resz_out_img
 
-    def set_unit(self, reckey, layer, unit=None):
+    def set_unit(self, reckey, layer, unit=None, ingraph=False):
         if self.layername is not None:
             # if the network is a single stream feedforward structure, we can index it and use it to find the
             # activation
             idx = self.layername.index(layer)
-            handle = self.layers[idx].register_forward_hook(get_activation(reckey, unit)) # we can get the layer by indexing
+            handle = self.layers[idx].register_forward_hook(get_activation(reckey, unit, ingraph=ingraph)) # we can get the layer by indexing
             self.hooks.append(handle)  # save the hooks in case we will remove it.
         else:
             # if not, we need to parse the architecture of the network.
             # indexing is not available, we need to register by recursively visit the layers and find match.
-            handle, modulelist, moduletype = register_hook_by_module_names(layer, get_activation(reckey, unit),
+            handle, modulelist, moduletype = register_hook_by_module_names(layer, get_activation(reckey, unit, ingraph=ingraph),
                                 self.model, self.inputsize, device="cuda")
             self.hooks.extend(handle)  # handle here is a list.
         return handle
 
-    def select_unit(self, unit_tuple):
+    def select_unit(self, unit_tuple, allow_grad=False):
         # self._classifier_name = str(unit_tuple[0])
         self.layer = str(unit_tuple[1])
         # `self._net_layer` is used to determine which layer to stop forwarding
@@ -186,7 +186,7 @@ class TorchScorer:
         else:
             self.unit_x = None
             self.unit_y = None
-        self.set_unit("score", self.layer, unit=(self.chan, self.unit_x, self.unit_y))
+        self.set_unit("score", self.layer, unit=(self.chan, self.unit_x, self.unit_y), ingraph=allow_grad)
 
     def set_recording(self, record_layers):
         self.artiphys = True  # flag to record the neural activity in one layer
@@ -224,7 +224,8 @@ class TorchScorer:
 
     def score_tsr(self, img_tsr, with_grad=False, B=42, input_scale=1.0):
         """Score in batch will accelerate processing greatly!
-        img_tsr is already torch.Tensor"""
+        img_tsr is already torch.Tensor
+        """
         # assume image is using 255 range
         imgn = img_tsr.shape[0]
         scores = np.zeros(img_tsr.shape[0])
@@ -244,6 +245,27 @@ class TorchScorer:
                     # self._pattern_array.append(score_full)
                     self.recordings[layer].append(score_full.cpu().numpy())
             # , input_scale=255 # shape=(3, 227, 227) # assuming input scale is 0,1 output will be 0,255
+
+        if self.artiphys:
+            return scores, self.recordings
+        else:
+            return scores
+
+    def score_tsr_wgrad(self, img_tsr, B=10, input_scale=1.0):
+        imgn = img_tsr.shape[0]
+        scores = torch.zeros(img_tsr.shape[0]).cuda()
+        csr = 0  # if really want efficiency, we should use minibatch processing.
+        while csr < imgn:
+            csr_end = min(csr + B, imgn)
+            img_batch = self.preprocess(img_tsr[csr:csr_end,:,:,:], input_scale=input_scale)
+            self.model(img_batch)
+            scores[csr:csr_end] += activation["score"].squeeze()
+            csr = csr_end
+            if self.artiphys:  # record the whole layer's activation
+                for layer in self.record_layers:
+                    score_full = activation[layer]
+                    # self._pattern_array.append(score_full)
+                    self.recordings[layer].append(score_full.cpu().numpy())
 
         if self.artiphys:
             return scores, self.recordings
