@@ -3,9 +3,9 @@ from ZO_HessAware_Optimizers import CholeskyCMAES
 from ZOHA_Optimizer import ZOHA_Sphere_lr_euclid
 import numpy as np
 #%%
-from BigBiGAN import BigBiGAN_render
+from NN_playground.BigBiGAN import BigBiGAN_render
 from build_montages import build_montages
-from geometry_utils import SLERP, LERP
+from geometry_utils import SLERP
 from PIL import Image
 imgs = BigBiGAN_render(0.7*np.random.randn(20, 120), 255.0)
 mtg = build_montages(imgs, (128, 128), (5, 5))[0]
@@ -62,8 +62,6 @@ def optim_result(param):
     Exp.run()
     return np.percentile(Exp.scores_all[Exp.generations > Exp.generations.max()-5], 99.5)
 #%
-import GPy
-import GPyOpt
 from GPyOpt.methods import BayesianOptimization
 mixed_domain =[{'name': 'pop_size', 'type': 'continuous', 'domain': (15, 40), 'dimensionality': 1},
                {'name': 'select_rate', 'type': 'continuous', 'domain': (0.1, 0.9), 'dimensionality': 1},
@@ -102,5 +100,3 @@ scores_short_tab.to_csv(join(savedir, "BBGAN_ZOHA_BO_tune.csv"))
 # imgs_np = to_image(make_grid(imgs, 7))
 # imgs_np.show()
 #%%
-from GAN_utils import visualize_np
-from geometry_utils import SLERP

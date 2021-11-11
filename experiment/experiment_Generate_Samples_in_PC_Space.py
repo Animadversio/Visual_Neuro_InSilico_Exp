@@ -9,8 +9,8 @@ import re
 from sklearn.linear_model import LinearRegression
 from sklearn.decomposition import PCA
 import matplotlib.pylab as plt
-from utils import generator
-import utils
+from utils_old import generator
+import utils_old
 from GAN_utils import upconvGAN
 G = upconvGAN("fc6").cuda()
 #%%
@@ -26,7 +26,7 @@ os.makedirs(newimg_dir, exist_ok=True)
 print("Save new images to folder %s", newimg_dir)
 #%%
 print("Loading the codes from experiment folder %s", backup_dir)
-codes_all, generations = utils.load_codes_mat(backup_dir)
+codes_all, generations = utils_old.load_codes_mat(backup_dir)
 generations = np.array(generations)
 print("Shape of code", codes_all.shape)
 #%%
@@ -68,7 +68,7 @@ for j in range(-5, 6):
         img_list.append(img.copy())
         plt.imsave(os.path.join(newimg_dir, "norm_%d_PC2_%d_PC3_%d.jpg" % (sphere_norm, PC2_ang_step * j, PC3_ang_step* k)), img)
 
-fig1 = utils.visualize_img_list(img_list)
+fig1 = utils_old.visualize_img_list(img_list)
 
 # %% Spherical interpolation
 PC2_ang_step = 180 / 10
@@ -92,7 +92,7 @@ for j in range(-5, 6):
         plt.imsave(os.path.join(newimg_dir, "norm_%d_PC%d_%d_PC%d_%d.jpg" % (sphere_norm,
                                                                             PC_nums[1] + 1, PC2_ang_step * j,
                                                                             PC_nums[2] + 1, PC3_ang_step * k)), img)
-fig2 = utils.visualize_img_list(img_list)
+fig2 = utils_old.visualize_img_list(img_list)
 
 # %% Spherical interpolation
 PC2_ang_step = 180 / 10
@@ -118,7 +118,7 @@ for j in range(-5, 6):
         img = G.render(code_vec)[0]
         img_list.append(img.copy())
         plt.imsave(os.path.join(newimg_dir, "norm_%d_RND1_%d_RND2_%d.jpg" % (sphere_norm, PC2_ang_step * j, PC3_ang_step * k)), img)
-fig3 = utils.visualize_img_list(img_list)
+fig3 = utils_old.visualize_img_list(img_list)
 
 fig1.savefig(os.path.join(backup_dir,"Norm%d_PC12_Montage.png"%sphere_norm))
 fig2.savefig(os.path.join(backup_dir,"Norm%d_PC4950_Montage.png"%sphere_norm))

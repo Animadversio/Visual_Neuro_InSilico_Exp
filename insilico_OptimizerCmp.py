@@ -5,7 +5,8 @@ from sys import platform
 import numpy as np
 from insilico_Exp import ExperimentEvolve
 from Optimizer import Genetic, CholeskyCMAES, Optimizer
-import utils
+import matplotlib.pylab as plt
+import utils_old
 #%% Decide the result storage place based on the computer the code is running
 if platform == "linux": # cluster
     recorddir = "/scratch/binxu/CNN_data/"
@@ -14,16 +15,18 @@ else:
         recorddir = r"D:\Generator_DB_Windows\data\with_CNN"
         initcodedir = r"D:\Generator_DB_Windows\stimuli\texture006"
     elif os.environ['COMPUTERNAME'] == 'DESKTOP-MENSD6S':  ## Home_WorkStation
-        recorddir = r"D:\Monkey_Data\Generator_DB_Windows\data\with_CNN"
+        recorddir = r"E:\Monkey_Data\Generator_DB_Windows\data\with_CNN"
+        initcodedir = r"E:\Monkey_Data\Generator_DB_Windows\stimuli\texture006"
 #%
-unit_arr = [ ('caffe-net', 'conv1', 5, 10, 10),
-             ('caffe-net', 'conv2', 5, 10, 10),
-             ('caffe-net', 'conv3', 5, 10, 10),
-             ('caffe-net', 'conv4', 5, 10, 10),
-             ('caffe-net', 'conv5', 5, 10, 10),
+unit_arr = [ #('caffe-net', 'conv1', 5, 10, 10),
+             #('caffe-net', 'conv2', 5, 10, 10),
+             #('caffe-net', 'conv3', 5, 10, 10),
+             #('caffe-net', 'conv4', 5, 10, 10),
+             #('caffe-net', 'conv5', 5, 10, 10),
              ('caffe-net', 'fc6', 1),
-             ('caffe-net', 'fc7', 1),
-             ('caffe-net', 'fc8', 1), ]
+             #('caffe-net', 'fc7', 1),
+             #('caffe-net', 'fc8', 1),
+            ]
 Optim_arr = ["Genetic", "CholCMA"]
 #%% Genetic Algorithm Parameters AND CMA-ES Parameters
 population_size = 40
@@ -38,14 +41,12 @@ code_length = 4096
 init_sigma = 3
 Aupdate_freq = 10
 # use the mean code of the texture patterns as the initcode
-codes, _ = utils.load_codes2(initcodedir, 40)
+codes, _ = utils_old.load_codes2(initcodedir, 40)
 initcode = np.mean(codes, axis=0, keepdims=True)
 # CholeskyCMAES(recorddir=recorddir, space_dimen=code_length, init_sigma=init_sigma,
 #                   Aupdate_freq=Aupdate_freq, init_code=np.zeros([1, code_length]))
 #%%
 from time import time
-import matplotlib.pylab as plt
-
 for unit in unit_arr[:]:
     savedir = join(recorddir, "optim_cmp", "%s_%s_%d" % (unit[0], unit[1], unit[2]))
     os.makedirs(savedir, exist_ok=True)
