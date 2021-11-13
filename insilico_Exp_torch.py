@@ -336,13 +336,15 @@ class TorchScorer:
             csr_end = min(csr + B, imgn)
             img_batch = self.preprocess(img_tsr[csr:csr_end,:,:,:], input_scale=input_scale)
             self.model(img_batch)
-            scores[csr:csr_end] += activation["score"].squeeze()
-            csr = csr_end
-            if self.artiphys:  # record the whole layer's activation
+            if "score" in self.activation:  # if score is not there set trace to zero.
+                scores[csr:csr_end] += self.activation["score"].squeeze()
+            if self.artiphys:  # record the whole neurlayer's activation
                 for layer in self.record_layers:
                     score_full = activation[layer]
                     # self._pattern_array.append(score_full)
                     self.recordings[layer].append(score_full.cpu().numpy())
+
+            csr = csr_end
 
         if self.artiphys:
             return scores, self.recordings
