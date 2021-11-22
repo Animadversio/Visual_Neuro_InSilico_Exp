@@ -36,5 +36,10 @@ This Repo can be deployed onto cluster to run at large scale, based on torch (pr
 
 * [Pytorch Receptive Field](https://github.com/Fangyh09/pytorch-receptive-field) is used in some of the *in silico* experiments
 * [pytorch hessian eigenthings](https://github.com/noahgolmant/pytorch-hessian-eigenthings) is used in some scripts
+    * `pip install --upgrade git+https://github.com/noahgolmant/pytorch-hessian-eigenthings.git@master#egg=hessian-eigenthings`
+    * `conda install scikit-image`
+    * `pip install easydict`
+    * `conda install kornia -c conda-forge`
+    * `conda install seaborn`
 
 

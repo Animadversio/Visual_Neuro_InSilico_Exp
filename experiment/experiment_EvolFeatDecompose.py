@@ -33,6 +33,10 @@ elif os.environ['COMPUTERNAME'] == 'DESKTOP-MENSD6S':
     Python_dir = r"E:\Github_Projects"
 elif os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':
     Python_dir = r"D:\Github"
+elif os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':
+    Python_dir = r"D:\Github"
+elif os.environ['COMPUTERNAME'] == 'PONCELAB-OFFICE':
+    Python_dir = r"G:\My Drive\Python"
 
 sys.path.append(join(Python_dir,"Visual_Neuro_InSilico_Exp"))
 sys.path.append(join(Python_dir,"Visual_Neuron_Modelling"))
@@ -132,7 +136,7 @@ blockarr = range(min(blockvec_thread),max(blockvec_thread)+1)
 meanarr = np.array([np.mean(scorevec_thread[blockvec_thread==blocki]) for blocki in blockarr])
 semarr = np.array([sem(scorevec_thread[blockvec_thread==blocki]) for blocki in blockarr])
 #%
-if os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':
+if os.environ['COMPUTERNAME'] in ['DESKTOP-9DDE2RH', 'PONCELAB-OFFICE']:
     backup_dir_old, _ = os.path.split(imgfp_thread[0])
     imgfp_thread = np.array([fp.replace(backup_dir_old, backup_dir) for fp in imgfp_thread])
 
