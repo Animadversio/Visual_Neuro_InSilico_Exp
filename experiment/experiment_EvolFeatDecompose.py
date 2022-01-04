@@ -12,11 +12,12 @@ Depending on the `Visual_Neuron_Modelling` repository.
 #%%
 # backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-07-23-12-23-21"
 # backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_integrated\2021-10-25-11-05-37"
-backup_dir = r"E:\Network_Data_Sync\Stimuli\2021-10-27-Beto-01\2021-10-27-12-15-46"
+backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2022-01-04-12-50-04"
 # r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-06-28-12-34-03"
 # r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-06-04-11-54-42"
 # backup_dir = r"N:\Stimuli\2021-EvolDecomp\2021-04-27-Alfa-03\2021-04-27-13-07-55"
 threadid = 1
+threadlabel = "" # "_threadBigGAN"
 Animal = "Beto"
 exptime = backup_dir.split("\\")[-1]
 #%%
@@ -166,7 +167,7 @@ from featvis_lib import rectify_tsr, tsr_factorize, vis_featmap_corr, vis_featts
 # netname = "vgg16";layers2plot = ["conv2_2", "conv3_3", "conv4_3",  "conv5_3", ]
 # netname = "resnet50";layers2plot = ["layer2", "layer3", "layer4", ]
 netname = "resnet50_linf8";layers2plot = ["layer2", "layer3", "layer4", ]
-ccdir = join(backup_dir, "CCFactor_%s"%netname)
+ccdir = join(backup_dir, "CCFactor_%s%s"%(netname,threadlabel))
 # ccdir = "debug_tmp_%s"%netname
 os.makedirs(join(ccdir, "img"), exist_ok=True)
 figh.savefig(join(ccdir,"ExpEvolTraj.png"))
@@ -196,7 +197,7 @@ featFetcher.clear_hook()
 layer = "layer3"; bdr = 1;
 vis_score_mode = "cosine" # "corr"
 
-ccdir = join(backup_dir, "CCFactor_%s-%s"%(netname,layer))
+ccdir = join(backup_dir, "CCFactor_%s-%s%s"%(netname,layer,threadlabel))
 os.makedirs(join(ccdir, "img"), exist_ok=True)
 NF = 3; rect_mode = "Tthresh"; thresh = (None, 3)#"pos"
 Ttsr = Ttsr_dict[layer]
