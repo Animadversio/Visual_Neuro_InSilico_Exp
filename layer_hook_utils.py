@@ -164,7 +164,7 @@ def get_module_names(model, input_size, device="cpu", show=True):
     return module_names, module_types, module_spec
 
 
-def register_hook_by_module_names(target_name, target_hook, model, input_size, device="cpu", ):
+def register_hook_by_module_names(target_name, target_hook, model, input_size=(3, 256, 256), device="cpu", ):
     module_names = OrderedDict()
     module_types = OrderedDict()
     target_hook_h = []
@@ -232,6 +232,52 @@ def register_hook_by_module_names(target_name, target_hook, model, input_size, d
     return target_hook_h, module_names, module_types
 
 #%% Utility code to fetch activation
+class featureFetcher:
+    """ Light weighted modular feature fetcher """
+    def __init__(self, model, input_size=(3, 256, 256), device="cuda"):
+        self.model = model.to(device)
+        module_names, module_types, module_spec = get_module_names(model, input_size, device=device, show=True)
+        self.module_names = module_names
+        self.module_types = module_types
+        self.module_spec = module_spec
+        self.activations = {}
+        self.hooks = {}
+        self.device = device
+
+    def record(self, target_name, return_input=False, ingraph=False):
+        hook_fun = self.get_activation(target_name, ingraph=ingraph, return_input=return_input)
+        hook_h, _, _ = register_hook_by_module_names(target_name, hook_fun, self.model, device=self.device)
+        self.hooks[target_name] = hook_h
+        return hook_h
+
+    def __del__(self):
+        for name, hook in self.hooks.items():
+            hook.remove()
+        return
+
+    def __getitem__(self, key):
+        try:
+            return self.activations[key]
+        except KeyError:
+            raise KeyError
+
+    def get_activation(self, name, ingraph=False, return_input=False):
+        """If returning input, it may return a list or tuple of things """
+        if return_input:
+            def hook(model, input, output):
+                self.activations[name] = input if ingraph else [inp.detach() for inp in input]
+        else:
+            def hook(model, input, output):
+                self.activations[name] = output if ingraph else output.detach()
+        # else:
+        #     def hook(model, input, output):
+        #         if len(output.shape) == 4:
+        #             self.activations[name] = output.detach()[:, unit[0], unit[1], unit[2]]
+        #         elif len(output.shape) == 2:
+        #             self.activations[name] = output.detach()[:, unit[0]]
+        return hook
+
+
 # def get_activation(name, unit=None):
 #     if unit is None:
 #         def hook(model, input, output):
