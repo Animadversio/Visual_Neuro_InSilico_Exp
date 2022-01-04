@@ -202,6 +202,22 @@ class TorchScorer:
             self.hooks.extend(handle)  # handle here is a list.
         return handle
 
+    def set_units_by_mask(self, reckey, layer, unit_mask=None):
+        if self.layername is not None:
+            # if the network is a single stream feedforward structure, we can index it and use it to find the
+            # activation
+            idx = self.layername.index(layer)
+            handle = self.layers[idx].register_forward_hook(self.get_activation(reckey, unitmask=unit_mask))
+            # we can get the layer by indexing
+            self.hooks.append(handle)  # save the hooks in case we will remove it.
+        else:
+            # if not, we need to parse the architecture of the network indexing is not available. 
+            # we need to register by recursively visit the layers and find match.
+            handle, modulelist, moduletype = register_hook_by_module_names(layer, 
+                self.get_activation(reckey, unitmask=unit_mask), self.model, self.inputsize, device="cuda")
+            self.hooks.extend(handle)  # handle here is a list.
+        return handle
+    
     def select_unit(self, unit_tuple, allow_grad=False):
         # self._classifier_name = str(unit_tuple[0])
         self.layer = str(unit_tuple[1])
@@ -261,7 +277,7 @@ class TorchScorer:
         else:
             raise ValueError
 
-    def score(self, images, with_grad=False, B=42):
+    def score(self, images, with_grad=False, B=42, input_scale=1.0):
         """Score in batch will accelerate processing greatly! """ # assume image is using 255 range
         scores = np.zeros(len(images))
         csr = 0  # if really want efficiency, we should use minibatch processing.
@@ -270,7 +286,7 @@ class TorchScorer:
             self.recordings[layer] = []
         while csr < imgn:
             csr_end = min(csr + B, imgn)
-            img_batch = self.preprocess(images[csr:csr_end], input_scale=255.0)
+            img_batch = self.preprocess(images[csr:csr_end], input_scale=input_scale)
             # img_batch.append(resz_out_img)
             with torch.no_grad():
                 # self.model(torch.cat(img_batch).cuda())

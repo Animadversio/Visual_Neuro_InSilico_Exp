@@ -1,3 +1,6 @@
+"""
+Library of functions useful for Recording population response and do Cosine Evolution.
+"""
 import time
 from os.path import join
 import matplotlib.pylab as plt
@@ -49,7 +52,8 @@ def run_evol(scorer, objfunc, optimizer, G, reckey=None, steps=100, label="obj-t
             f"objfunc {T4-T3:.3f}  optim {T5-T4:.3f} total {T5-T0:.3f}")
         scores_all.extend(list(scores))
         generations.extend([i] * len(scores))
-        best_imgs.append(imgs[scores.argmax(),:,:,:])
+        best_imgs.append(imgs[scores.argmax(),:,:,:].detach().clone())
+        # debug @ jan.3rd. Before there is serious memory leak `.detach().clone()` solve the reference issue.
         actmat_all.append(actmat)
     codes_all = np.concatenate(tuple(codes_all), axis=0)
     scores_all = np.array(scores_all)
@@ -96,7 +100,31 @@ def sample_center_units_idx(tsrshape, samplenum=500, single_col=True, resample=F
     return flat_idx_samp
 
 
-def set_random_population_recording(scorer, targetnames, popsize=500, single_col=True, resample=False,
+def sample_center_column_units_idx(tsrshape, single_col=True):
+    """ Return index of center column or the center columns.
+
+    :param tsrshape: shape of the tensor to be sampled
+    :param single_col: restrict the sampling to be from a single column
+    :return:
+        flat_idx_samp: a integer array to sample the flattened feature tensor
+    """
+    msk = np.zeros(tsrshape, dtype=np.bool) # the viable units in the center of the featuer map
+    if len(tsrshape) == 3:
+        C, H, W = msk.shape
+        if single_col: # a single column
+            msk[:, int(H//2), int(W//2)] = True
+        else: # a area in the center
+            msk[:,
+                int(H/4):int(3*H/4),
+                int(W/4):int(3*W/4)] = True
+    else:
+        msk[:] = True
+    center_idxs = np.where(msk.flatten())[0]
+    center_idxs.sort()
+    return center_idxs
+
+
+def set_random_population_recording(scorer, targetnames, randomize=True, popsize=500, single_col=True, resample=False,
                                     seed=None):
     """ Main effect is to set the recordings for the scorer object.
     (additional method for scorer)
@@ -118,7 +146,12 @@ def set_random_population_recording(scorer, targetnames, popsize=500, single_col
         for layer in targetnames:
             inshape = module_spec[invmap[layer]]["inshape"]
             outshape = module_spec[invmap[layer]]["outshape"]
-            flat_idx_samp = sample_center_units_idx(outshape, popsize, single_col=single_col, resample=resample)
+            if randomize:
+                flat_idx_samp = sample_center_units_idx(outshape, popsize, single_col=single_col, resample=resample)
+            else:
+                flat_idx_samp = sample_center_column_units_idx(outshape, single_col=True)
+                popsize = len(flat_idx_samp)
+
             tsr_idx_samp = np.unravel_index(flat_idx_samp, outshape)
             unit_mask_dict[layer] = flat_idx_samp
             unit_tsridx_dict[layer] = tsr_idx_samp
