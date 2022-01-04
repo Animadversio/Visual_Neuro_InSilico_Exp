@@ -36,12 +36,13 @@ def grad_RF_estimate(model, target_layer, target_unit, input_size=(3,227,227), d
         h.remove()
     gradAmpmap = gradabsdata.permute([1, 2, 0]).abs().mean(dim=2).cpu() / cnt
     if show:
-        plt.figure()
+        plt.figure(figsize=[6, 6.5])
         plt.pcolor(gradAmpmap)
+        plt.gca().invert_yaxis()
         plt.axis("image")
         plt.title("L %s Unit %s"%(target_layer, target_unit))
         plt.show()
-        plt.figure()
+        plt.figure(figsize=[6, 6.5])
         plt.hist(np.log10(1E-15 + gradAmpmap.flatten().cpu().numpy()), bins=100)
         plt.title("L %s Unit %s"%(target_layer, target_unit))
         plt.show()
