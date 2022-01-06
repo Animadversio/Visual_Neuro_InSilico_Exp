@@ -234,9 +234,9 @@ def register_hook_by_module_names(target_name, target_hook, model, input_size=(3
 #%% Utility code to fetch activation
 class featureFetcher:
     """ Light weighted modular feature fetcher """
-    def __init__(self, model, input_size=(3, 256, 256), device="cuda"):
+    def __init__(self, model, input_size=(3, 256, 256), device="cuda", print_module=True):
         self.model = model.to(device)
-        module_names, module_types, module_spec = get_module_names(model, input_size, device=device, show=True)
+        module_names, module_types, module_spec = get_module_names(model, input_size, device=device, show=print_module)
         self.module_names = module_names
         self.module_types = module_types
         self.module_spec = module_spec

@@ -7,7 +7,6 @@ from GAN_utils import upconvGAN
 G = upconvGAN("fc6").cuda().requires_grad_(False)
 ImDist = LPIPS(net="squeeze").cuda()
 #%%
-
 G.visualize(torch.randn(4,4096).cuda()).min()
 #%%
 def FC6GAN_invert(G, ImDist, targtsr, sampn=4, step=300, lr=0.05):
@@ -54,10 +53,10 @@ G.visualize().min()
 # from utils_old import load_GAN
 # from Generator import Generator
 # from time import time, sleep
-import numpy as np
 # from Optimizer import CholeskyCMAES, Genetic, Optimizer  # Optimizer is the base class for these things
 # from sklearn.decomposition import PCA
 # import matplotlib.pyplot as plt
+import numpy as np
 import os
 from os.path import join
 from sys import platform
