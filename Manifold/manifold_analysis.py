@@ -1,5 +1,6 @@
-# This script is used to produce fitting and confidence interval for results in python.
-#
+"""
+This script is used to produce fitting and confidence interval for results in python.
+"""
 #%%
 import numpy as np
 from scipy.optimize import curve_fit
@@ -309,7 +310,7 @@ netname = "vgg16"
 layers = ["conv2", "conv4", "conv7", "conv9", "conv13", "fc1", "fc2", "fc3"]
 param_col_arr, sigma_col_arr, stat_col_arr = fit_Kent_manifold_dataset(result_dir, netname, layers, baseline=True) #
 param_col_arr, sigma_col_arr, stat_col_arr = fit_Kent_manifold_dataset(result_dir, netname, layers, baseline=False) #
-
+#%% Newer version of the dataset
 data_dir = r"E:\Monkey_Data\Generator_DB_Windows\data\with_CNN\resize_data"
 # netname = "caffe-net"
 # layers = ["conv1", "conv2", "conv3", "conv4", "conv5"]

@@ -4,15 +4,15 @@ Library of functions useful for Recording population response and do Cosine Evol
 import time
 from os.path import join
 import matplotlib.pylab as plt
+import os
 import torch
 import numpy as np
-from torchvision.transforms import ToPILImage
+from PIL import Image
 from torchvision.utils import make_grid
+from torchvision.transforms import ToTensor, ToPILImage, Compose, Resize, ToPILImage
 from insilico_Exp_torch import TorchScorer, visualize_trajectory, resize_and_pad_tsr
 from layer_hook_utils import get_module_names, get_layer_names
 
-# def select_popul_record(model, layer, size=50, chan="rand", x=None, y=None):
-#     return popul_idxs
 
 def run_evol(scorer, objfunc, optimizer, G, reckey=None, steps=100, label="obj-target-G", savedir="",
             RFresize=True, corner=(0, 0), imgsize=(224, 224), init_code=None):
@@ -177,7 +177,7 @@ def set_objective(score_method, targmat, popul_mask, popul_m, popul_s, grad=Fals
         elif score_method == "MSE":
             scores = - np.square(actmat_msk - targmat_msk).mean(axis=1)
         elif score_method == "corr":
-            actmat_msk = actmat_msk - actmat_msk.mean()
+            actmat_msk = actmat_msk - actmat_msk.mean() # there is a bug right? actmat_msk - actmat_msk.mean(axis=1, keepdims=True)
             targmat_msk = targmat_msk - targmat_msk.mean()
             popact_norm = np.linalg.norm(actmat_msk, axis=1, keepdims=True)
             targact_norm = np.linalg.norm(targmat_msk, axis=1, keepdims=True)
@@ -261,11 +261,6 @@ def visualize_popul_act_evol(actmat_all, generations, targ_actmat):
     return figh
 
 
-import os
-from PIL import Image
-import torch
-from torchvision.datasets import ImageFolder
-from torchvision.transforms import ToTensor, ToPILImage, Compose, Resize
 def load_ref_imgs(imgdir, preprocess=Compose([Resize((224, 224)), ToTensor()]), Nlimit=200):
     imgs = []
     imgnms = []

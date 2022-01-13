@@ -2,10 +2,8 @@ from collections import OrderedDict
 import torch
 import torchvision
 import torch.nn as nn
-import torch
-from torchvision import transforms
 from torchvision import models
-import torch.nn as nn
+from torchvision import transforms
 def get_layer_names(model):
     layername = []
     conv_cnt = 0
