@@ -139,7 +139,7 @@ def save_imgtsr(finimgs, figdir:str ="", savestr:str =""):
 
 def featdir_GAN_visualize(G, CNNnet, layername, objfunc, tfms=[], imgfullpix=256, imcorner=(0, 0), imgpix=None,
     maximize=True, use_adam=True, lr=0.01, langevin_eps=0.0, MAXSTEP=100, Bsize=5, saveImgN=None,
-    savestr="", figdir="", imshow=False, PILshow=False, verbose=True, saveimg=False):
+    savestr="", figdir="", imshow=False, PILshow=False, verbose=True, saveimg=False, gradnorm=True):
     """ Visualize the features carried by the scorer.  """
     # scorer.mode = score_mode
     return_input = False
@@ -174,7 +174,9 @@ def featdir_GAN_visualize(G, CNNnet, layername, objfunc, tfms=[], imgfullpix=256
         feats = slice_center_col(feats_full, )
         score = score_sgn * objfunc(feats, )
         score.sum().backward()
-        z.grad = z.norm(dim=1, keepdim=True) / z.grad.norm(dim=1, keepdim=True) * z.grad  # this is a gradient normalizing step 
+        # this is a gradient normalizing step
+        if gradnorm:
+            z.grad = z.norm(dim=1, keepdim=True) / z.grad.norm(dim=1, keepdim=True) * z.grad
         optimizer.step()
         score_traj.append(score.detach().clone().cpu())
         if langevin_eps > 0.0:
@@ -185,7 +187,7 @@ def featdir_GAN_visualize(G, CNNnet, layername, objfunc, tfms=[], imgfullpix=256
         pbar.set_description("step %d, score %s"%(step, " ".join("%.2f" % s for s in score_sgn * score)))
 
     final_score = score_sgn * score.detach().clone().cpu()
-    del score
+    del score, feats_full, feats
     torch.cuda.empty_cache()
     if maximize:
         idx = torch.argsort(final_score, descending=True)
@@ -256,6 +258,14 @@ def set_objective_torch(score_method, targdir, featmean=None, normalize=False):
             feat_norm = featmat.norm(dim=1, keepdim=True)
             targ_norm = targmat.norm(dim=1, keepdim=True)
             scores = ((featmat @ targmat.T) / feat_norm / targ_norm).squeeze(dim=1)
+        elif score_method == "cosine_dir":
+            """if targ vector is not the feature of a specific image but a direction in the space
+            Then no need to subtract the featmean"""
+            if centralize:
+                targmat = targmat + featmean  # no need to subtract featmean for targmat
+            feat_norm = featmat.norm(dim=1, keepdim=True)
+            targ_norm = targmat.norm(dim=1, keepdim=True)
+            scores = ((featmat @ targmat.T) / feat_norm / targ_norm).squeeze(dim=1)
         elif score_method == "dot":
             scores = (featmat @ targmat.T).squeeze(dim=1)
         else:
@@ -293,31 +303,12 @@ def get_cent_pos(model, layer, imgfullpix=256):
         raise NotImplementedError("other tensor shape not supported yet. ")
     return cent_pos
 
-#%% Dev zone, working pipeline, process dataset to get
-#
-# loader = DataLoader(dataset, batch_size=125, shuffle=False, drop_last=False, num_workers=8)
-# reclayers = [".layer2.Bottleneck2", ".layer3.Bottleneck2", ".layer4.Bottleneck2"]
-# return_input = False
-# fetcher = featureFetcher(model, device="cuda")
-# for layer in reclayers:
-#     fetcher.record(layer, return_input=return_input, ingraph=False)
-# # fetcher.record(".Linearfc", return_input=True, ingraph=False)
-# feat_col = defaultdict(list)
-# feattsrs = {}
-# for ibatch, (imgtsr, label) in tqdm(enumerate(loader)):
-#     with torch.no_grad():
-#         model(imgtsr.cuda())
-#
-#     for layer in reclayers:
-#         if return_input:
-#             feats_full = fetcher[layer][0].cpu()
-#         else:
-#             feats_full = fetcher[layer].cpu()
-#         feats = slice_center_col(feats_full, ingraph=False)
-#         feat_col[layer].append(feats)
-#
-# for layer in reclayers:
-#     feattsrs[layer] = torch.cat(tuple(feat_col[layer]), dim=0)
+
+def test_record_layernames(model, reclayers, return_input=False, device="cuda"):
+    fetcher = featureFetcher(model, device=device)
+    for layer in reclayers:
+        fetcher.record(layer, return_input=return_input, ingraph=False)
+    return fetcher
 #%%
 
 #%% Obsolete, Incremental PCA is not useful in this number of images....
