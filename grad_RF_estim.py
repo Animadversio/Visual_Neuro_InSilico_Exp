@@ -46,6 +46,8 @@ def grad_RF_estimate(model, target_layer, target_unit, input_size=(3,227,227), d
         plt.hist(np.log10(1E-15 + gradAmpmap.flatten().cpu().numpy()), bins=100)
         plt.title("L %s Unit %s"%(target_layer, target_unit))
         plt.show()
+    activation.pop('record')
+    del intsr, act_vec
     return gradAmpmap.numpy()
 
 
