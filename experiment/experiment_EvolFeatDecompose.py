@@ -12,12 +12,12 @@ Depending on the `Visual_Neuron_Modelling` repository.
 #%%
 # backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-07-23-12-23-21"
 # backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_integrated\2021-10-25-11-05-37"
-backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2022-01-04-12-50-04"
+backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2022-01-14-12-55-52"
 # r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-06-28-12-34-03"
 # r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-06-04-11-54-42"
 # backup_dir = r"N:\Stimuli\2021-EvolDecomp\2021-04-27-Alfa-03\2021-04-27-13-07-55"
-threadid = 1
-threadlabel = "" # "_threadBigGAN"
+threadid = 2
+threadlabel = "_threadBigGAN" #"_threadBigGAN"  ## "_threadBigGAN"
 Animal = "Beto"
 exptime = backup_dir.split("\\")[-1]
 #%%
@@ -282,3 +282,4 @@ np.savez(join(ccdir, "factor_record_shuffle.npz"), Hmat=Hmat, Hmaps=Hmaps, Tcomp
 # Hmaps_shfl = Hmats_shfl.reshape(Hmaps.shape)
 # finimgs_col, mtg_col, score_traj_col = vis_featvec_wmaps(ccfactor_shfl, Hmaps_shfl, net, G, layer, netname=netname, score_mode=vis_score_mode,\
 #                      featnet=featnet, bdr=bdr, Bsize=10, figdir=ccdir, savestr="map_shuffle", imshow=False, saveimg=True)
+os.system('cd "'+join(ccdir, 'img')+'" & start .')
