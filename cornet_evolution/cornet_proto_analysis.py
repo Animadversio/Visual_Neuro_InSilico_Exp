@@ -112,7 +112,11 @@ def plot_score_traces(scores_trace, chanlabel, total_Tstep, runnum=5):
 def plot_score_heatmap(scores_trace, chanlabel, total_Tstep, runnum=5):
     ncols = total_Tstep * runnum
     figh = plt.figure(figsize=[12 / 20 * ncols, 2.5])
-    sns.heatmap(scores_trace, annot=True, yticklabels=np.arange(1, total_Tstep + 1), fmt=".1f")
+    if np.median(scores_trace) > 10:
+        fmt = ".0f"
+    else:
+        fmt = ".1f"
+    sns.heatmap(scores_trace, annot=True, yticklabels=np.arange(1, total_Tstep + 1), fmt=fmt)
     plt.axis("equal")
     plt.vlines(np.arange(runnum, ncols, runnum), 0, total_Tstep, color='green', linewidth=2.0)
     plt.xticks(np.arange(2, ncols, runnum), ["ActMax T%d" % T for T in range(total_Tstep)])
