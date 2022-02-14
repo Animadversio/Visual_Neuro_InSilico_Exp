@@ -135,7 +135,7 @@ def fit_2dgauss(gradAmpmap_, pop_str, outdir="", plot=True):
     # densitymap = var.pdf(xystack)
 
     # curve fitting , pretty good.
-    xplot, yplot = np.mgrid[0:227:1, 0:227:1]
+    xplot, yplot = np.mgrid[0:H:1, 0:W:1]
     initial_guess = (gradAmpmap_.max().item(),
                      Xcenter.item(), Ycenter.item(),
                      np.sqrt(XXVar).item()/4, np.sqrt(YYVar).item()/4,
