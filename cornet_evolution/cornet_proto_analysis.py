@@ -1,8 +1,11 @@
 from tqdm import tqdm
 from os.path import join
-from core.montage_utils import ToPILImage, make_grid, make_grid_np, show_tsrbatch, PIL_tsrbatch
+from build_montages import make_grid_np
+# from core.montage_utils import ToPILImage, make_grid, make_grid_np, show_tsrbatch, PIL_tsrbatch
 import matplotlib.pyplot as plt
 import seaborn as sns
+import sys
+sys.path.append("D:\Github\CORnet")
 
 dataroot = r"F:\insilico_exps\CorNet-recurrent-evol"
 outdir = r"F:\insilico_exps\CorNet-recurrent-evol\proto_summary"
@@ -26,17 +29,47 @@ def sweep_proto_merge(area, sublayer, chanrng, timestepN, runnum=5, outdir=outdi
         plt.imsave(join(outdir, outlabel + ".jpg"), imgmtg, )
 
 
-sweep_proto_merge("V2", "output", (0, 50), 2, runnum=5, outdir=outdir)
-sweep_proto_merge("V4", "output", (0, 50), 4, runnum=5, outdir=outdir)
-sweep_proto_merge("IT", "output", (0, 100), 2, runnum=5, outdir=outdir)
+sweep_proto_merge("V2", "output", (0, 100), 2, runnum=5, outdir=outdir)
+sweep_proto_merge("V4", "output", (0, 100), 4, runnum=5, outdir=outdir)
+sweep_proto_merge("IT", "output", (0, 200), 2, runnum=5, outdir=outdir)
 
 # %%
+from skimage.transform import resize
+rfdir = r"F:\insilico_exps\CorNet-recurrent-evol\RF_estimate"
+def sweep_proto_merge_with_rfmsk(area, sublayer, chanrng, timestepN, runnum=5, outdir=outdir):
+    """ sweep through folders and collect the prototype images and montage them into one """
+    datadir = join(dataroot, "%s-%s" % (area, sublayer))
+    rfdict = {}
+    for time_step in range(timestepN):
+        data = np.load(join(rfdir, f"{area}-{sublayer}-Tstep{time_step}_gradAmpMap_GaussianFit.npz"))
+        fitmap = data["fitmap"]
+        fitmap_rsz = resize(fitmap, [256, 256])
+        alphamsk = np.clip(fitmap_rsz / (0.606 * fitmap_rsz.max()), 0, 1)  # 1 standard dev
+        rfdict[time_step] = alphamsk
+
+    for channum in tqdm(range(chanrng[0], chanrng[1])):
+        outlabel = f"{area}-{sublayer}-Ch{channum:03d}_allproto_mtg_w_rfmsk"
+        imgcol = []
+        for time_step in range(timestepN):
+            for runi in range(runnum):
+                explabel = f"{area}-{sublayer}-Ch{channum:03d}-T{time_step:d}-run{runi:02d}"
+                img = plt.imread(join(datadir, "bestimg_%s.jpg" % (explabel)))
+                imgcol.append(img / 255.0 * rfdict[time_step][:,:,np.newaxis])
+        imgmtg = make_grid_np(imgcol, nrow=runnum, padding=2, pad_value=0)
+        plt.imsave(join(outdir, outlabel + ".jpg"), imgmtg, )
+
+
+sweep_proto_merge_with_rfmsk("V2", "output", (0, 100), 2, runnum=5, outdir=outdir)
+sweep_proto_merge_with_rfmsk("V4", "output", (0, 100), 4, runnum=5, outdir=outdir)
+sweep_proto_merge_with_rfmsk("IT", "output", (0, 200), 2, runnum=5, outdir=outdir)
+
+
 # %%
 import cornet
 import numpy as np
 import torch
 import torch.nn.functional as F
-from core.layer_hook_utils import featureFetcher_recurrent
+from layer_hook_utils import featureFetcher_recurrent
 
 
 def get_model(pretrained=False):
@@ -181,13 +214,16 @@ def sweep_act_dynamics(model, area, sublayer, chanrng, outdir):
 model = get_model()
 # %%
 outdir = r"F:\insilico_exps\CorNet-recurrent-evol\actdyn_summary"
-scores_trace_col = sweep_act_dynamics(model, "V2", "output", (0, 50), outdir)
-scores_trace_col = sweep_act_dynamics(model, "V4", "output", (0, 50), outdir)
-scores_trace_col = sweep_act_dynamics(model, "IT", "output", (0, 100), outdir)
+scores_trace_col = sweep_act_dynamics(model, "V2", "output", (0, 100), outdir)
+np.savez(join(outdir, "V2_score_traces.npz"), scores_traces=scores_trace_col)
+scores_trace_col = sweep_act_dynamics(model, "V4", "output", (0, 100), outdir)
+np.savez(join(outdir, "V4_score_traces.npz"), scores_traces=scores_trace_col)
+scores_trace_col = sweep_act_dynamics(model, "IT", "output", (0, 200), outdir)
+np.savez(join(outdir, "IT_score_traces.npz"), scores_traces=scores_trace_col)
 
-# %%
-outdir = r"F:\insilico_exps\CorNet-recurrent-evol\actdyn_summary"
-scores_trace_col = sweep_act_dynamics(model, "V4", "output", (50, 100), outdir)
+
+
+
 # %% Dev zone
 figh = plot_score_traces(scores_trace, chanlabel, total_Tstep, runnum=5)
 figh.savefig(join(outdir, f"{chanlabel}_act_traces.png"))

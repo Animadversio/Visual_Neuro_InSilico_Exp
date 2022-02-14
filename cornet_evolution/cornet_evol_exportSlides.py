@@ -7,6 +7,7 @@ from tqdm import tqdm
 protodir = r"F:\insilico_exps\CorNet-recurrent-evol\proto_summary"
 tracedir = r"F:\insilico_exps\CorNet-recurrent-evol\actdyn_summary"
 
+
 def _layout_figures_on_slide(slide, tracepath, hmappath, protopath, chanlabel):
     tf = slide.shapes.title
     tf.text = chanlabel
@@ -22,6 +23,7 @@ def _layout_figures_on_slide(slide, tracepath, hmappath, protopath, chanlabel):
     pic.crop_left = 0.16593
     pic.crop_top = 0.17234
     pic.crop_bottom = 0.04221
+
 
 def _layout_figures_on_slide2(slide, tracepath, hmappath, protopath, chanlabel):
     tf = slide.shapes.title
@@ -39,7 +41,8 @@ def _layout_figures_on_slide2(slide, tracepath, hmappath, protopath, chanlabel):
     pic.crop_top = 0.31779
     pic.crop_bottom = 0.13105
 
-def merge_plots2slides(area, sublayer, chanrng, outdir, save_sfx=""):
+
+def merge_plots2slides(area, sublayer, chanrng, outdir, save_sfx="", with_rfmsk=False):
     prs = Presentation()
     # 16:9 wide screen layout
     prs.slide_width = Inches(13.33333)
@@ -49,21 +52,28 @@ def merge_plots2slides(area, sublayer, chanrng, outdir, save_sfx=""):
         chanlabel = f"{area}-{sublayer}-Ch{channum:03d}"
         tracepath = (join(tracedir, f"{chanlabel}_act_traces.png"))
         hmappath = (join(tracedir, f"{chanlabel}_act_heatmap.png"))
-        protopath = (join(protodir, f"{chanlabel}_allproto_mtg.jpg"))
+        if with_rfmsk:
+            protopath = (join(protodir, f"{chanlabel}_allproto_mtg_w_rfmsk.jpg"))
+        else:
+            protopath = (join(protodir, f"{chanlabel}_allproto_mtg.jpg"))
         slide = prs.slides.add_slide(blank_slide_layout)
         if area is "V4":
             _layout_figures_on_slide(slide, tracepath, hmappath, protopath, chanlabel)
         elif area in ["V2", "IT"]:
             _layout_figures_on_slide2(slide, tracepath, hmappath, protopath, chanlabel)
 
-    prs.save(join(outdir, f'CorNet-s_{area}-{sublayer}-Ch{chanrng[0]:d}-{chanrng[1]:d}_evol_dynam_visualize{save_sfx}.pptx'))
+    prs.save(join(outdir, f'CorNet-s_{area}-{sublayer}-Ch{chanrng[0]:d}-{chanrng[1]:d}_evol_dynam_visualize{"_w_rfmsk" if with_rfmsk else ""}{save_sfx}.pptx'))
 #%%
 sumdir = r"F:\insilico_exps\CorNet-recurrent-evol\summary"
-merge_plots2slides("V4", "output", (0, 100), sumdir, save_sfx="")
-#%%
-merge_plots2slides("V2", "output", (0, 50), sumdir, save_sfx="")
-merge_plots2slides("IT", "output", (0, 100), sumdir, save_sfx="")
 
+merge_plots2slides("V4", "output", (0, 100), sumdir, save_sfx="")
+merge_plots2slides("V2", "output", (0, 100), sumdir, save_sfx="")
+merge_plots2slides("IT", "output", (0, 200), sumdir, save_sfx="")
+
+#%%
+merge_plots2slides("V4", "output", (0, 100), sumdir, save_sfx="", with_rfmsk=True)
+merge_plots2slides("V2", "output", (0, 100), sumdir, save_sfx="", with_rfmsk=True)
+merge_plots2slides("IT", "output", (0, 200), sumdir, save_sfx="", with_rfmsk=True)
 
 #%%
 pprs = Presentation(join(sumdir,"CorNet-s_V2-output-Ch0-50_evol_dynam_visualize.pptx"))

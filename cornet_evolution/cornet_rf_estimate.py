@@ -159,6 +159,18 @@ for area in ["V2", "V4", "IT"]:
         plt.savefig(join(outdir, f"{area}-{'output'}-Tstep{time_step:d}_gradAmpMap_GaussianFit.png"))
         plt.show()
 
+#%%
+from skimage.transform import resize
+fitmap_rsz = resize(ffitval, [256, 256])
+alphamsk = np.clip(fitmap_rsz / (0.606 * fitmap_rsz.max()), 0, 1) # 1 standard dev
+#%%
+plt.figure(figsize=[5.8, 5])
+plt.imshow(fitmap_rsz, vmax=0.606 * fitmap_rsz.max())
+plt.show()
+#%%
+plt.figure(figsize=[5.8, 5])
+plt.imshow(alphamsk, )
+plt.show()
 
 #%% dev zone
 #%%
