@@ -6,10 +6,11 @@ import torch, torchvision
 from insilico_Exp_torch import get_activation, activation
 
 
-def grad_RF_estimate(model, target_layer, target_unit, input_size=(3,227,227), device="cuda", show=True, reps=200, batch=1):
+def grad_RF_estimate(model, target_layer, target_unit, input_size=(3,227,227),
+                     device="cuda", show=True, reps=200, batch=1):
     # (slice(None), 7, 7)
     handle, module_names, module_types = register_hook_by_module_names(target_layer,
-        get_activation("record", target_unit,ingraph=True), model,
+        get_activation("record", target_unit, ingraph=True), model,
         input_size, device=device, )
 
     cnt = 0
