@@ -20,7 +20,7 @@ def twoD_Gaussian(XYstack, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
     return g.ravel()
 
 
-def fit_2dgauss(gradAmpmap_, pop_str, outdir, plot=True):
+def fit_2dgauss(gradAmpmap_, pop_str, outdir="", plot=True):
     if isinstance(gradAmpmap_, torch.Tensor):
         gradAmpmap_ = gradAmpmap_.numpy()
 
