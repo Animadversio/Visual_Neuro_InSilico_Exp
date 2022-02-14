@@ -59,7 +59,7 @@ def merge_plots2slides(area, sublayer, chanrng, outdir, save_sfx=""):
     prs.save(join(outdir, f'CorNet-s_{area}-{sublayer}-Ch{chanrng[0]:d}-{chanrng[1]:d}_evol_dynam_visualize{save_sfx}.pptx'))
 #%%
 sumdir = r"F:\insilico_exps\CorNet-recurrent-evol\summary"
-merge_plots2slides("V4", "output", (0, 50), sumdir, save_sfx="")
+merge_plots2slides("V4", "output", (0, 100), sumdir, save_sfx="")
 #%%
 merge_plots2slides("V2", "output", (0, 50), sumdir, save_sfx="")
 merge_plots2slides("IT", "output", (0, 100), sumdir, save_sfx="")

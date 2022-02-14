@@ -186,7 +186,8 @@ scores_trace_col = sweep_act_dynamics(model, "V4", "output", (0, 50), outdir)
 scores_trace_col = sweep_act_dynamics(model, "IT", "output", (0, 100), outdir)
 
 # %%
-
+outdir = r"F:\insilico_exps\CorNet-recurrent-evol\actdyn_summary"
+scores_trace_col = sweep_act_dynamics(model, "V4", "output", (50, 100), outdir)
 # %% Dev zone
 figh = plot_score_traces(scores_trace, chanlabel, total_Tstep, runnum=5)
 figh.savefig(join(outdir, f"{chanlabel}_act_traces.png"))
