@@ -50,12 +50,15 @@ reclayers = [".features._DenseBlockdenseblock1", #".features.transition1.AvgPool
 feattsrs = record_dataset(model, reclayers, dataset, return_input=False,
                    batch_size=40, num_workers=8)
 torch.save(feattsrs, join(outdir, "%s_INvalid_feattsrs.pt"%(netname)))  # 1 iter/sec 1000 iters totoal
-#% SVD of image tensor
+#%  SVD of image tensor
 tsr_svds = feattsr_svd(feattsrs, device="cpu")
 torch.save(tsr_svds, join(outdir, "%s_INvalid_tsr_svds.pt"%(netname)))
 #%%
 import torchvision
 torchvision.models.densenet121()
+
+
+
 #%% Dev zone, working pipeline, process dataset to get
 # conv2 - conv3 - conv5 fc6, fc7
 # reclayers = [".features.ReLU8", ".features.ReLU15", ".features.ReLU29",

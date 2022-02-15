@@ -1,3 +1,4 @@
+
 from pptx import Presentation
 from pptx.util import Inches, Length, Pt
 from os.path import join
@@ -58,6 +59,8 @@ def export_imgs_to_ppt(netname, reclayers, img_root, save_prefix=""):
 
         prs.save(join(outdir, '%s_%s_PCdir_improve_visualize.pptx'%(save_prefix, shorten_layername(layer))))
 #%%
+
+#%%
 netname = "resnet50_linf8"
 save_prefix = "ResNetRobust"
 reclayers = ['.layer2.Bottleneck2', '.layer3.Bottleneck2', '.layer4.Bottleneck2']
@@ -69,9 +72,16 @@ export_imgs_to_ppt(netname, reclayers, img_root, save_prefix)
 netname = "vgg16"
 save_prefix = "VGG16"
 reclayers = ['.features.ReLU15','.features.ReLU29','.classifier.ReLU1','.classifier.ReLU4']
-# img_root = r"H:\CNN-PCs\natpatch_norm_vis"
-# img_root = r"H:\CNN-PCs\natpatch_norm_lr_vis"
 img_root = r"H:\CNN-PCs\VGG16_natpatch_norm_lr_reldir_vis"
+export_imgs_to_ppt(netname, reclayers, img_root, save_prefix)
+#%%
+netname = "densenet_robust"
+save_prefix = "DenseNet_robust"
+reclayers = ['.features._DenseBlockdenseblock1',
+             '.features._DenseBlockdenseblock2',
+             '.features._DenseBlockdenseblock3',
+             '.features._DenseBlockdenseblock4']
+img_root = r"H:\CNN-PCs\densenet_robust_natpatch_norm_lr_reldir_vis"
 export_imgs_to_ppt(netname, reclayers, img_root, save_prefix)
 #%% Note there will be error if you try to open a slide pptx file when it's opened in PPT
 from pptx import Presentation
