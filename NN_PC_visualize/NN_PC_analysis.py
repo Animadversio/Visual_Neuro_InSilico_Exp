@@ -1,6 +1,3 @@
-"""
-UMAP reduction of the feature vectors
-"""
 import os, umap
 import numpy as np
 import pandas as pd
@@ -11,6 +8,10 @@ import torch
 from os.path import join
 
 outdir = r"H:\CNN-PCs"
+#%%
+"""
+UMAP reduction of the feature vectors
+"""
 netname = "resnet50_linf8"
 #%%
 feattsrs = torch.load(join(outdir, "%s_INvalid_feattsrs.pt"%(netname)))
