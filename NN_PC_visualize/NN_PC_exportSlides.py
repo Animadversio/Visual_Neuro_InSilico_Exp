@@ -1,5 +1,5 @@
 """ 
-Merge the figures into a single slides show 
+Merge the figures into a single slides show
 """
 from pptx import Presentation
 from pptx.util import Inches, Length, Pt

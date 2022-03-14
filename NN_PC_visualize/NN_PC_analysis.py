@@ -31,7 +31,67 @@ sns_plot = sns.scatterplot(x='UMAP1', y='UMAP2', data=embedding,
 # Save PNG
 sns_plot.figure.savefig(join(outdir, "summary", 'umap_scatter_layer3-Btn2.png'), bbox_inches='tight', dpi=500)
 plt.show()
+#%%
+netname = "resnet50_linf8"
+feattsrs = torch.load(join(outdir, "%s_INvalid_feattsrs.pt"%(netname)))
+#%%
+plt.figure()
+for layer in ['.layer2.Bottleneck2',
+              '.layer3.Bottleneck2',
+              '.layer4.Bottleneck2']:
 
+    featmean = feattsrs[layer].mean(dim=0, keepdims=True)
+    featstd = feattsrs[layer].std(dim=0, keepdims=True)
+    feattsr_norm = (feattsrs[layer] - featmean) / featstd
+    #%
+    covmat = ((feattsrs[layer] - featmean).T @ (feattsrs[layer] - featmean)) / feattsr_norm.shape[0]
+    covmat_norm = (feattsr_norm.T @ feattsr_norm) / feattsr_norm.shape[0]
+
+
+    eva, evc = torch.linalg.eigh(covmat_norm)
+    # # %%
+    # plt.semilogy(reversed(eva) / eva.sum())
+    # # plt.plot(reversed(eva) / eva.sum())
+    # plt.show()
+    # # %%
+    # plt.semilogy(reversed(eva) / eva.sum())
+    # plt.plot(reversed(eva) / eva.sum(), label=layer)
+    # plt.show()
+    # # %%
+    # plt.semilogx(torch.cumsum(reversed(eva), 0) / eva.sum(), label=layer)
+    plt.plot(torch.cumsum(reversed(eva),0) / eva.sum(), label=layer)
+plt.legend()
+plt.show()
+#%%
+sns.heatmap(covmat_norm)
+plt.show()
+#%%
+sns.heatmap(covmat, vmax=1)
+plt.show()
+#%%
+plt.figure(figsize=[10,4])
+for eigi in range(1, 10):
+    plt.plot(sorted(evc[:,-eigi]), alpha=0.4)
+plt.show()
+#%%
+from scipy.cluster.hierarchy import dendrogram, linkage
+#%%
+Z = linkage(covmat, 'ward')
+plt.figure(figsize=[10,4])
+dendrodict = dendrogram(Z)
+#%%
+
+chan_order = np.array(dendrodict["leaves"])
+plt.figure()
+sns.heatmap(covmat[chan_order, :][:, chan_order], vmax=1)
+plt.show()
+#%%
+covmat_inv = torch.linalg.inv(covmat_norm)
+#%%
+plt.figure()
+sns.heatmap(covmat_inv[chan_order, :][:, chan_order], vmax=10)
+plt.show()
+#%%
 
 #%%
 """ 

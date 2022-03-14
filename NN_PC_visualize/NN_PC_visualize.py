@@ -152,7 +152,7 @@ for PCi in range(100):  #:range(4,5)
                                  lr=0.1, langevin_eps=0.02, MAXSTEP=100, Bsize=8, imcorner=corner, imgpix=imgpix,gradnorm=True)
 
 
-#%% Load up svd tensor
+#%% Load up svd tensor fpr DenseNet-robust
 netname = "densenet_robust"
 tsr_svds = torch.load(join(outdir, "%s_INvalid_tsr_svds.pt"%(netname)))
 reclayers = [*tsr_svds.keys()]
@@ -183,12 +183,12 @@ for layeri in range(len(reclayers)):
         imgpix = 256
     rfdict[layer] = (corner, imgpix)
 torch.cuda.empty_cache()
-#%% Evolve the VGG16 PCA directions.
+#%% Evolve the DenseNet-robust PCA directions.
 figdir = join(outdir, "densenet_robust_RFfit_norm_lr_reldir_vis")
 os.makedirs(figdir, exist_ok=True)
 score_method = "cosine_dir"
-for PCi in range(1, 100):  #:range(4,5)
-    for layeri in range(1, len(reclayers)): #1 # layeri=0, PCi=1 is so hard to visualize constantly OOM
+for PCi in range(0, 100):  #:range(4,5)
+    for layeri in range(1):#1, len(reclayers) #1 # layeri=0, PCi=1 is so hard to visualize constantly OOM
         layername = reclayers[layeri]
         corner, imgpix = rfdict[layername]
         feat_mean, U, S, V = tsr_svds[layername]
@@ -197,12 +197,17 @@ for PCi in range(1, 100):  #:range(4,5)
         objfunc = set_objective_torch(score_method, targdir.cuda(), featmean=feat_mean.cuda())
         finimgs, mtg, score_traj = featdir_GAN_visualize(G, model, layername, objfunc, figdir=figdir, tfms=[normalize],
                                  savestr="%s_%s_PC%03d_pos_%s_RFfit_norm"%(netname, layersn, PCi, score_method),
-                                 lr=0.1, langevin_eps=0.02, MAXSTEP=100, Bsize=8, imcorner=corner, imgpix=imgpix,gradnorm=True)
+                                 lr=0.1, langevin_eps=0.02, MAXSTEP=100, Bsize=6, imcorner=corner, imgpix=imgpix,gradnorm=True)
 
         objfunc = set_objective_torch(score_method, -targdir.cuda())
         finimgs, mtg, score_traj = featdir_GAN_visualize(G, model, layername, objfunc, figdir=figdir, tfms=[normalize],
                                  savestr="%s_%s_PC%03d_neg_%s_RFfit_norm"%(netname, layersn, PCi, score_method),
-                                 lr=0.1, langevin_eps=0.02, MAXSTEP=100, Bsize=8, imcorner=corner, imgpix=imgpix,gradnorm=True)
+                                 lr=0.1, langevin_eps=0.02, MAXSTEP=100, Bsize=6, imcorner=corner, imgpix=imgpix,gradnorm=True)
+
+
+
+
+
 
 
 #%% Dev zone.
