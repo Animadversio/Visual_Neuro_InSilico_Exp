@@ -172,6 +172,16 @@ def fit_2dgauss(gradAmpmap_, pop_str, outdir="", plot=True):
     return fitdict
 
 
+def show_gradmap(gradAmpmap, ):
+    plt.figure(figsize=[5.8, 5])
+    plt.imshow(gradAmpmap)
+    plt.colorbar()
+    # plt.title(f"{pop_str}", fontsize=14)
+    # plt.savefig(join(rfdir, f"{pop_str}_gradAmpMap.png"))
+    plt.show()
+
+
+
 if __name__ == "__main__":
     from collections import OrderedDict
     resnet101 = torchvision.models.resnet101(pretrained=True).cuda()

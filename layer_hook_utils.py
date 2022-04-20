@@ -231,7 +231,12 @@ def register_hook_by_module_names(target_name, target_hook, model, input_size=(3
 
 #%% Utility code to fetch activation
 class featureFetcher:
-    """ Light weighted modular feature fetcher """
+    """ Light weighted modular feature fetcher
+    It simply record the activation of the target layer as images pass through it.
+    Note it doesn't handle preprocessing (reshaping, normalization etc. )
+        This is different from TorchScorer, which is designed as a map from image to score.
+
+    """
     def __init__(self, model, input_size=(3, 256, 256), device="cuda", print_module=True):
         self.model = model.to(device)
         module_names, module_types, module_spec = get_module_names(model, input_size, device=device, show=print_module)
@@ -276,7 +281,10 @@ class featureFetcher:
         return hook
 
 class featureFetcher_recurrent:
-    """ Light weighted modular feature fetcher, simpler than TorchScorer. """
+    """ Light weighted modular feature fetcher, simpler than TorchScorer.
+    Modified from featureFetcher to support recurrent fit_models the same layer will be activated multiple times.
+
+    """
     def __init__(self, model, input_size=(3, 224, 224), device="cuda", print_module=True):
         self.model = model.to(device)
         module_names, module_types, module_spec = get_module_names(model, input_size, device=device, show=print_module)

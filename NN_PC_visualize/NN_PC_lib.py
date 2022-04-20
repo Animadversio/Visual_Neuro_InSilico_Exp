@@ -21,13 +21,13 @@ RGB_std  = torch.tensor([0.229, 0.224, 0.225])
 unnormalize = Normalize(-RGB_mean/RGB_std, 1/RGB_std)
 normalize = Normalize(RGB_mean, RGB_std)
 
-def create_imagenet_valid_dataset():
+def create_imagenet_valid_dataset(imgpix=256, normalize=True,):
     RGB_mean = torch.tensor([0.485, 0.456, 0.406]) #.view(1,-1,1,1).cuda()
     RGB_std  = torch.tensor([0.229, 0.224, 0.225]) #.view(1,-1,1,1).cuda()
     preprocess = Compose([ToTensor(),
-                          Resize(256, ),
-                          CenterCrop((256, 256), ),
-                          Normalize(RGB_mean, RGB_std),
+                          Resize(imgpix, ),
+                          CenterCrop((imgpix, imgpix), ),
+                          Normalize(RGB_mean, RGB_std) if normalize else lambda x: x
                           ])
     dataset = ImageFolder(r"E:\Datasets\imagenet-valid", transform=preprocess)
     return dataset
