@@ -1,12 +1,14 @@
 import os
 import sys
+import numpy as np
 import pandas as pd
+from glob import glob
 from os.path import join
-from scipy.io import loadmat
-from scipy.stats import sem
 from skimage.io import imsave, imread
 import matplotlib.pyplot as plt
-import numpy as np
+from load_neural_data import ExpData
+from scipy.io import loadmat
+from scipy.stats import sem
 rootdir = r"E:\OneDrive - Harvard University\CMA_localize"
 matpath = r"E:\OneDrive - Harvard University\CMA_localize\preMeta.mat"
 metatab = pd.read_csv(join(rootdir, "metatab.csv"))
@@ -15,12 +17,13 @@ Python_dir = r"D:\Github"
 sys.path.append(join(Python_dir,"Visual_Neuro_InSilico_Exp"))
 sys.path.append(join(Python_dir,"Visual_Neuron_Modelling"))
 #%%
-# from torchvision import models
+# from torchvision import fit_models
 from CorrFeatTsr_lib import Corr_Feat_Machine, Corr_Feat_pipeline, loadimg_preprocess, visualize_cctsr
 from CorrFeatTsr_predict_lib import score_images, softplus, fitnl_predscore
 from featvis_lib import rectify_tsr, tsr_factorize, vis_featmap_corr, vis_feattsr, \
     vis_feattsr_factor, vis_featvec, vis_featvec_wmaps, vis_featvec_point, load_featnet, \
     tsr_posneg_factorize, posneg_sep, visualize_cctsr_simple
+
 
 def visualize_evolution(expdata, scorevec_thread, threadid=1):
     blockvec_thread = expdata.generations[expdata.gen_rows]# np.array([int(imgpatt.findall(imgfn)[0]) for imgfn in imgfp_thread])
@@ -122,8 +125,7 @@ def corr_feat_factorize(expdata, scorevec_thread, imgfp_thread,
 # Expi == 57 2019-06-Evolutions\\beto-190802c\\backup_08_02_2019_14_29_14
 #            block049_thread000_gen_gen048_001936 is missing... seems to be moved
 # Expi == 93  image block042_thread000_gen_gen041_001656  is missing
-from glob import glob
-from load_neural_data import ExpData
+
 for Expi in range(len(metatab)): #range(118, len(metatab)):
     if Expi == 9:
         continue
@@ -230,3 +232,63 @@ for Expi in Expilist:
     except FileNotFoundError as e:
         print(e.args)
 
+#%% Regenrate masks for selected exps
+import PIL
+import re
+from glob import glob
+from easydict import EasyDict
+from skimage.transform import resize
+from PIL import Image
+from featvis_lib import pad_factor_prod
+from shutil import copy
+rootdir = r"E:\OneDrive - Harvard University\CMA_localize"
+outdir = r"N:\Data-Computational\Project_CMA_Masks_tune"
+metatab = pd.read_csv(join(rootdir, "metatab.csv"))
+Expilist = [16, 50, 52, 104, 105, 106, 108, 119, 123, 129]
+# Expilist = [8, 9, 35, 49, 61, 79, 92, 107, 127, 134, 135]
+for Expi in Expilist:
+    ephysFN = metatab.ephysFN[Expi - 1]
+    stimpath = metatab.stimuli[Expi - 1].strip()
+    fdrnm = stimpath.split("\\")[-1]
+    savedir = join(rootdir, ephysFN)
+    protodir = join(rootdir, ephysFN, "img")
+    try:
+        # img = imread(join(savedir, "Beto_Evol%s_resnet50_linf8_corrTsr_vis.png"%fdrnm))
+        img = PIL.Image.open(join(savedir, "Beto_Evol%s_resnet50_linf8_corrTsr_vis.png"%fdrnm))
+        # img.show()
+        ccdata = EasyDict(np.load(join(savedir, "Evol_corrTsr.npz"), allow_pickle=True))
+
+        data = EasyDict(np.load(join(savedir, "factor_record.npz"), allow_pickle=True))
+        Hmaps = data["Hmaps"]
+        bdr = data.bdr
+        padded_Hmaps = np.pad(Hmaps[:, :, :],
+              ((bdr, bdr), (bdr, bdr), (0, 0)), mode="constant")
+        facttsr = pad_factor_prod(Hmaps, data.ccfactor, bdr=data.bdr)
+        factnorm = np.linalg.norm(facttsr, axis=0)
+        Hmap_merge = factnorm
+        # Hmap_merge = padded_Hmaps.sum(axis=2)
+        Hmap_norm = Hmap_merge / Hmap_merge.max()
+        alphamsk_rsz = resize(Hmap_norm, [256, 256])
+        plt.imshow(alphamsk_rsz)
+
+        vmin, vmax = 0.08, 0.4
+        alphamsk_clip = np.clip(alphamsk_rsz, vmin, vmax)#min(vmax, max(vmin, alphamsk_rsz));
+        alphamsk_clip = (alphamsk_clip - vmin) / (vmax - vmin)
+
+        maskmat = np.concatenate([np.zeros((256, 256, 3)), \
+                                  1 - alphamsk_clip[:, :, np.newaxis]], axis=2)
+        Image.fromarray((maskmat*255).astype("uint8"), mode='RGBA').\
+            save(join(outdir, "Beto_exp%03d_mask.png"%Expi))
+
+        plt.figure(figsize=[5, 5])
+        plt.imshow(padded_Hmaps**2 / (padded_Hmaps**2).max())
+        plt.colorbar()
+        plt.savefig(join(outdir, "Beto_exp%03d_mask_nonmerge.png"%Expi))
+        imglist = os.listdir(protodir)
+        for nm in imglist:
+            copy(join(protodir, nm), join(outdir, "Beto_exp%03d_"%(Expi) + nm))
+            protoimg = imread(join(protodir, nm))
+            imsave(join(outdir, "Beto_exp%03d_masked_"%(Expi) + nm), \
+                   (protoimg * alphamsk_clip[:, :, np.newaxis]).astype("uint8"))
+    except FileNotFoundError as e:
+        print(e.args)
