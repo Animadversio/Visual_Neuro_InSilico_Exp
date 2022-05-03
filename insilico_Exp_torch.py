@@ -116,12 +116,14 @@ class TorchScorer:
                         raise NotImplementedError("Feasible names are resnet50-face_scratch, resnet50-face_ft")
                 else:
                     self.model = models.resnet50(pretrained=True)
-                    if model_name == "resnet50_linf_8":  # robust version of resnet50.
+                    if model_name in ["resnet50_linf_8", "resnet50_linf8"]:  # robust version of resnet50.
                         self.model.load_state_dict(torch.load(join(torchhome, "imagenet_linf_8_pure.pt")))
                     elif model_name == "resnet50_linf_4":
                         self.model.load_state_dict(torch.load(join(torchhome, "imagenet_linf_4_pure.pt")))
                     elif model_name == "resnet50_l2_3_0":
                         self.model.load_state_dict(torch.load(join(torchhome, "imagenet_l2_3_0_pure.pt")))
+                    else:
+                        print("use the default resnet50 weights")
                 self.inputsize = (3, imgpix, imgpix)
                 self.layername = None
             elif model_name == "cornet_s":
@@ -232,12 +234,12 @@ class TorchScorer:
             self.unit_y = None
         self.set_unit("score", self.layer, unit=(self.chan, self.unit_x, self.unit_y), ingraph=allow_grad)
 
-    def set_recording(self, record_layers):
+    def set_recording(self, record_layers, allow_grad=False):
         """The function to select a scalar output from a NN"""
         self.artiphys = True  # flag to record the neural activity in one layer
         self.record_layers.extend(record_layers)
         for layer in record_layers:  # will be arranged in a dict of lists
-            self.set_unit(layer, layer, unit=None)
+            self.set_unit(layer, layer, unit=None, ingraph=allow_grad)
             self.recordings[layer] = []
 
     def set_popul_recording(self, record_layer, mask):
@@ -319,15 +321,14 @@ class TorchScorer:
         scores = np.zeros(img_tsr.shape[0])
         for layer in self.recordings: 
             self.recordings[layer] = []
+
         csr = 0  # if really want efficiency, we should use minibatch processing.
         while csr < imgn:
             csr_end = min(csr + B, imgn)
             img_batch = self.preprocess(img_tsr[csr:csr_end,:,:,:], input_scale=input_scale)
-            # img_batch.append(resz_out_img)
             with torch.no_grad():
-                # self.model(torch.cat(img_batch).cuda())
                 self.model(img_batch.cuda())
-            if "score" in self.activation: # if score is not there set trace to zero. 
+            if "score" in self.activation: # if score is not there set trace to zero.
                 scores[csr:csr_end] = self.activation["score"].squeeze().cpu().numpy().squeeze()
 
             if self.artiphys:  # record the whole layer's activation
@@ -336,8 +337,7 @@ class TorchScorer:
                     self.recordings[layer].append(score_full.cpu().numpy())
 
             csr = csr_end
-
-        for layer in self.recordings: 
+        for layer in self.recordings:
             self.recordings[layer] = np.concatenate(self.recordings[layer],axis=0)
 
         if self.artiphys:
@@ -346,6 +346,8 @@ class TorchScorer:
             return scores
 
     def score_tsr_wgrad(self, img_tsr, B=10, input_scale=1.0):
+        for layer in self.recordings:
+            self.recordings[layer] = []
         imgn = img_tsr.shape[0]
         scores = torch.zeros(img_tsr.shape[0]).cuda()
         csr = 0  # if really want efficiency, we should use minibatch processing.
@@ -359,7 +361,7 @@ class TorchScorer:
                 for layer in self.record_layers:
                     score_full = self.activation[layer]
                     # self._pattern_array.append(score_full)
-                    self.recordings[layer].append(score_full.cpu().numpy())
+                    self.recordings[layer].append(score_full) # .cpu().numpy()
 
             csr = csr_end
 
