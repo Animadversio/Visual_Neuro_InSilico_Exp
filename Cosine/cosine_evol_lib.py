@@ -28,19 +28,19 @@ def run_evol(scorer, objfunc, optimizer, G, reckey=None, steps=100, label="obj-t
     best_imgs = []
     for i in range(steps,):
         codes_all.append(new_codes.copy())
-        T0 = time.time() #process_
+        T0 = time.time()  #process_
         imgs = G.visualize_batch_np(new_codes)  # B=1
         latent_code = torch.from_numpy(np.array(new_codes)).float()
-        T1 = time.time() #process_
+        T1 = time.time()  #process_
         if RFresize: imgs = resize_and_pad_tsr(imgs, imgsize, corner, )
-        T2 = time.time() #process_
+        T2 = time.time()  #process_
         _, recordings = scorer.score_tsr(imgs)
         actmat = recordings[reckey]
-        T3 = time.time() #process_
+        T3 = time.time()  #process_
         scores = objfunc(actmat, )  # targ_actmat
-        T4 = time.time() #process_
+        T4 = time.time()  #process_
         new_codes = optimizer.step_simple(scores, new_codes, )
-        T5 = time.time() #process_
+        T5 = time.time()  #process_
         if "BigGAN" in str(G.__class__):
             print("step %d score %.3f (%.3f) (norm %.2f noise norm %.2f)" % (
                 i, scores.mean(), scores.std(), latent_code[:, 128:].norm(dim=1).mean(),
@@ -63,7 +63,7 @@ def run_evol(scorer, objfunc, optimizer, G, reckey=None, steps=100, label="obj-t
     mtg_exp.save(join(savedir, "besteachgen_%s_%05d.jpg" % (label, RND,)))
     mtg = ToPILImage()(make_grid(imgs, nrow=7))
     mtg.save(join(savedir, "lastgen_%s_%05d_score%.1f.jpg" % (label, RND, scores.mean())))
-    if codes_all.shape[1] == 4096: # then subsample the codes
+    if codes_all.shape[1] == 4096:  # then subsample the codes
         np.savez(join(savedir, "scores_%s_%05d.npz" % (label, RND)), generations=generations, scores_all=scores_all, actmat_all=actmat_all, codes_fin=codes_all[-80:,:])
     else:
         np.savez(join(savedir, "scores_%s_%05d.npz" % (label, RND)), generations=generations, scores_all=scores_all, actmat_all=actmat_all, codes_all=codes_all)
@@ -162,9 +162,11 @@ def set_random_population_recording(scorer, targetnames, randomize=True, popsize
         raise KeyError
     return unit_mask_dict, unit_tsridx_dict
 #%%
+def set_objective(score_method, targmat, popul_mask, popul_m, popul_s,
+                  normalize=True):
+    if popul_mask is None:
+        popul_mask = slice(None)
 
-# 
-def set_objective(score_method, targmat, popul_mask, popul_m, popul_s, grad=False, normalize=True):
     def objfunc(actmat):
         actmat_msk = actmat[:, popul_mask]
         targmat_msk = targmat[:, popul_mask] # [1 by masksize]
@@ -191,6 +193,59 @@ def set_objective(score_method, targmat, popul_mask, popul_m, popul_s, grad=Fals
         else:
             raise ValueError
         return scores # (Nimg, ) 1d array
+    # return an array / tensor of scores for an array of activations
+    # Noise form
+    return objfunc
+
+
+def set_objective_grad(score_method, targmat, popul_mask, popul_m, popul_s,
+                       normalize=True, device="cuda"):
+    """ PyTorch version of the objective function, suppoorting gradient flow.
+    translated from numpy version above.
+    :param score_method: str, one of "L1", "MSE", "corr", "cosine", "dot"
+    :param targmat: (1, Nfeat) torch tensor
+    :param popul_mask: (Nfeat,) torch tensor or None or slice.
+                        If None, then all features are used
+    :param popul_m: None or (1, Nfeat) torch tensor,
+                mean of activation used for normalization
+    :param popul_s: None or (1, Nfeat) torch tensor,
+                std of activation used for normalization
+    :param normalize: bool, whether to normalize the activations
+                if False, then the popul_m and popul_s are ignored
+    :return:
+    """
+    if popul_mask is None:
+        popul_mask = slice(None)
+    targmat = targmat.to(device)
+    popul_m = popul_m.to(device) if popul_m is not None else None
+    popul_s = popul_s.to(device) if popul_s is not None else None
+    def objfunc(actmat):
+        actmat_msk = actmat[:, popul_mask].to(device)
+        targmat_msk = targmat[:, popul_mask]  # [1 by masksize]
+        if normalize:
+            actmat_msk = (actmat_msk - popul_m[:, popul_mask]) / popul_s[:, popul_mask]
+            targmat_msk = (targmat_msk - popul_m[:, popul_mask]) / popul_s[:, popul_mask]
+
+        if score_method == "L1":
+            scores = - (actmat_msk - targmat_msk).abs().mean(dim=1)
+        elif score_method == "MSE":
+            scores = - (actmat_msk - targmat_msk).pow(2).mean(dim=1)
+        elif score_method == "corr":
+            actmat_msk = actmat_msk - actmat_msk.mean(dim=1, keepdim=True)  # there is a bug right? actmat_msk - actmat_msk.mean(axis=1, keepdims=True)
+            targmat_msk = targmat_msk - targmat_msk.mean()
+            popact_norm = actmat_msk.norm(dim=1, keepdim=True)
+            targact_norm = targmat_msk.norm(dim=1, keepdim=True)
+            scores = ((actmat_msk @ targmat_msk.T) / popact_norm / targact_norm).squeeze(dim=1)
+        elif score_method == "cosine":
+            popact_norm = actmat_msk.norm(dim=1, keepdim=True)
+            targact_norm = targmat_msk.norm(dim=1, keepdim=True)
+            scores = ((actmat_msk @ targmat_msk.T) / popact_norm / targact_norm).squeeze(dim=1)
+        elif score_method == "dot":
+            scores = (actmat_msk @ targmat_msk.T).squeeze(dim=1)
+        else:
+            raise ValueError
+        return scores  # (Nimg, ) 1d array
+
     # return an array / tensor of scores for an array of activations
     # Noise form
     return objfunc
