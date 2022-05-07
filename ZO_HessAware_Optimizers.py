@@ -135,12 +135,14 @@ class CholeskyCMAES:
         # Generate new sample by sampling from Gaussian distribution
         new_samples = zeros((self.lambda_, N))
         self.randz = randn(self.lambda_, N)  # save the random number for generating the code.
-        for k in range(self.lambda_):
-            new_samples[k:k + 1, :] = self.xmean + sigma * (self.randz[k, :] @ A)  # m + sig * Normal(0,C)
-            # Clever way to generate multivariate gaussian!!
-            # Stretch the guassian hyperspher with D and transform the
-            # ellipsoid by B mat linear transform between coordinates
-            self.counteval += 1
+        new_samples[:, :] = self.xmean + sigma * self.randz @ A
+        self.counteval += self.lambda_
+        # for k in range(self.lambda_):
+        #     new_samples[k:k + 1, :] = self.xmean + sigma * (self.randz[k, :] @ A)  # m + sig * Normal(0,C)
+        #     # Clever way to generate multivariate gaussian!!
+        #     # Stretch the guassian hyperspher with D and transform the
+        #     # ellipsoid by B mat linear transform between coordinates
+        #     self.counteval += 1
         self.sigma, self.A, self.Ainv, self.ps, self.pc = sigma, A, Ainv, ps, pc,
         self._istep += 1
         return new_samples

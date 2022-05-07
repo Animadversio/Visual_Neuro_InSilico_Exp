@@ -191,6 +191,19 @@ class upconvGAN(nn.Module):
         raw = self.G(x)
         return torch.clamp(raw[:, [2, 1, 0], :, :] + RGB_mean.to(raw.device), 0, 255.0) / 255.0 * scale
 
+    def visualize_batch(self, x_arr, scale=1.0, B=42, ):
+        coden = x_arr.shape[0]
+        img_all = []
+        csr = 0  # if really want efficiency, we should use minibatch processing.
+        with torch.no_grad():
+            while csr < coden:
+                csr_end = min(csr + B, coden)
+                imgs = self.visualize(x_arr[csr:csr_end, :].cuda(), scale).cpu()
+                img_all.append(imgs)
+                csr = csr_end
+        img_all = torch.cat(img_all, dim=0)
+        return img_all
+
     def render(self, x, scale=1.0, B=42):  # add batch processing to avoid memory over flow for batch too large
         coden = x.shape[0]
         img_all = []

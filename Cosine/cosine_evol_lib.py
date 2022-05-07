@@ -1,15 +1,18 @@
+"""
+Library of functions useful for Recording population response and do Cosine Evolution.
+"""
 import time
 from os.path import join
 import matplotlib.pylab as plt
+import os
 import torch
 import numpy as np
-from torchvision.transforms import ToPILImage
+from PIL import Image
 from torchvision.utils import make_grid
+from torchvision.transforms import ToTensor, ToPILImage, Compose, Resize, ToPILImage
 from insilico_Exp_torch import TorchScorer, visualize_trajectory, resize_and_pad_tsr
 from layer_hook_utils import get_module_names, get_layer_names
 
-# def select_popul_record(model, layer, size=50, chan="rand", x=None, y=None):
-#     return popul_idxs
 
 def run_evol(scorer, objfunc, optimizer, G, reckey=None, steps=100, label="obj-target-G", savedir="",
             RFresize=True, corner=(0, 0), imgsize=(224, 224), init_code=None):
@@ -25,19 +28,19 @@ def run_evol(scorer, objfunc, optimizer, G, reckey=None, steps=100, label="obj-t
     best_imgs = []
     for i in range(steps,):
         codes_all.append(new_codes.copy())
-        T0 = time.time() #process_
+        T0 = time.time()  #process_
         imgs = G.visualize_batch_np(new_codes)  # B=1
         latent_code = torch.from_numpy(np.array(new_codes)).float()
-        T1 = time.time() #process_
+        T1 = time.time()  #process_
         if RFresize: imgs = resize_and_pad_tsr(imgs, imgsize, corner, )
-        T2 = time.time() #process_
+        T2 = time.time()  #process_
         _, recordings = scorer.score_tsr(imgs)
         actmat = recordings[reckey]
-        T3 = time.time() #process_
+        T3 = time.time()  #process_
         scores = objfunc(actmat, )  # targ_actmat
-        T4 = time.time() #process_
+        T4 = time.time()  #process_
         new_codes = optimizer.step_simple(scores, new_codes, )
-        T5 = time.time() #process_
+        T5 = time.time()  #process_
         if "BigGAN" in str(G.__class__):
             print("step %d score %.3f (%.3f) (norm %.2f noise norm %.2f)" % (
                 i, scores.mean(), scores.std(), latent_code[:, 128:].norm(dim=1).mean(),
@@ -49,7 +52,8 @@ def run_evol(scorer, objfunc, optimizer, G, reckey=None, steps=100, label="obj-t
             f"objfunc {T4-T3:.3f}  optim {T5-T4:.3f} total {T5-T0:.3f}")
         scores_all.extend(list(scores))
         generations.extend([i] * len(scores))
-        best_imgs.append(imgs[scores.argmax(),:,:,:])
+        best_imgs.append(imgs[scores.argmax(),:,:,:].detach().clone())
+        # debug @ jan.3rd. Before there is serious memory leak `.detach().clone()` solve the reference issue.
         actmat_all.append(actmat)
     codes_all = np.concatenate(tuple(codes_all), axis=0)
     scores_all = np.array(scores_all)
@@ -59,7 +63,7 @@ def run_evol(scorer, objfunc, optimizer, G, reckey=None, steps=100, label="obj-t
     mtg_exp.save(join(savedir, "besteachgen_%s_%05d.jpg" % (label, RND,)))
     mtg = ToPILImage()(make_grid(imgs, nrow=7))
     mtg.save(join(savedir, "lastgen_%s_%05d_score%.1f.jpg" % (label, RND, scores.mean())))
-    if codes_all.shape[1] == 4096: # then subsample the codes
+    if codes_all.shape[1] == 4096:  # then subsample the codes
         np.savez(join(savedir, "scores_%s_%05d.npz" % (label, RND)), generations=generations, scores_all=scores_all, actmat_all=actmat_all, codes_fin=codes_all[-80:,:])
     else:
         np.savez(join(savedir, "scores_%s_%05d.npz" % (label, RND)), generations=generations, scores_all=scores_all, actmat_all=actmat_all, codes_all=codes_all)
@@ -96,7 +100,31 @@ def sample_center_units_idx(tsrshape, samplenum=500, single_col=True, resample=F
     return flat_idx_samp
 
 
-def set_random_population_recording(scorer, targetnames, popsize=500, single_col=True, resample=False,
+def sample_center_column_units_idx(tsrshape, single_col=True):
+    """ Return index of center column or the center columns.
+
+    :param tsrshape: shape of the tensor to be sampled
+    :param single_col: restrict the sampling to be from a single column
+    :return:
+        flat_idx_samp: a integer array to sample the flattened feature tensor
+    """
+    msk = np.zeros(tsrshape, dtype=np.bool) # the viable units in the center of the featuer map
+    if len(tsrshape) == 3:
+        C, H, W = msk.shape
+        if single_col: # a single column
+            msk[:, int(H//2), int(W//2)] = True
+        else: # a area in the center
+            msk[:,
+                int(H/4):int(3*H/4),
+                int(W/4):int(3*W/4)] = True
+    else:
+        msk[:] = True
+    center_idxs = np.where(msk.flatten())[0]
+    center_idxs.sort()
+    return center_idxs
+
+
+def set_random_population_recording(scorer, targetnames, randomize=True, popsize=500, single_col=True, resample=False,
                                     seed=None):
     """ Main effect is to set the recordings for the scorer object.
     (additional method for scorer)
@@ -118,7 +146,12 @@ def set_random_population_recording(scorer, targetnames, popsize=500, single_col
         for layer in targetnames:
             inshape = module_spec[invmap[layer]]["inshape"]
             outshape = module_spec[invmap[layer]]["outshape"]
-            flat_idx_samp = sample_center_units_idx(outshape, popsize, single_col=single_col, resample=resample)
+            if randomize:
+                flat_idx_samp = sample_center_units_idx(outshape, popsize, single_col=single_col, resample=resample)
+            else:
+                flat_idx_samp = sample_center_column_units_idx(outshape, single_col=True)
+                popsize = len(flat_idx_samp)
+
             tsr_idx_samp = np.unravel_index(flat_idx_samp, outshape)
             unit_mask_dict[layer] = flat_idx_samp
             unit_tsridx_dict[layer] = tsr_idx_samp
@@ -129,9 +162,11 @@ def set_random_population_recording(scorer, targetnames, popsize=500, single_col
         raise KeyError
     return unit_mask_dict, unit_tsridx_dict
 #%%
+def set_objective(score_method, targmat, popul_mask, popul_m, popul_s,
+                  normalize=True):
+    if popul_mask is None:
+        popul_mask = slice(None)
 
-# 
-def set_objective(score_method, targmat, popul_mask, popul_m, popul_s, grad=False, normalize=True):
     def objfunc(actmat):
         actmat_msk = actmat[:, popul_mask]
         targmat_msk = targmat[:, popul_mask] # [1 by masksize]
@@ -144,7 +179,7 @@ def set_objective(score_method, targmat, popul_mask, popul_m, popul_s, grad=Fals
         elif score_method == "MSE":
             scores = - np.square(actmat_msk - targmat_msk).mean(axis=1)
         elif score_method == "corr":
-            actmat_msk = actmat_msk - actmat_msk.mean()
+            actmat_msk = actmat_msk - actmat_msk.mean() # there is a bug right? actmat_msk - actmat_msk.mean(axis=1, keepdims=True)
             targmat_msk = targmat_msk - targmat_msk.mean()
             popact_norm = np.linalg.norm(actmat_msk, axis=1, keepdims=True)
             targact_norm = np.linalg.norm(targmat_msk, axis=1, keepdims=True)
@@ -158,6 +193,59 @@ def set_objective(score_method, targmat, popul_mask, popul_m, popul_s, grad=Fals
         else:
             raise ValueError
         return scores # (Nimg, ) 1d array
+    # return an array / tensor of scores for an array of activations
+    # Noise form
+    return objfunc
+
+
+def set_objective_grad(score_method, targmat, popul_mask, popul_m, popul_s,
+                       normalize=True, device="cuda"):
+    """ PyTorch version of the objective function, suppoorting gradient flow.
+    translated from numpy version above.
+    :param score_method: str, one of "L1", "MSE", "corr", "cosine", "dot"
+    :param targmat: (1, Nfeat) torch tensor
+    :param popul_mask: (Nfeat,) torch tensor or None or slice.
+                        If None, then all features are used
+    :param popul_m: None or (1, Nfeat) torch tensor,
+                mean of activation used for normalization
+    :param popul_s: None or (1, Nfeat) torch tensor,
+                std of activation used for normalization
+    :param normalize: bool, whether to normalize the activations
+                if False, then the popul_m and popul_s are ignored
+    :return:
+    """
+    if popul_mask is None:
+        popul_mask = slice(None)
+    targmat = targmat.to(device)
+    popul_m = popul_m.to(device) if popul_m is not None else None
+    popul_s = popul_s.to(device) if popul_s is not None else None
+    def objfunc(actmat):
+        actmat_msk = actmat[:, popul_mask].to(device)
+        targmat_msk = targmat[:, popul_mask]  # [1 by masksize]
+        if normalize:
+            actmat_msk = (actmat_msk - popul_m[:, popul_mask]) / popul_s[:, popul_mask]
+            targmat_msk = (targmat_msk - popul_m[:, popul_mask]) / popul_s[:, popul_mask]
+
+        if score_method == "L1":
+            scores = - (actmat_msk - targmat_msk).abs().mean(dim=1)
+        elif score_method == "MSE":
+            scores = - (actmat_msk - targmat_msk).pow(2).mean(dim=1)
+        elif score_method == "corr":
+            actmat_msk = actmat_msk - actmat_msk.mean(dim=1, keepdim=True)  # there is a bug right? actmat_msk - actmat_msk.mean(axis=1, keepdims=True)
+            targmat_msk = targmat_msk - targmat_msk.mean()
+            popact_norm = actmat_msk.norm(dim=1, keepdim=True)
+            targact_norm = targmat_msk.norm(dim=1, keepdim=True)
+            scores = ((actmat_msk @ targmat_msk.T) / popact_norm / targact_norm).squeeze(dim=1)
+        elif score_method == "cosine":
+            popact_norm = actmat_msk.norm(dim=1, keepdim=True)
+            targact_norm = targmat_msk.norm(dim=1, keepdim=True)
+            scores = ((actmat_msk @ targmat_msk.T) / popact_norm / targact_norm).squeeze(dim=1)
+        elif score_method == "dot":
+            scores = (actmat_msk @ targmat_msk.T).squeeze(dim=1)
+        else:
+            raise ValueError
+        return scores  # (Nimg, ) 1d array
+
     # return an array / tensor of scores for an array of activations
     # Noise form
     return objfunc
@@ -228,11 +316,6 @@ def visualize_popul_act_evol(actmat_all, generations, targ_actmat):
     return figh
 
 
-import os
-from PIL import Image
-import torch
-from torchvision.datasets import ImageFolder
-from torchvision.transforms import ToTensor, ToPILImage, Compose, Resize
 def load_ref_imgs(imgdir, preprocess=Compose([Resize((224, 224)), ToTensor()]), Nlimit=200):
     imgs = []
     imgnms = []

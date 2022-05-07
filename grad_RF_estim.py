@@ -1,15 +1,19 @@
 """Small lib to calculate RF by back prop towards the image."""
 import numpy as np
-import matplotlib.pylab as plt
-from layer_hook_utils import register_hook_by_module_names, get_module_names
 import torch, torchvision
+import matplotlib.pylab as plt
+import scipy.optimize as opt
+from os.path import join
+from easydict import EasyDict
 from insilico_Exp_torch import get_activation, activation
+from layer_hook_utils import register_hook_by_module_names, get_module_names
 
 
-def grad_RF_estimate(model, target_layer, target_unit, input_size=(3,227,227), device="cuda", show=True, reps=200, batch=1):
+def grad_RF_estimate(model, target_layer, target_unit, input_size=(3,227,227),
+                     device="cuda", show=True, reps=200, batch=1):
     # (slice(None), 7, 7)
     handle, module_names, module_types = register_hook_by_module_names(target_layer,
-        get_activation("record", target_unit,ingraph=True), model,
+        get_activation("record", target_unit, ingraph=True), model,
         input_size, device=device, )
 
     cnt = 0
@@ -36,15 +40,18 @@ def grad_RF_estimate(model, target_layer, target_unit, input_size=(3,227,227), d
         h.remove()
     gradAmpmap = gradabsdata.permute([1, 2, 0]).abs().mean(dim=2).cpu() / cnt
     if show:
-        plt.figure()
+        plt.figure(figsize=[6, 6.5])
         plt.pcolor(gradAmpmap)
+        plt.gca().invert_yaxis()
         plt.axis("image")
         plt.title("L %s Unit %s"%(target_layer, target_unit))
         plt.show()
-        plt.figure()
+        plt.figure(figsize=[6, 6.5])
         plt.hist(np.log10(1E-15 + gradAmpmap.flatten().cpu().numpy()), bins=100)
         plt.title("L %s Unit %s"%(target_layer, target_unit))
         plt.show()
+    activation.pop('record')
+    del intsr, act_vec
     return gradAmpmap.numpy()
 
 
@@ -86,6 +93,93 @@ def gradmap2RF_square(gradAmpmap, absthresh=None, relthresh=0.01, square=True):
                 Xlim = (Xlim[0] + offset, Xlim[1] + offset)
             print("After %s, %s" % (Xlim, Ylim))
     return Xlim, Ylim
+
+
+def twoD_Gaussian(XYstack, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
+    # From https://stackoverflow.com/a/21566831
+    xo = float(xo)
+    yo = float(yo)
+    x = XYstack[0]
+    y = XYstack[1]
+    a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)
+    b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
+    c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)
+    g = offset + amplitude*np.exp( - (a*((x-xo)**2) + 2*b*(x-xo)*(y-yo)
+                            + c*((y-yo)**2)))
+    return g.ravel()
+
+
+def fit_2dgauss(gradAmpmap_, pop_str, outdir="", plot=True):
+    if isinstance(gradAmpmap_, torch.Tensor):
+        gradAmpmap_ = gradAmpmap_.numpy()
+
+    H, W = gradAmpmap_.shape
+    YY, XX = np.meshgrid(np.arange(H), np.arange(W))
+    Xcenter = (gradAmpmap_ * XX).sum() / gradAmpmap_.sum()
+    Ycenter = (gradAmpmap_ * YY).sum() / gradAmpmap_.sum()
+    XXVar = (gradAmpmap_ * (XX - Xcenter) ** 2).sum() / gradAmpmap_.sum()
+    YYVar = (gradAmpmap_ * (YY - Ycenter) ** 2).sum() / gradAmpmap_.sum()
+    XYCov = (gradAmpmap_ * (XX - Xcenter) * (YY - Ycenter)).sum() / gradAmpmap_.sum()
+    print(f"Gaussian Fitting center ({Xcenter:.1f}, {Ycenter:.1f})\n"
+          f" Cov mat XX {XXVar:.1f} YY {YYVar:.1f} XY {XYCov:.1f}")
+    #% covariance
+
+    # MLE estimate? not good... Not going to use
+    # covmat = torch.tensor([[XXVar, XYCov], [XYCov, YYVar]]).double()
+    # precmat = torch.linalg.inv(covmat)
+    # normdensity = torch.exp(-((XX - Xcenter)**2*precmat[0, 0] +
+    #                           (YY-Ycenter)**2*precmat[1, 1] +
+    #                           2*(XX - Xcenter)*(YY - Ycenter)*precmat[0, 1]))
+    # var = multivariate_normal(mean=torch.tensor([Xcenter, Ycenter]), cov=covmat)
+    # xystack = np.dstack((xplot, yplot))
+    # densitymap = var.pdf(xystack)
+
+    # curve fitting , pretty good.
+    xplot, yplot = np.mgrid[0:H:1, 0:W:1]
+    initial_guess = (gradAmpmap_.max().item(),
+                     Xcenter.item(), Ycenter.item(),
+                     np.sqrt(XXVar).item()/4, np.sqrt(YYVar).item()/4,
+                     0, 0)  # 5, 5, 0, 0)
+    popt, pcov = opt.curve_fit(twoD_Gaussian, np.stack((xplot, yplot)).reshape(2, -1),
+                               gradAmpmap_.reshape(-1), p0=initial_guess,
+                               maxfev=10000)
+    ffitval = twoD_Gaussian(np.stack((xplot, yplot)).reshape(2, -1),
+                            *popt).reshape(H, W)
+    amplitude, xo, yo, sigma_x, sigma_y, theta, offset = popt
+    fitdict = EasyDict(popt=popt, amplitude=amplitude, xo=xo, yo=yo,
+            sigma_x=sigma_x, sigma_y=sigma_y, theta=theta, offset=offset,
+            gradAmpmap=gradAmpmap_, fitmap=ffitval)
+    np.savez(join(outdir, f"{pop_str}_gradAmpMap_GaussianFit.npz"),
+            **fitdict)
+    if plot:
+        plt.figure(figsize=[5.8, 5])
+        plt.imshow(ffitval)
+        plt.colorbar()
+        plt.title(f"{pop_str}\n"
+                  f"Ampl {amplitude:.1e} Cent ({xo:.1f}, {yo:.1f}) std: ({sigma_x:.1f}, {sigma_y:.1f})\n Theta: {theta:.2f}, Offset: {offset:.1e}", fontsize=14)
+        plt.savefig(join(outdir, f"{pop_str}_gradAmpMap_GaussianFit.png"))
+        plt.show()
+
+        figh, axs = plt.subplots(1,2,figsize=[9.8, 6])
+        axs[0].imshow(gradAmpmap_)
+        # plt.colorbar(axs[0])
+        axs[1].imshow(ffitval)
+        # plt.colorbar(axs[1])
+        plt.suptitle(f"{pop_str}\n"
+                  f"Ampl {amplitude:.1e} Cent ({xo:.1f}, {yo:.1f}) std: ({sigma_x:.1f}, {sigma_y:.1f})\n Theta: {theta:.2f}, Offset: {offset:.1e}", fontsize=14)
+        plt.savefig(join(outdir, f"{pop_str}_gradAmpMap_GaussianFit_cmp.png"))
+        plt.show()
+    return fitdict
+
+
+def show_gradmap(gradAmpmap, ):
+    plt.figure(figsize=[5.8, 5])
+    plt.imshow(gradAmpmap)
+    plt.colorbar()
+    # plt.title(f"{pop_str}", fontsize=14)
+    # plt.savefig(join(rfdir, f"{pop_str}_gradAmpMap.png"))
+    plt.show()
+
 
 
 if __name__ == "__main__":

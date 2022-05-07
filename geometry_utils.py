@@ -4,6 +4,7 @@ Collection of some Geometric Utility function reusable across script
 import numpy as np
 from numpy.linalg import norm
 from numpy import sqrt
+import torch
 #%% Utility functions for interpolation
 def SLERP(code1, code2, steps, lim=(0,1)):
     """Spherical Linear Interpolation for numpy arrays"""
@@ -15,12 +16,32 @@ def SLERP(code1, code2, steps, lim=(0,1)):
                  code2[np.newaxis, :]
     return slerp_code
 
+
+def SLERP_torch(code1, code2, steps, lim=(0,1)):
+    """Spherical Linear Interpolation for numpy arrays"""
+    code1, code2 = code1.squeeze(), code2.squeeze()
+    cosang = torch.dot(code1, code2) / code1.norm() / code2.norm()
+    angle = torch.arccos(cosang)
+    ticks = angle * torch.linspace(lim[0], lim[1], steps, )
+    slerp_code = torch.sin(angle - ticks).unsqueeze(1) * code1[:].unsqueeze(0) + \
+                 torch.sin(ticks).unsqueeze(1) * code2[:].unsqueeze(0)
+    return slerp_code
+
+
 def LERP(code1, code2, steps, lim=(0,1)):
     """ Linear Interpolation for numpy arrays"""
     code1, code2 = code1.reshape(1,-1), code2.reshape(1,-1)
     ticks = np.linspace(lim[0], lim[1], steps, endpoint=True)[:, np.newaxis]
     slerp_code = (1 - ticks) @ code1 + ticks @ code2
     return slerp_code
+
+
+def LERP_torch(code1, code2, steps, lim=(0,1)):
+    code1, code2 = code1.view(1, -1), code2.view(1, -1)
+    ticks = torch.linspace(lim[0], lim[1], steps).unsqueeze(1)
+    slerp_code = (1 - ticks) @ code1 + ticks @ code2
+    return slerp_code
+
 
 def LExpMap(refcode, tan_vec, steps, lim=(0,1)):
     """ Linear Interpolation for numpy arrays"""
