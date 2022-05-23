@@ -1,4 +1,7 @@
-"""Find RBF approximation of CNN activations"""
+"""Find RBF approximation of CNN activations
+Use optimizations to find the images with a certain activation level while maximizing or minimizing the distance to a target.
+
+"""
 import re
 import os
 import torch
