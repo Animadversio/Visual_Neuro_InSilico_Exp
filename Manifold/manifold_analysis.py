@@ -335,6 +335,18 @@ unit_arr = [("vgg16", "conv2", 5, 112, 112),
             ("vgg16", "conv12", 5, 7, 7),
             ("vgg16", "conv13", 5, 7, 7), ]
 param_col_arr, sigma_col_arr, stat_col_arr = fit_Kent_manifold_dataset_new(data_dir, netname, layers, unit_arr, suffix="_orig", baseline=True)
+#%% posthoc analysis
+data = np.load(join(data_dir, "vgg16_KentFit_bsl_rf_fit.npz"))
+#%%
+R2mat = data['stat_col']
+R2mat[R2mat == -np.inf] = np.nan
+layer_list = data["layers"].tolist()
+R2tab = np.nanmean(R2mat, axis=1)
+print("Space PC23 R2 %.3f+-%.3f (mean+-std, median %.3f, N=%d) across 9 layers in VGG16 "%
+      (np.nanmean(R2mat[:, :, 0]),
+        np.nanstd(R2mat[:, :, 0]),np.nanmedian(R2mat[:, :, 0]),
+        np.sum(~np.isnan(R2mat[:, :, 0]))))
+
 #%%
 # netname = "caffe-net"
 # layers = ["conv1", "conv2", "conv3", "conv4", "conv5", "fc6", "fc7", "fc8"]
