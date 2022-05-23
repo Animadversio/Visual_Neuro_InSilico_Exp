@@ -237,7 +237,7 @@ class featureFetcher:
         This is different from TorchScorer, which is designed as a map from image to score.
 
     """
-    def __init__(self, model, input_size=(3, 256, 256), device="cuda", print_module=True):
+    def __init__(self, model, input_size=(3, 256, 256), device="cuda", print_module=True, store_device="cuda"):
         self.model = model.to(device)
         module_names, module_types, module_spec = get_module_names(model, input_size, device=device, show=print_module)
         self.module_names = module_names
@@ -246,9 +246,12 @@ class featureFetcher:
         self.activations = {}
         self.hooks = {}
         self.device = device
+        self.store_device= store_device
 
-    def record(self, target_name, return_input=False, ingraph=False):
-        hook_fun = self.get_activation(target_name, ingraph=ingraph, return_input=return_input)
+    def record(self, target_name, return_input=False, ingraph=False, store_device=None):
+        if store_device is None:
+            store_device = self.store_device
+        hook_fun = self.get_activation(target_name, ingraph=ingraph, return_input=return_input, store_device=store_device)
         hook_h, _, _ = register_hook_by_module_names(target_name, hook_fun, self.model, device=self.device)
         self.hooks[target_name] = hook_h
         return hook_h
@@ -264,14 +267,15 @@ class featureFetcher:
         except KeyError:
             raise KeyError
 
-    def get_activation(self, name, ingraph=False, return_input=False):
+    def get_activation(self, name, ingraph=False, return_input=False, store_device="cpu"):
         """If returning input, it may return a list or tuple of things """
         if return_input:
             def hook(model, input, output):
-                self.activations[name] = input if ingraph else [inp.detach() for inp in input]
+                self.activations[name] = [inp.to(store_device) for inp in input] \
+                    if ingraph else [inp.detach().to(store_device) for inp in input]
         else:
             def hook(model, input, output):
-                self.activations[name] = output if ingraph else output.detach()
+                self.activations[name] = output.to(store_device) if ingraph else output.detach().to(store_device)
         # else:
         #     def hook(model, input, output):
         #         if len(output.shape) == 4:

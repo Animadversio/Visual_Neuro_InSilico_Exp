@@ -66,7 +66,7 @@ def record_dataset(model, reclayers, dataset, return_input=False,
     loader = DataLoader(dataset, shuffle=False, drop_last=False,
                         batch_size=batch_size, num_workers=num_workers)
 
-    fetcher = featureFetcher(model, device="cuda")
+    fetcher = featureFetcher(model, device="cuda", store_device="cpu")
     for layer in reclayers:
         fetcher.record(layer, return_input=return_input, ingraph=False)
     feat_col = defaultdict(list)
