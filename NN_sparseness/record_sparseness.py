@@ -494,3 +494,44 @@ corrtab = df_kappa_merge[df_kappa_merge.space == 0].groupby("layer_y", sort=Fals
     .corr(method="spearman")
 corrtab.to_csv(join(figdir, f"{netname}_kappa_sparse_invar_corr_by_layer.csv"))
 #%%
+from build_montages import make_grid_np, build_montages
+def _load_proto_montage(tab, layerdir):
+    layer, unitid = tab.layer_s.iloc[0], tab.unitid
+    if "fc" in layer:
+        suffix = "original"
+    else:
+        suffix = "rf_fit_full"
+    imgcol = []
+    filenametemplate = glob(join(layerdir, f"*_{suffix}.png"))[0]
+    unitpos = filenametemplate.split("\\")[-1].split("_")[3:5]
+    for unit in unitid:
+        if "fc" in layer:
+            img = plt.imread(join(layerdir, f"proto_{layer}_{unit:d}_{suffix}.png"))
+        else:
+            img = plt.imread(join(layerdir, f"proto_{layer}_{unit:d}_{unitpos[0]}_{unitpos[1]}_{suffix}.png"))
+        # img = plt.imread(join(layerdir, f"proto_{layer}_{unit:d}_{unitpos[0]}_{unitpos[1]}_rf_fit.png"))
+        imgcol.append(img)
+    return make_grid_np(imgcol, nrow=5)
+#%%
+# proto_dir = r"N:\Data-Computational\prototypes\vgg16_conv5_manifold-"
+proto_dir = r"E:\Cluster_Backup\manif_allchan\prototypes"
+outdir = r"E:\OneDrive - Harvard University\Manifold_Sparseness\proto_summary"
+netname = "vgg16"
+layerlist = df_kappa_merge.layer_s.unique()
+for layer in layerlist[-3:]:#["conv7", "conv9", ]:  # layerlist:
+    layerdir = join(proto_dir, f"vgg16_{layer}_manifold-")
+    msk = (df_kappa_merge.space == 0) & (df_kappa_merge.layer_s == layer)
+    print(layer, df_kappa_merge[msk].unit_inv.mean())
+    tab = df_kappa_merge[msk].nlargest(5, "unit_inv") # decreasing order of unit_inv
+    mtg_inv_max = _load_proto_montage(tab, layerdir)
+    plt.imsave(join(outdir, f"{netname}_{layer}_montage_inv_max.png"), mtg_inv_max)
+    tab = df_kappa_merge[msk].nsmallest(5, "unit_inv")
+    mtg_inv_min = _load_proto_montage(tab, layerdir)
+    plt.imsave(join(outdir, f"{netname}_{layer}_montage_inv_min.png"), mtg_inv_min)
+    tab = df_kappa_merge[msk].nlargest(5, "sparseness")
+    mtg_sprs_max = _load_proto_montage(tab, layerdir)
+    plt.imsave(join(outdir, f"{netname}_{layer}_montage_sprs_max.png"), mtg_sprs_max)
+    tab = df_kappa_merge[msk].nsmallest(5, "sparseness") # increasing order
+    mtg_sprs_min = _load_proto_montage(tab, layerdir)
+    plt.imsave(join(outdir, f"{netname}_{layer}_montage_sprs_min.png"), mtg_sprs_min)
+
