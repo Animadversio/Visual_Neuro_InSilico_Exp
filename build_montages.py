@@ -1,6 +1,8 @@
 import numpy as np
 from skimage.transform import resize
-
+import matplotlib
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
 #%%
 # def build_montages(image_list, image_shape, montage_shape):
 #     """Adapted from imutils.build_montages   add automatic normalization in it.
