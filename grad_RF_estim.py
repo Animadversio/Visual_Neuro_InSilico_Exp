@@ -1,4 +1,7 @@
-"""Small lib to calculate RF by back prop towards the image."""
+"""
+Small lib to calculate RF by back prop towards the image.
+It has functions that calculate population RF based on a tensor of weights recombining.
+"""
 import numpy as np
 import torch, torchvision
 import matplotlib.pylab as plt
@@ -48,7 +51,60 @@ def grad_RF_estimate(model, target_layer, target_unit, input_size=(3,227,227),
         plt.show()
         plt.figure(figsize=[6, 6.5])
         plt.hist(np.log10(1E-15 + gradAmpmap.flatten().cpu().numpy()), bins=100)
+        plt.xlabel("log10(gradAmp) histogram")
         plt.title("L %s Unit %s"%(target_layer, target_unit))
+        plt.show()
+    activation.pop('record')
+    del intsr, act_vec
+    return gradAmpmap.numpy()
+
+
+def grad_population_RF_estimate(model, target_layer, target_layer_weights, input_size=(3,227,227),
+                     device="cuda", show=True, reps=200, batch=1, label="", figdir=None):
+    # (slice(None), 7, 7)
+    handle, module_names, module_types = register_hook_by_module_names(target_layer,
+        get_activation("record", unit=None, ingraph=True), model,
+        input_size, device=device, )
+
+    cnt = 0
+    # graddata = torch.zeros((1, 3, 227, 227)).cuda()
+    gradabsdata = torch.zeros(input_size).cuda()
+    for i in range(reps):
+        intsr = torch.rand((batch, *input_size)).cuda() * 2 - 1
+        intsr.requires_grad_(True)
+        model(intsr)
+        act_tsr = activation['record']
+        act_vec = (act_tsr * target_layer_weights).flatten(start_dim=1).sum(dim=1)
+        if act_vec.numel() > 1:
+            act = act_vec.sum()
+        else:
+            act = act_vec
+        if not torch.isclose(act, torch.tensor(0.0)):
+            act.backward()
+            # graddata += intsr.grad
+            gradabsdata += intsr.grad.abs().mean(dim=0)
+            cnt += 1
+        else:
+            continue
+
+    for h in handle:
+        h.remove()
+    gradAmpmap = gradabsdata.permute([1, 2, 0]).abs().mean(dim=2).cpu() / cnt
+    if show:
+        plt.figure(figsize=[6, 6.5])
+        plt.pcolor(gradAmpmap)
+        plt.gca().invert_yaxis()
+        plt.axis("image")
+        plt.title("L %s Weighted sum %s"%(target_layer, label))
+        if figdir is not None:
+            plt.savefig(join(figdir, f"{label}_rawgradAmpMap.png"))
+        plt.show()
+        plt.figure(figsize=[6, 6.5])
+        plt.hist(np.log10(1E-15 + gradAmpmap.flatten().cpu().numpy()), bins=100)
+        plt.xlabel("log10(gradAmp) histogram")
+        plt.title("L %s Weighted sum %s"%(target_layer, label))
+        if figdir is not None:
+            plt.savefig(join(figdir, f"{label}_gradAmp_loghist.png"))
         plt.show()
     activation.pop('record')
     del intsr, act_vec
@@ -140,9 +196,13 @@ def fit_2dgauss(gradAmpmap_, pop_str, outdir="", plot=True):
                      Xcenter.item(), Ycenter.item(),
                      np.sqrt(XXVar).item()/4, np.sqrt(YYVar).item()/4,
                      0, 0)  # 5, 5, 0, 0)
+    # -np.inf, np.inf
+    # amplitude, xo, yo, sigma_x, sigma_y, theta, offset
+    LB = [0, 0, 0, 0, 0, -2*np.pi, -np.inf]
+    UB = [np.inf, H, W, 2*H, 2*W, 2*np.pi, np.inf]
     popt, pcov = opt.curve_fit(twoD_Gaussian, np.stack((xplot, yplot)).reshape(2, -1),
                                gradAmpmap_.reshape(-1), p0=initial_guess,
-                               maxfev=10000)
+                               maxfev=10000, bounds=(LB, UB))
     ffitval = twoD_Gaussian(np.stack((xplot, yplot)).reshape(2, -1),
                             *popt).reshape(H, W)
     amplitude, xo, yo, sigma_x, sigma_y, theta, offset = popt
@@ -157,7 +217,9 @@ def fit_2dgauss(gradAmpmap_, pop_str, outdir="", plot=True):
         plt.colorbar()
         plt.title(f"{pop_str}\n"
                   f"Ampl {amplitude:.1e} Cent ({xo:.1f}, {yo:.1f}) std: ({sigma_x:.1f}, {sigma_y:.1f})\n Theta: {theta:.2f}, Offset: {offset:.1e}", fontsize=14)
+        plt.tight_layout()
         plt.savefig(join(outdir, f"{pop_str}_gradAmpMap_GaussianFit.png"))
+        plt.savefig(join(outdir, f"{pop_str}_gradAmpMap_GaussianFit.pdf"))
         plt.show()
 
         figh, axs = plt.subplots(1,2,figsize=[9.8, 6])
@@ -167,7 +229,9 @@ def fit_2dgauss(gradAmpmap_, pop_str, outdir="", plot=True):
         # plt.colorbar(axs[1])
         plt.suptitle(f"{pop_str}\n"
                   f"Ampl {amplitude:.1e} Cent ({xo:.1f}, {yo:.1f}) std: ({sigma_x:.1f}, {sigma_y:.1f})\n Theta: {theta:.2f}, Offset: {offset:.1e}", fontsize=14)
+        plt.tight_layout()
         plt.savefig(join(outdir, f"{pop_str}_gradAmpMap_GaussianFit_cmp.png"))
+        plt.savefig(join(outdir, f"{pop_str}_gradAmpMap_GaussianFit_cmp.pdf"))
         plt.show()
     return fitdict
 
