@@ -10,7 +10,7 @@ from os.path import join
 from easydict import EasyDict
 from insilico_Exp_torch import get_activation, activation
 from layer_hook_utils import register_hook_by_module_names, get_module_names
-
+import torch.nn.functional as F
 
 def grad_RF_estimate(model, target_layer, target_unit, input_size=(3,227,227),
                      device="cuda", show=True, reps=200, batch=1):
@@ -38,6 +38,57 @@ def grad_RF_estimate(model, target_layer, target_unit, input_size=(3,227,227),
             cnt += 1
         else:
             continue
+    if cnt == 0:
+        raise ValueError("Unit Not activated by random noise")
+    for h in handle:
+        h.remove()
+    gradAmpmap = gradabsdata.permute([1, 2, 0]).abs().mean(dim=2).cpu() / cnt
+    if show:
+        plt.figure(figsize=[6, 6.5])
+        plt.pcolor(gradAmpmap)
+        plt.gca().invert_yaxis()
+        plt.axis("image")
+        plt.title("L %s Unit %s"%(target_layer, target_unit))
+        plt.show()
+        plt.figure(figsize=[6, 6.5])
+        gradAmpmap = torch.nan_to_num(gradAmpmap, nan=0.0, posinf=0.0, neginf=0.0)
+        plt.hist(np.log10(1E-15 + gradAmpmap.flatten().cpu().numpy()), bins=100)
+        plt.xlabel("log10(gradAmp) histogram")
+        plt.title("L %s Unit %s"%(target_layer, target_unit))
+        plt.show()
+    activation.pop('record')
+    del intsr, act_vec
+    return gradAmpmap.numpy()
+
+
+def GAN_grad_RF_estimate(G, model, target_layer, target_unit, input_size=(3,227,227),
+                     device="cuda", show=True, reps=200, batch=1):
+    # (slice(None), 7, 7)
+    handle, module_names, module_types = register_hook_by_module_names(target_layer,
+        get_activation("record", target_unit, ingraph=True), model,
+        input_size, device=device, )
+
+    cnt = 0
+    # graddata = torch.zeros((1, 3, 227, 227)).cuda()
+    gradabsdata = torch.zeros(input_size).cuda()
+    for i in range(reps):
+        intsr = G.visualize(torch.randn(batch, 4096).cuda()) * 2 - 1
+        intsr = F.interpolate(intsr, size=input_size[1:], mode='bilinear', align_corners=True)
+        # intsr = torch.rand((batch, *input_size)).cuda() * 2 - 1
+        intsr.requires_grad_(True)
+        model(intsr)
+        act_vec = activation['record']
+        if act_vec.numel() > 1:
+            act = act_vec.mean()
+        else:
+            act = act_vec
+        if not torch.isclose(act, torch.tensor(0.0)):
+            act.backward()
+            # graddata += intsr.grad
+            gradabsdata += intsr.grad.abs().mean(dim=0)
+            cnt += 1
+        else:
+            continue
 
     for h in handle:
         h.remove()
@@ -50,6 +101,7 @@ def grad_RF_estimate(model, target_layer, target_unit, input_size=(3,227,227),
         plt.title("L %s Unit %s"%(target_layer, target_unit))
         plt.show()
         plt.figure(figsize=[6, 6.5])
+        gradAmpmap = torch.nan_to_num(gradAmpmap, nan=0.0, posinf=0.0, neginf=0.0)
         plt.hist(np.log10(1E-15 + gradAmpmap.flatten().cpu().numpy()), bins=100)
         plt.xlabel("log10(gradAmp) histogram")
         plt.title("L %s Unit %s"%(target_layer, target_unit))
