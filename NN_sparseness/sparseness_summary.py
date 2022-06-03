@@ -3,68 +3,20 @@ import numpy as np
 import seaborn as sns
 import pandas as pd
 import torch
+from os.path import join
 from glob import glob
 from dataset_utils import ImagePathDataset, ImageFolder
 from NN_PC_visualize.NN_PC_lib import *
 from scipy.stats import pearsonr, spearmanr
 from build_montages import make_grid_np, build_montages
-from easydict import EasyDict as edict
-
-def _load_proto_montage(tab, layerdir, layerfulldir=None):
-    if isinstance(tab, pd.DataFrame):
-        layer, unitid = tab.layer_s.iloc[0], tab.unitid
-    elif isinstance(tab, pd.Series):
-        layer, unitid = tab.layer_s, [tab.unitid]
-    else:
-        raise ValueError("tab must be a pandas.DataFrame or pandas.Series")
-    if "fc" in layer:
-        suffix = "original"
-    else:
-        suffix = "rf_fit_full"
-    imgcol = []
-    filenametemplate = glob(join(layerdir, f"*_{suffix}.png"))[0]
-    unitpos = filenametemplate.split("\\")[-1].split("_")[3:5]
-    for unit in unitid:
-        if "fc" in layer:
-            img = plt.imread(join(layerdir, f"proto_{layer}_{unit:d}_{suffix}.png"))
-        else:
-            img = plt.imread(join(layerdir, f"proto_{layer}_{unit:d}_{unitpos[0]}_{unitpos[1]}_{suffix}.png"))
-        # img = plt.imread(join(layerdir, f"proto_{layer}_{unit:d}_{unitpos[0]}_{unitpos[1]}_rf_fit.png"))
-        imgcol.append(img)
-    return make_grid_np(imgcol, nrow=5), imgcol
-
-
-def _load_proto_info(tabrow, layerdir, layerfulldir):
-    if isinstance(tabrow, pd.Series):
-        layer, unitid = tabrow.layer_s, tabrow.unitid
-    elif isinstance(tabrow, pd.DataFrame):
-        layer, unitid = tabrow.layer_s.iloc[0], tabrow.unitid[0]
-    else:
-        raise ValueError("tab must be a pandas.DataFrame or pandas.Series")
-    if "fc" in layer:
-        suffix = "original"
-    else:
-        suffix = "rf_fit_full"
-    filenametemplate = glob(join(layerdir, f"*_{suffix}.png"))[0]
-    unitpos = filenametemplate.split("\\")[-1].split("_")[3:5]
-    unit = unitid
-    if "fc" in layer:
-        img = plt.imread(join(layerdir, f"proto_{layer}_{unit:d}_{suffix}.png"))
-        Edata = np.load(join(layerfulldir, f"Manifold_set_{layer}_{unit:d}_{suffix}.npz"))
-        Mdata = np.load(join(layerfulldir, f"Manifold_score_{layer}_{unit:d}_{suffix}.npy"))
-    else:
-        img = plt.imread(join(layerdir, f"proto_{layer}_{unit:d}_{unitpos[0]}_{unitpos[1]}_{suffix}.png"))
-        Edata = np.load(join(layerfulldir, f"Manifold_set_{layer}_{unit:d}_{unitpos[0]}_{unitpos[1]}_{suffix[:-5]}.npz"))
-        Mdata = np.load(join(layerfulldir, f"Manifold_score_{layer}_{unit:d}_{unitpos[0]}_{unitpos[1]}_{suffix[:-5]}.npy"))
-    return img, edict(Edata), Mdata
-
-outdir = r"E:\OneDrive - Harvard University\Manifold_Sparseness"
-figdir = r"E:\OneDrive - Harvard University\Manifold_Sparseness\summary"
+from NN_sparseness.EM_proto_utils import _load_proto_montage, _load_proto_info
 proto_dir = r"E:\Cluster_Backup\manif_allchan\prototypes"
+sumdir = r"E:\OneDrive - Harvard University\Manifold_Sparseness\summary"
+figdir = r"E:\OneDrive - Harvard University\Manifold_Sparseness\summary_figs"
 outdir = r"E:\OneDrive - Harvard University\Manifold_Sparseness\proto_summary"
 #%%
 netname = "vgg16"
-df_kappa_merge = pd.read_csv(join(figdir, f"{netname}_kent_sparse_invar_merge.csv"), index_col=0)
+df_kappa_merge = pd.read_csv(join(sumdir, f"{netname}_kent_sparse_invar_merge.csv"), index_col=0)
 #%%
 # proto_dir = r"N:\Data-Computational\prototypes\vgg16_conv5_manifold-"
 layerlist = df_kappa_merge.layer_s.unique()
@@ -117,8 +69,6 @@ for layer in layerlist[:]:#["conv7", "conv9", ]:  # layerlist:
     plt.show()
 
 #%% Plot invariance as a function of response range
-import torch
-from os.path import join
 sprs_dir = r"E:\OneDrive - Harvard University\Manifold_Sparseness"
 inv_feattsrs  = torch.load(join(sprs_dir, "vgg16_invariance_feattsrs.pt"))
 INet_feattsrs = torch.load(join(sprs_dir, "vgg16_INvalid_feattsrs.pt"))
@@ -191,14 +141,12 @@ plot_prototype(natimg, f"Score {INet_resps.max():.1f}", ax=ax4)
 plt.tight_layout()
 plt.show()
 #%%
-
+plot_Manifold_maps(Mdata, )
 
 #%% Calculate additional statistics for each unit with ImageNet / Invariance data.
 from NN_sparseness.sparse_invariance_lib import \
     calculate_sparseness, calculate_invariance, calculate_percentile
 from NN_sparseness.sparse_plot_utils import scatter_density_grid, annotate_corrfunc
-sumdir = r"E:\OneDrive - Harvard University\Manifold_Sparseness\summary"
-figdir =r"E:\OneDrive - Harvard University\Manifold_Sparseness\summary_figs"
 
 #%%
 df_prct_all = calculate_percentile(INet_feattsrs, inv_feattsrs, layeralias=layermap_inv)
@@ -208,14 +156,13 @@ df_kappa_prct_merge = df_kappa_merge.merge(df_prct_all, on=["layer_x", "unitid"]
 df_kappa_prct_merge["layer_depth"] = df_kappa_prct_merge.layer_s_x.apply(lambda x: layeridxmap[x])
 df_kappa_prct_merge.to_csv(join(sumdir, f"{netname}_kent_sparse_invar_prctl_merge.csv"))
 #%%
-msk = df_kappa_prct_merge.space==0
+msk = df_kappa_prct_merge.space == 0
 df_kappa_prct_merge[["layer_depth",
                      "unit_inv","sparseness",
                      "inv_resp_norm_max",
                      "prct_mean",
                      "inv_zero_ratio"]][msk]\
             .corr(method="spearman")
-            # .corr(method="pearson")
 #%%
 df_kappa_prct_merge.groupby("layer_s_x", sort=False)\
             [["sparseness", "unit_inv", "inv_resp_norm_mean"]]\
@@ -223,7 +170,6 @@ df_kappa_prct_merge.groupby("layer_s_x", sort=False)\
 #%%
 # df_layer = df_kappa_merge[msk]
 # pd.DataFrame(columns=["layer", "unitid", "prct_mean", "prct_std", "prct_max", "prct_min"])
-#%%
 #%%
 for layer_s in layermap.keys():
     msk = (df_kappa_prct_merge.space == 0) & \
@@ -246,7 +192,7 @@ g = scatter_density_grid(df_layer,  ["sparseness",
 #%%
 df_inv_all, df_inv_all_pop = calculate_invariance(inv_feattsrs, layeralias=layermap_inv,)
 df_inv_all_pop.to_csv(join(sumdir, f"{netname}_pop_obj_invariance.csv"))
-#%% Population invariance
+#%% Population invariance across layers strip point plot
 plt.figure(figsize=(5, 5))
 sns.stripplot(x="layer_s", y="pop_inv", data=df_inv_all_pop, jitter=True, alpha=0.6)
 sns.pointplot(x="layer_s", y="pop_inv", data=df_inv_all_pop, color="black", alpha=0.6)
@@ -258,7 +204,7 @@ plt.tight_layout()
 plt.savefig(join(sumdir, f"{netname}_pop_obj_invariance_strip.png"))
 plt.savefig(join(sumdir, f"{netname}_pop_obj_invariance_strip.pdf"))
 plt.show()
-#%% Unit level Invariance
+#%% Unit level Invariance across layers strip point plot
 plt.figure(figsize=(5, 5))
 # sns.stripplot(x="layer_s", y="unit_inv", data=df_inv_all, jitter=True, alpha=0.1)
 sns.violinplot(x="layer_s", y="unit_inv", data=df_inv_all,  alpha=0.1, cut=0)
