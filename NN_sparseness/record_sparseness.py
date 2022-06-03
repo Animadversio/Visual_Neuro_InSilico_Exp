@@ -12,8 +12,9 @@ from NN_sparseness.sparse_invariance_lib import *
 #         corrcoef_batch, mask_diagonal
 #%%
 outdir = r"E:\OneDrive - Harvard University\Manifold_Sparseness"
-figdir = r"E:\OneDrive - Harvard University\Manifold_Sparseness\summary"
 sumdir = r"E:\OneDrive - Harvard University\Manifold_Sparseness\summary"
+figdir = r"E:\OneDrive - Harvard University\Manifold_Sparseness\summary_figs"
+
 #%% Robust
 """
 Experiment on ResNet50-robust
@@ -22,9 +23,6 @@ Record feature distribution and compute their sparseness
 # Load network
 # model = torch.hub.load('facebookresearch/semi-supervised-ImageNet1K-models', 'resnet50_swsl')
 netname = "resnet50_linf8"
-#%% Process images and record feature vectors
-model, model_full = load_featnet("resnet50_linf8")
-model.eval().cuda()
 reclayers = [".layer1.Bottleneck1",
              ".layer2.Bottleneck0",
              ".layer2.Bottleneck3",
@@ -33,6 +31,9 @@ reclayers = [".layer1.Bottleneck1",
              ".layer4.Bottleneck0",
              ".layer4.Bottleneck2",
              ".Linearfc"]
+#%% Process images and record feature vectors
+model, model_full = load_featnet("resnet50_linf8")
+model.eval().cuda()
 #%% record full imagenet valid
 dataset = create_imagenet_valid_dataset()
 feattsrs = record_dataset(model, reclayers, dataset, return_input=False,
@@ -43,22 +44,24 @@ Inv_data = Invariance_dataset()
 Invfeatdata = record_dataset(model, reclayers, Inv_data, return_input=False,
                    batch_size=125, num_workers=8)
 torch.save(Invfeatdata, join(outdir, f"{netname}_invariance_feattsrs.pt"))
-#%%
+#%% Reload feattsrs
 Invfeatdata = torch.load(join(outdir, f"{netname}_invariance_feattsrs.pt"))
 feattsrs = torch.load(join(outdir, f"{netname}_INvalid_feattsrs.pt"))
-#%%
+#%% Calculate all statistics
 df_inv_all, df_inv_all_pop = calculate_invariance(Invfeatdata, layeralias=shorten_layername)
 df_sprs_all, _ = calculate_sparseness(feattsrs, layeralias=shorten_layername)
 df_prct_all = calculate_percentile(feattsrs, Invfeatdata, layeralias=shorten_layername)
-#%%
+#%% Merge into one dataframe
 df_merge_all = pd.merge(df_inv_all, df_sprs_all,
                         on=['layer', 'layer_s', 'unitid',])
 df_merge_all = pd.merge(df_merge_all, df_prct_all,
                         left_on=['layer', 'layer_s', 'unitid',],
                         right_on=['layer_x', 'layer_s', 'unitid',])
 #%%
+df_merge_all["layer_depth"] = df_merge_all.layer_x.apply(lambda x: reclayers.index(x))
 df_merge_all.to_csv(join(sumdir, f"{netname}_sparse_invar_prctl_merge.csv"))
 #%%
+"""Print the correlation across layers"""
 df_merge_all[["sparseness","unit_inv",
                "inv_resp_norm_mean",
                "inv_resp_norm_std",
@@ -76,11 +79,22 @@ df_merge_all.groupby("layer_s",sort=False)[["sparseness", "unit_inv",
                "top100_resp"]].corr(method="spearman")
 #%%
 from NN_sparseness.sparse_plot_utils import scatter_density_grid
-df_layer = df_merge_all[df_merge_all.layer_s=="layer2.B3"]
-g = scatter_density_grid(df_layer, ["sparseness","unit_inv",
-                                    "inv_resp_norm_mean","inv_resp_norm_max",
-                                    "prct_max",])
+"""plot the correlation / scatter across layers"""
+for layer_s in df_merge_all.layer_s.unique():
+    df_layer = df_merge_all[df_merge_all.layer_s == layer_s]
+    g = scatter_density_grid(df_layer, ["sparseness","unit_inv",
+                                        "inv_resp_norm_mean",
+                                        "inv_resp_norm_max",
+                                        "prct_max",])
+    g.fig.suptitle(f"Layer {layer_s} (Spearman correlation)")
+    g.fig.tight_layout()
+    g.fig.savefig(join(figdir, f"{netname}_layer_{layer_s}_inv_sprs_prctl_scatter.png"))
+    g.fig.savefig(join(figdir, f"{netname}_layer_{layer_s}_inv_sprs_prctl_scatter.pdf"))
 
+#%%
+df_merge_all[["layer_depth", "sparseness", "unit_inv",
+              "inv_resp_norm_mean", "inv_resp_norm_max",
+              "prct_max"]].corr(method="spearman")
 #%%
 df_all = pd.DataFrame()
 sparseness_coef_D = {}
@@ -128,7 +142,6 @@ plt.savefig(join(figdir, "resnet50_linf8_sparseness_line.pdf"))
 plt.show()
 #%%
 
-torch.allclose(corrcoef_batch(feattsr[0:1,:,:])[0], torch.corrcoef(feattsr[0,:,:]))
 #%%
 unit_inv_cc_dict = {}
 pop_inv_cc_dict = {}
@@ -214,7 +227,7 @@ plt.savefig(join(figdir, f"resnet50_linf8_sparse-invar_all_merge.png"))
 # plt.savefig(join(figdir, f"resnet50_linf8_sparseness_line.pdf"))
 plt.show()
 #%%
-for layer in reclayers:
+for layer in Invfeatdata.keys():
     featmat = Invfeatdata[layer]
     s_coef = (1 - featmat.mean(dim=0)**2 / featmat.pow(2).mean(dim=0)) / (1 - 1 / featmat.shape[0])
     # sparseness_coef_D[layer] = s_coef

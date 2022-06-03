@@ -30,6 +30,12 @@ def corrcoef_batch(feattsr):
     return corrcoef_all
 
 
+def test_corrcoef_batch(feattsr):
+    assert torch.allclose(
+                corrcoef_batch(feattsr[0:1, :, :])[0],
+                torch.corrcoef(feattsr[0, :, :]))
+
+
 def mask_diagonal(batch_cctsr):
     B, C, C2 = batch_cctsr.shape
     assert C==C2
