@@ -67,15 +67,17 @@ def _load_proto_info(tabrow, layerdir, layerfulldir):
         Manif data (numpy array 4x21x21)
     """
     if isinstance(tabrow, pd.Series):
-        layer, unitid = tabrow.layer_s, tabrow.unitid
+        layer, layer_long, unitid = tabrow.layer_s, tabrow.layer_x, tabrow.unitid
     elif isinstance(tabrow, pd.DataFrame):
-        layer, unitid = tabrow.layer_s.iloc[0], tabrow.unitid[0]
+        layer, layer_long, unitid = tabrow.layer_s.iloc[0], tabrow.layer_x.iloc[0], tabrow.unitid[0]
     else:
         raise ValueError("tab must be a pandas.DataFrame or pandas.Series")
-    if "fc" in layer:
+    if "fc" in layer or ".layer4.Bottleneck" in layer_long:
         suffix = "original"
     else:
         suffix = "rf_fit"
+    if "resnet50_linf_8" in layerdir:
+        layer = layer_long
     filenametemplate = glob(join(layerdir, f"*_{suffix}.png"))[0]
     unitpos = filenametemplate.split("\\")[-1].split("_")[3:5]
     unit = unitid
@@ -84,7 +86,49 @@ def _load_proto_info(tabrow, layerdir, layerfulldir):
         Edata = np.load(join(layerfulldir, f"Manifold_set_{layer}_{unit:d}_{suffix}.npz"))
         Mdata = np.load(join(layerfulldir, f"Manifold_score_{layer}_{unit:d}_{suffix}.npy"))
     else:
-        img = plt.imread(join(layerdir, f"proto_{layer}_{unit:d}_{unitpos[0]}_{unitpos[1]}_{suffix}_full.png"))
+        img = plt.imread(join(layerdir, f"proto_{layer}_{unit:d}_{unitpos[0]}_{unitpos[1]}_{suffix if suffix=='original' else suffix+'_full'}.png"))
+        Edata = np.load(join(layerfulldir, f"Manifold_set_{layer}_{unit:d}_{unitpos[0]}_{unitpos[1]}_{suffix}.npz"))
+        Mdata = np.load(join(layerfulldir, f"Manifold_score_{layer}_{unit:d}_{unitpos[0]}_{unitpos[1]}_{suffix}.npy"))
+    return img, edict(Edata), Mdata
+#%%
+from NN_sparseness.insilico_manif_configs import RN50_config, manifold_config
+def _load_proto_info_rf(tabrow, layerdir, layerfulldir, rf_fit=False):
+    """
+    Example:
+        proto_dir = r"E:\Cluster_Backup\manif_allchan\prototypes"
+        layerdir = join(proto_dir, f"vgg16_{layer}_manifold-")
+        layerfulldir = join(r"E:\Cluster_Backup\manif_allchan", f"vgg16_{layer}_manifold-")
+        protoimg, Edata, Mdata = _load_proto_info(unitrow, layerdir, layerfulldir)
+
+    :param tabrow:
+    :param layerdir:
+    :param layerfulldir:
+    :return:
+        prototype image (np),
+        Evol data (easydict),
+        Manif data (numpy array 4x21x21)
+    """
+    if isinstance(tabrow, pd.Series):
+        layer, layer_long, unitid = tabrow.layer_s, tabrow.layer_x, tabrow.unitid
+    elif isinstance(tabrow, pd.DataFrame):
+        layer, layer_long, unitid = tabrow.layer_s.iloc[0], tabrow.layer_x.iloc[0], tabrow.unitid[0]
+    else:
+        raise ValueError("tab must be a pandas.DataFrame or pandas.Series")
+    cfg = RN50_config  # manifold_config() RN50_config
+    # if "resnet50_linf_8" in layerdir:
+    #     layer = layer_long
+    layercfg = edict(cfg[layer_long])
+    suffix = "rf_fit" if layercfg["RFfit"] else "original"
+
+    # filenametemplate = glob(join(layerdir, f"*_{suffix}.png"))[0]
+    # unitpos = filenametemplate.split("\\")[-1].split("_")[3:5]
+    unit = unitid
+    if "fc" in layer:
+        img = plt.imread(join(layerdir, f"proto_{layer}_{unit:d}_{suffix}.png"))
+        Edata = np.load(join(layerfulldir, f"Manifold_set_{layer}_{unit:d}_{suffix}.npz"))
+        Mdata = np.load(join(layerfulldir, f"Manifold_score_{layer}_{unit:d}_{suffix}.npy"))
+    else:
+        img = plt.imread(join(layerdir, f"proto_{layer}_{unit:d}_{unitpos[0]}_{unitpos[1]}_{suffix if suffix=='original' else suffix+'_full'}.png"))
         Edata = np.load(join(layerfulldir, f"Manifold_set_{layer}_{unit:d}_{unitpos[0]}_{unitpos[1]}_{suffix}.npz"))
         Mdata = np.load(join(layerfulldir, f"Manifold_score_{layer}_{unit:d}_{unitpos[0]}_{unitpos[1]}_{suffix}.npy"))
     return img, edict(Edata), Mdata

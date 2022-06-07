@@ -182,6 +182,7 @@ def make_grid_np(img_arr, nrow=8, padding=2, pad_value=0, rowfirst=True):
     return grid
 
 import torch
+from torchvision.utils import make_grid
 import math
 import warnings
 from typing import Union, List, Optional, Tuple
@@ -306,6 +307,7 @@ def color_frame(img, color, pad=10):
     outimg = outimg * color[:3]
     outimg[pad:-pad, pad:-pad, :] = img
     return outimg
+
 
 import matplotlib.pylab as plt
 def color_framed_montages(image_list, image_shape, montage_shape, scores, cmap=plt.cm.summer, pad=24):

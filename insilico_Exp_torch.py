@@ -427,7 +427,7 @@ def resize_and_pad(img_list, size, offset, canvas_size=(227, 227), scale=1.0):
 
 
 def resize_and_pad_tsr(img_tsr, size, offset, canvas_size=(227, 227), scale=1.0):
-    '''Resize and Pad a list of images to list of images
+    '''Resize and Pad a tensor of images to tensor of images (torch tensor)
     Note this function is assuming the image is in (0,1) scale so padding with 0.5 as gray background.
     '''
     assert img_tsr.ndim in [3, 4]
