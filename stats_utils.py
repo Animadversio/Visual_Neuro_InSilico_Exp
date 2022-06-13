@@ -3,6 +3,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from os.path import join
+import matplotlib
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
 
 def set_violin_color(violin_parts, clrcode):
     """Simple util that set the color from a plt violinplot"""

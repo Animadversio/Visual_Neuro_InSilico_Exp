@@ -370,6 +370,14 @@ class TorchScorer:
         else:
             return scores
 
+    def cleanup(self):
+        print("Cleanuping...")
+        for hook in self.hooks:
+            hook.remove()
+            self.hooks.remove(hook)
+        self.hooks = []
+        print("Cleanup hooks done.")
+
 
 def visualize_trajectory(scores_all, generations, codes_arr=None, show=False, title_str=""):
     """ Visualize the Score Trajectory """
