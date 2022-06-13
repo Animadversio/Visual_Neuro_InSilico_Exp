@@ -54,6 +54,8 @@ else:
         torchhome = r"E:\Cluster_Backup\torch"
     elif os.environ['COMPUTERNAME'] == 'DESKTOP-9LH02U9':  ## Home_WorkStation Victoria
         torchhome = r"E:\Cluster_Backup\torch"
+    elif os.environ['COMPUTERNAME'] =='PONCELAB-OFF6':
+        torchhome = r"C:\Users\ponce\Documents\torch"
 
 
 class TorchScorer:
@@ -403,6 +405,53 @@ def visualize_trajectory(scores_all, generations, codes_arr=None, show=False, ti
     if show:
         plt.show()
     return figh
+
+
+
+# if platform == "linux":  # CHPC cluster
+#     ckpt_dir = "/scratch/binxu.wang/torch"
+# else:
+#     if os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':  # PonceLab-Desktop 3
+#         ckpt_dir = r"E:\Cluster_Backup\torch"
+#     elif os.environ['COMPUTERNAME'] == 'DESKTOP-MENSD6S':  # Home_WorkStation
+#         ckpt_dir = r"E:\Cluster_Backup\torch"
+#     # elif os.environ['COMPUTERNAME'] == 'PONCELAB-ML2C':  # PonceLab-Desktop Victoria
+#     #     ckpt_dir = r"E:\Cluster_Backup\torch"
+#     # elif os.environ['COMPUTERNAME'] == 'DESKTOP-9LH02U9':  # Home_WorkStation Victoria
+#     #     ckpt_dir = r"E:\Cluster_Backup\torch"
+#     elif os.environ['COMPUTERNAME'] == 'LAPTOP-U8TSR4RE':
+#         ckpt_dir = r"D:\torch\checkpoints"
+#     elif os.environ['COMPUTERNAME'] == 'PONCELAB-ML2B': # Alfa rig monkey computer
+#         ckpt_dir = r"C:\Users\Ponce lab\Documents\Python\torch_nets"
+#     elif os.environ['COMPUTERNAME'] == 'PONCELAB-ML2A': # Alfa rig monkey computer
+#         ckpt_dir = r"C:\Users\Poncelab-ML2a\Documents\Python\torch_nets"
+#     else:
+#         ckpt_dir = r"C:\Users\ponce\Documents\torch"
+
+def load_featnet(netname: str):
+    """API to load common CNNs and their convolutional part.
+    Default behvavior: load onto GPU, and set parameter gradient to false.
+    """
+    if netname == "alexnet":
+        net = models.alexnet(True)
+        net.requires_grad_(False)
+        featnet = net.features.cuda().eval()
+    elif netname == "vgg16":
+        net = models.vgg16(pretrained=True)
+        net.requires_grad_(False)
+        featnet = net.features.cuda().eval()
+    elif netname == "resnet50":
+        net = models.resnet50(pretrained=True)
+        net.requires_grad_(False)
+        featnet = net.cuda().eval()
+    elif netname == "resnet50_linf8":
+        net = models.resnet50(pretrained=True)
+        net.load_state_dict(torch.load(join(torchhome, "imagenet_linf_8_pure.pt")))
+        net.requires_grad_(False)
+        featnet = net.cuda().eval()
+    else:
+        raise NotImplementedError
+    return featnet, net
 
 
 init_sigma = 3
