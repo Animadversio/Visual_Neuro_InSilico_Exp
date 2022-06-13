@@ -15,7 +15,8 @@ def Invariance_dataset():
 
 
 def shorten_layername(s):
-    return  s.replace(".layer", "layer").replace("Bottleneck", "B").replace(".Linear", "")
+    return  s.replace(".layer", "layer").replace("Bottleneck", "B")\
+            .replace(".Linear", "") # .replace(".ReLU", "")
 
 
 def corrcoef_batch(feattsr):

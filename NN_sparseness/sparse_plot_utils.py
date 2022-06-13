@@ -1,3 +1,6 @@
+"""
+Util functions for plotting sparseness / invariance data.
+"""
 import pandas as pd
 import numpy as np
 import seaborn as sns
@@ -32,7 +35,7 @@ def scatter_by_layer(PC12tab, xvar="kappa", yvar="sparseness", groupvar="layer",
         cval, pval = corrfun(PC12tab[validmask & (PC12tab[groupvar] == layer)][xvar],
                               PC12tab[validmask & (PC12tab[groupvar] == layer)][yvar])
         print(f"{layer} corr {cval:.3f} P={pval:.1e} N={(validmask & (PC12tab.layer == layer)).sum()}")
-        figh,ax = plt.subplots(figsize=(6,6))
+        figh, ax = plt.subplots(figsize=(6,6))
         sns.scatterplot(x=xvar, y=yvar, hue=groupvar, data=PC12tab[validmask & (PC12tab[groupvar] == layer)],ax=ax,alpha=0.2)
         plt.title(f"{type} {xvar} vs {yvar}\n{layer} corr {cval:.3f} P={pval:.1e} N={(validmask).sum()}")
         # plt.axis("square")
@@ -51,6 +54,7 @@ def scatter_by_layer(PC12tab, xvar="kappa", yvar="sparseness", groupvar="layer",
 
 
 def annotate_corrfunc(x, y, hue=None, ax=None, **kws):
+    """util function to annotate PairGrid with corr value and p-value"""
     # r, _ = pearsonr(x, y)
     r, pval = spearmanr(x, y, nan_policy='omit')
     ax = ax or plt.gca()
@@ -74,15 +78,18 @@ def scatter_density_grid(df_layer, cols, ):
 
 
 def get_invariance_image_labels():
+    """ Load invariance image labels """
     try:
         from glob import glob
         img_src = r"N:\Stimuli\Invariance\Project_Manifold\ready"
         imglist = sorted(glob(join(img_src, "*.jpg")))
     except:
+        print("Could not find path to invariance images, output `None`")
         imglist = None
+
     tfmlabels = ["bkgrd", "left", "large", "med", "right", "small",]
     objlabels = ["birdcage", "squirrel", "monkeyL", "monkeyM", "gear", "guitar", "fruits", "pancake", "tree", "magiccube"]
-    mapper = dict({"bing_birdcage_0001_seg":"birdcage",
+    mapper = dict({"bing_birdcage_0001_seg": "birdcage",
                     "n02357911_47_seg": "squirrel",
                     "n02487347_3641_seg": "monkeyL",
                     "n02487547_1709_seg": "monkeyM",
@@ -94,23 +101,26 @@ def get_invariance_image_labels():
                     "n13914608_726_seg": "magiccube",})
     return imglist, tfmlabels, objlabels, mapper
 
-
-def plot_invariance_tuning(inv_resps, statstr="", ax=None):
+inv_imglist, tfmlabels, objlabels, mapper = get_invariance_image_labels()
+#%% Panel (ax) plotting function for compositional plot
+def plot_invariance_tuning(inv_resps, statstr=None, ax=None):
     remap_idx = [3, 0, 1, 3, 4, 5, 3, 2]
     if ax is None:
         fig, ax = plt.subplots(figsize=(6, 5))
     plt.sca(ax)
     sns.heatmap(inv_resps.reshape(10, 6).T[remap_idx], cmap="inferno", ax=ax)
+    # mark the boundary of different types of transforms
     ax.hlines([2, 5], 0, 10, linestyles="dashed", colors="red",)
     plt.axis("image")
     plt.xticks(np.arange(10)+0.5, objlabels, rotation=45)
     plt.yticks(np.arange(8)+0.5, np.array(tfmlabels)[remap_idx], rotation=0)
-    plt.title(statstr)
+    if statstr is not None:
+        plt.title(statstr)
     plt.tight_layout()
     if ax is None: plt.show()
 
 
-def plot_resp_histogram(INet_resps, inv_resps, statstr="", ax=None):
+def plot_resp_histogram(INet_resps, inv_resps, statstr=None, ax=None):
     if ax is None:
         fig, ax = plt.subplots(figsize=(6, 5))
     plt.sca(ax)
@@ -121,7 +131,8 @@ def plot_resp_histogram(INet_resps, inv_resps, statstr="", ax=None):
     ax.eventplot(inv_resps, color="k", alpha=0.5,
                   lineoffsets=0.105, linelengths=0.2, )
     plt.ylim((-0.05, 1))
-    plt.title(statstr)
+    if statstr is not None:
+        plt.title(statstr)
     plt.legend()
     if ax is None: plt.show()
 
@@ -148,11 +159,10 @@ def plot_Manifold_maps(Mdata, titlestr=None, ax=None):
     figh.tight_layout()
     plt.show()
 
-inv_imglist, tfmlabels, objlabels, mapper = get_invariance_image_labels()
 
 #%% Scatter images on the plot
-import matplotlib.pyplot as plt
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+
 
 def imgscatter(x, y, imgs, zoom=1.0, ax=None):
     if ax is None:
