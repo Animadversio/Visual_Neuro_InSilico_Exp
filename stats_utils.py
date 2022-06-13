@@ -3,6 +3,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from os.path import join
+import matplotlib
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
 
 def set_violin_color(violin_parts, clrcode):
     """Simple util that set the color from a plt violinplot"""
@@ -12,6 +15,7 @@ def set_violin_color(violin_parts, clrcode):
         pc.set_facecolor(clrcode)
         pc.set_color(clrcode)
 
+
 def saveallforms(figdirs, fignm, figh=None, fmts=["png","pdf"]):
     if type(figdirs) is str:
         figdirs = [figdirs]
@@ -20,6 +24,7 @@ def saveallforms(figdirs, fignm, figh=None, fmts=["png","pdf"]):
     for figdir in figdirs:
         for sfx in fmts:
             figh.savefig(join(figdir, fignm+"."+sfx))
+
 
 def summary_by_block(scores_vec,gens,maxgen=100,sem=True):
     """Summarize a score trajectory and and generation vector into the mean vector, sem, """

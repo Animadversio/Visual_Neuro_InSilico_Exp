@@ -147,13 +147,13 @@ class GANForwardHVPOperator(Operator):
         self.perturb_norm = self.code.norm() * EPS
         eps = self.perturb_norm / vecnorm
         # take the second gradient by comparing 2 first order gradient.
-        perturb_vecs = self.code.detach() + eps * torch.tensor([1, -1.0]).view(-1, 1).to(self.device) * vec.detach()
+        perturb_vecs = self.code.detach() + eps * torch.tensor([1, -1.0], device=self.device).view(-1, 1) * vec.detach()
         perturb_vecs.requires_grad_(True)
         img = self.model.visualize(perturb_vecs)
         resz_img = self.preprocess(img)
         activs = self.objective(resz_img)  # , scaler=True
         # obj = alexnet.features[:10](resz_img)[:, :, 6, 6].sum()  # esz_img.std()
-        ftgrad_both = torch.autograd.grad(activs, perturb_vecs, retain_graph=False, create_graph=False, only_inputs=True)[0]
+        ftgrad_both = torch.autograd.grad(activs.sum(), perturb_vecs, retain_graph=False, create_graph=False, only_inputs=True)[0]
         hessian_vec_prod = (ftgrad_both[0, :] - ftgrad_both[1, :]) / (2 * eps)
         return hessian_vec_prod
 
@@ -172,6 +172,252 @@ class GANForwardHVPOperator(Operator):
         """
         pass
 
+
+class GANForwardHVPOperator_multiscale(Operator):
+    """This part amalgamates the structure of Lucent and hessian_eigenthings"""
+    def __init__(
+            self,
+            model,
+            code,
+            objective,
+            preprocess=lambda img: F.interpolate(img, (224, 224), mode='bilinear', align_corners=True),
+            use_gpu=True,
+            scalevect=(0.5, 1.0, 2.0),
+            EPS=1E-2,
+    ):
+        device = "cuda" if use_gpu else "cpu"
+        self.device = device
+        if hasattr(model, "parameters"):
+            for param in model.parameters():
+                param.requires_grad_(False)
+        if hasattr(objective, "parameters"):
+            for param in objective.parameters():
+                param.requires_grad_(False)
+        self.model = model
+        self.objective = objective
+        self.preprocess = preprocess
+        self.code = code.clone().requires_grad_(False).float().to(device)  # torch.float32
+        self.img_ref = self.model.visualize(self.code)
+        resz_img = self.preprocess(self.img_ref)  # F.interpolate(self.img_ref, (224, 224), mode='bilinear', align_corners=True)
+        activ = self.objective(resz_img)
+        self.size = self.code.numel()
+        self.EPS = EPS
+        self.perturb_norm = self.code.norm() * self.EPS
+        self.ticks = torch.tensor(list(scalevect),
+                                  device=self.device).reshape(-1, 1)
+        self.ticks = torch.concat([self.ticks, -self.ticks], dim=0)
+        self.ticks_divisor = torch.tensor(sum(scalevect), device=self.device)
+        self.ticks_N = len(scalevect)
+
+    # def select_code(self, code):
+    #     """Change the reference code"""
+    #     self.code = code.clone().requires_grad_(False).float().to(self.device)  # torch.float32
+    #     self.perturb_norm = self.code.norm() * self.EPS
+    #     self.img_ref = self.model.visualize(self.code + self.perturb_vec)
+    #     resz_img = self.preprocess(self.img_ref)
+    #     activ = self.objective(resz_img)
+    #     gradient = torch.autograd.grad(activ, self.perturb_vec, create_graph=False, retain_graph=False)[0]
+    #     self.gradient = gradient.view(-1)
+
+    def apply(self, vec, EPS=None):
+        """
+        Returns H*vec where H is the hessian of the loss w.r.t.
+        the vectorized model parameters
+        """
+        vecnorm = vec.norm()
+        if vecnorm < 1E-8:
+            return torch.zeros_like(vec).cuda()
+        EPS = self.EPS if EPS is None else EPS
+        self.perturb_norm = self.code.norm() * EPS
+        eps = self.perturb_norm / vecnorm
+        # take the second gradient by comparing 2 first order gradient.
+        perturb_vecs = self.code.detach() + eps * self.ticks * vec.detach()
+        perturb_vecs.requires_grad_(True)
+        img = self.model.visualize(perturb_vecs)
+        resz_img = self.preprocess(img)
+        activs = self.objective(resz_img)  # , scaler=True
+        ftgrad_both = torch.autograd.grad(activs.sum(), perturb_vecs, retain_graph=False, create_graph=False, only_inputs=True)[0]
+        hessian_vec_prod = (ftgrad_both[:self.ticks_N, :].sum(dim=0)
+                            - ftgrad_both[-self.ticks_N:, :].sum(dim=0)) \
+                           / (2 * self.ticks_divisor * eps)
+        return hessian_vec_prod
+
+    def apply_batch(self, vecs, EPS=None):
+        """
+        Returns H*vec where H is the hessian of the loss w.r.t.
+        the vectorized model parameters
+        """
+        if vecs.ndim == 1:
+            vecs = vecs.unsqueeze(0)
+        if vecs.size(0) == self.size:
+            vecs = vecs.T
+        assert vecs.size(1) == self.size
+        vecnorm = vecs.norm(dim=1)
+        if vecnorm.mean() < 1E-8:
+            return torch.zeros_like(vecs).cuda()
+        EPS = self.EPS if EPS is None else EPS
+        self.perturb_norm = self.code.norm() * EPS
+        eps = self.perturb_norm / vecnorm
+        # take the second gradient by comparing 2 first order gradient.
+        perturb_vecs = eps.unsqueeze(0).unsqueeze(2) * \
+                       torch.einsum("Ti,iBC->TBC",
+                       self.ticks, vecs.detach().unsqueeze(0))
+        perturb_vecs.requires_grad_(True)
+        img = self.model.visualize(self.code.detach() + perturb_vecs.reshape(-1, self.size))
+        resz_img = self.preprocess(img)
+        activs = self.objective(resz_img)  # , scaler=True
+        ftgrad_both = torch.autograd.grad(activs.sum(), perturb_vecs, retain_graph=False, create_graph=False, only_inputs=True)[0]
+        hessian_vec_prod = (ftgrad_both[:self.ticks_N, :, :].sum(dim=0)
+                            - ftgrad_both[-self.ticks_N:, :, :].sum(dim=0)) \
+                           / (2 * self.ticks_divisor * eps.unsqueeze(1))
+        return hessian_vec_prod
+
+    def vHv_form(self, vec):
+        """
+        Returns Bilinear form vec.T*H*vec where H is the hessian of the loss.
+        If vec is eigen vector of H this will return the eigen value.
+        """
+        hessian_vec_prod = self.apply(vec)
+        vhv = (hessian_vec_prod * vec).sum()
+        return vhv
+
+    def zero_grad(self):
+        """
+        Zeros out the gradient info for each parameter in the model
+        """
+        pass
+
+
+class NNForwardHVPOperator(Operator):
+    """This part amalgamates the structure of Lucent and hessian_eigenthings"""
+    def __init__(
+            self,
+            objective,
+            input,
+            use_gpu=True,
+            EPS=1E-2,
+    ):
+        device = "cuda" if use_gpu else "cpu"
+        self.device = device
+        if hasattr(objective, "parameters"):
+            for param in objective.parameters():
+                param.requires_grad_(False)
+        self.objective = objective
+        self.code = input.detach().clone().float().to(device)  # torch.float32
+        activ = self.objective(self.code)
+        self.size = self.code.numel()
+        self.EPS = EPS
+        self.perturb_norm = self.EPS  # * torch.randn(self.size).norm() *
+
+    # def select_code(self, code):
+    #     """Change the reference code"""
+    #     self.code = code.clone().detach().float().to(self.device)  # torch.float32
+    #     self.perturb_norm = self.code.norm() * self.EPS
+    #     activ = self.objective(self.code)
+    #     gradient = torch.autograd.grad(activ, self.perturb_vec, create_graph=False, retain_graph=False)[0]
+    #     self.gradient = gradient.view(-1)
+
+    def apply(self, vec, EPS=None):
+        """
+        Returns H*vec where H is the hessian of the loss w.r.t.
+        the vectorized model parameters
+        """
+        vecnorm = vec.norm()
+        if vecnorm < 1E-8:
+            return torch.zeros_like(vec).cuda()
+        if EPS is None:
+            EPS = self.EPS
+        self.perturb_norm = EPS  # * self.code.norm()
+        eps = self.perturb_norm / vecnorm
+        # take the second gradient by comparing 2 first order gradient.
+        perturb_vecs = self.code.detach() + eps * torch.tensor([1, -1.0], device=self.device).view(-1, 1) * vec.detach()
+        perturb_vecs.requires_grad_(True)
+        activs = self.objective(perturb_vecs)  # , scaler=True
+        ftgrad_both = torch.autograd.grad(activs.sum(), perturb_vecs,
+                      retain_graph=False, create_graph=False, only_inputs=True)[0]
+        hessian_vec_prod = (ftgrad_both[0, :] - ftgrad_both[1, :]) / (2 * eps)
+        return hessian_vec_prod
+
+    def vHv_form(self, vec):
+        """
+        Returns Bilinear form vec.T*H*vec where H is the hessian of the loss.
+        If vec is eigen vector of H this will return the eigen value.
+        """
+        hessian_vec_prod = self.apply(vec)
+        vhv = (hessian_vec_prod * vec).sum()
+        return vhv
+
+    def zero_grad(self):
+        """
+        Zeros out the gradient info for each parameter in the model
+        """
+        pass
+
+
+class NNForwardHVPOperator_multiscale(Operator):
+    """This part amalgamates the structure of Lucent and hessian_eigenthings"""
+    def __init__(
+            self,
+            objective,
+            input,
+            use_gpu=True,
+            EPS=1E-2,
+            scalevect=(0.5, 1.0, 2.0)
+    ):
+        device = "cuda" if use_gpu else "cpu"
+        self.device = device
+        if hasattr(objective, "parameters"):
+            for param in objective.parameters():
+                param.requires_grad_(False)
+        self.objective = objective
+        self.code = input.detach().clone().float().to(device)  # torch.float32
+        activ = self.objective(self.code)
+        self.size = self.code.numel()
+        self.EPS = EPS
+        self.perturb_norm = self.EPS  # * torch.randn(self.size).norm() *
+        self.ticks = torch.tensor(list(scalevect),
+                                  device=self.device).reshape(-1, 1)
+        self.ticks = torch.concat([self.ticks, -self.ticks], dim=0)
+        self.ticks_divisor = torch.tensor(sum(scalevect), device=self.device)
+        self.ticks_N = len(scalevect)
+
+    def apply(self, vec, EPS=None):
+        """
+        Returns H*vec where H is the hessian of the loss w.r.t.
+        the vectorized model parameters
+        """
+        vecnorm = vec.norm()
+        if vecnorm < 1E-8:
+            return torch.zeros_like(vec).cuda()
+        if EPS is None:
+            EPS = self.EPS
+        # self.perturb_norm = EPS  # * self.code.norm()
+        eps = self.perturb_norm / vecnorm
+        # take the second gradient by comparing 2 first order gradient.
+        perturb_vecs = self.code.detach() + eps * self.ticks * vec.detach()
+        perturb_vecs.requires_grad_(True)
+        activs = self.objective(perturb_vecs)  # , scaler=True
+        ftgrad_both = torch.autograd.grad(activs.sum(), perturb_vecs,
+                      retain_graph=False, create_graph=False, only_inputs=True)[0]
+        hessian_vec_prod = (ftgrad_both[:self.ticks_N, :].sum(dim=0)
+                            - ftgrad_both[-self.ticks_N:, :].sum(dim=0)) \
+                           / (2 * self.ticks_divisor * eps)
+        return hessian_vec_prod
+
+    def vHv_form(self, vec):
+        """
+        Returns Bilinear form vec.T*H*vec where H is the hessian of the loss.
+        If vec is eigen vector of H this will return the eigen value.
+        """
+        hessian_vec_prod = self.apply(vec)
+        vhv = (hessian_vec_prod * vec).sum()
+        return vhv
+
+    def zero_grad(self):
+        """
+        Zeros out the gradient info for each parameter in the model
+        """
+        pass
 #%%
 class GANForwardMetricHVPOperator(Operator):
     """This part amalgamates the structure of Lucent and hessian_eigenthings

@@ -230,6 +230,7 @@ def register_hook_by_module_names(target_name, target_hook, model, input_size=(3
     return target_hook_h, module_names, module_types
 
 #%% Utility code to fetch activation
+from torch.utils.hooks import RemovableHandle
 class featureFetcher:
     """ Light weighted modular feature fetcher
     It simply record the activation of the target layer as images pass through it.
@@ -253,12 +254,20 @@ class featureFetcher:
             store_device = self.store_device
         hook_fun = self.get_activation(target_name, ingraph=ingraph, return_input=return_input, store_device=store_device)
         hook_h, _, _ = register_hook_by_module_names(target_name, hook_fun, self.model, device=self.device)
-        self.hooks[target_name] = hook_h
+        self.hooks[target_name] = hook_h  # Note this is a list of hooks
         return hook_h
 
+    def cleanup(self,):
+        for name, hook_col in self.hooks.items():
+            if isinstance(hook_col, list):
+                for h in hook_col:
+                    h.remove()
+            elif isinstance(hook_col, RemovableHandle):
+                hook_col.remove()
+        print("FeatureFetcher hooks all freed")
+        return
+
     def __del__(self):
-        for name, hook in self.hooks.items():
-            hook.remove()
         return
 
     def __getitem__(self, key):
