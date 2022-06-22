@@ -1,3 +1,6 @@
+"""Create montage plot showing response distribution of ImageNet Validation
+and to Invariance set images
+"""
 import torch
 import numpy as np
 import pandas as pd
