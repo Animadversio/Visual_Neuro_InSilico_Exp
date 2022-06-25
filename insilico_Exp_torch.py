@@ -516,6 +516,13 @@ class ExperimentManifold:
         self.explabel = explabel
         self.Perturb_vec = []
 
+    def re_init(self):
+        self.optimizer = CholeskyCMAES(self.code_length, population_size=None, init_sigma=init_sigma,
+                                       init_code=np.zeros([1, self.code_length]), Aupdate_freq=Aupdate_freq,
+                                       maximize=True, random_seed=None, optim_params={})
+        self.Perturb_vec = []
+        self.CNNmodel.cleanup()
+
     def run(self, init_code=None):
         """Same as Resized Evolution experiment"""
         self.recording = []
@@ -591,9 +598,60 @@ class ExperimentManifold:
             self.PC1_sign = 1
             pass
 
+    def render_manifold(self, subspace_list, interval=18, ):
+        '''Generate images on manifold '''
+        T0 = time()
+        figsum = plt.figure(figsize=[16.7, 4])
+        img_tsr_list = []
+        for spi, subspace in enumerate(subspace_list):
+            code_list = []
+            if subspace == "RND":
+                title = "Norm%dRND%dRND%d" % (self.sphere_norm, 0 + 1, 1 + 1)
+                print(
+                    "Generating images on PC1, Random vector1, Random vector2 sphere (rad = %d) " % self.sphere_norm)
+                rand_vec2 = np.random.randn(2, self.code_length)
+                rand_vec2 = rand_vec2 - (rand_vec2 @ self.PC_vectors.T) @ self.PC_vectors
+                rand_vec2 = rand_vec2 / np.sqrt((rand_vec2 ** 2).sum(axis=1))[:, np.newaxis]
+                rand_vec2[1, :] = rand_vec2[1, :] - (rand_vec2[1, :] @ rand_vec2[0, :].T) * rand_vec2[0, :]
+                rand_vec2[1, :] = rand_vec2[1, :] / np.linalg.norm(rand_vec2[1, :])
+                vectors = np.concatenate((self.PC_vectors[0:1, :], rand_vec2), axis=0)
+                # self.Perturb_vec.append(vectors)
+                interv_n = int(90 / interval)
+                for j in range(-interv_n, interv_n + 1):
+                    for k in range(-interv_n, interv_n + 1):
+                        theta = interval * j / 180 * np.pi
+                        phi = interval * k / 180 * np.pi
+                        code_vec = np.array([[np.cos(theta) * np.cos(phi),
+                                              np.sin(theta) * np.cos(phi),
+                                              np.sin(phi)]]) @ vectors
+                        code_vec = code_vec / np.sqrt((code_vec ** 2).sum()) * self.sphere_norm
+                        code_list.append(code_vec)
+            else:
+                PCi, PCj = subspace
+                title = "Norm%dPC%dPC%d" % (self.sphere_norm, PCi + 1, PCj + 1)
+                print("Generating images on PC1, PC%d, PC%d sphere (rad = %d)" % (
+                PCi + 1, PCj + 1, self.sphere_norm,))
+                interv_n = int(90 / interval)
+                # self.Perturb_vec.append(self.PC_vectors[[0, PCi, PCj], :])
+                for j in range(-interv_n, interv_n + 1):
+                    for k in range(-interv_n, interv_n + 1):
+                        theta = interval * j / 180 * np.pi
+                        phi = interval * k / 180 * np.pi
+                        code_vec = np.array([[np.cos(theta) * np.cos(phi),
+                                              np.sin(theta) * np.cos(phi),
+                                              np.sin(phi)]]) @ self.PC_vectors[[0, PCi, PCj], :]
+                        code_vec = code_vec / np.sqrt((code_vec ** 2).sum()) * self.sphere_norm
+                        code_list.append(code_vec)
+            print("Latent vectors ready, rendering. (%.3f sec passed)" % (time() - T0))
+            code_arr = np.array(code_list)
+            img_tsr = self.render_tsr(code_arr)
+            img_tsr_list.append(img_tsr)
+        return img_tsr_list
+
     def run_manifold(self, subspace_list, interval=9, print_manifold=True):
         '''Generate examples on manifold and run'''
         self.score_sum = []
+        self.Perturb_vec = []
         T0 = time()
         figsum = plt.figure(figsize=[16.7, 4])
         for spi, subspace in enumerate(subspace_list):
