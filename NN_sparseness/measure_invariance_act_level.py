@@ -216,38 +216,3 @@ plt.show()
 
 
 #%%
-from NN_sparseness.sparse_invariance_lib import shorten_layername
-Nobj, Ntfm = 10, 6
-layer_long = '.layer2.Bottleneck3'
-for layer_long in feattsrs.keys():
-    layer_short = shorten_layername(layer_long)
-    invrespmat = Invfeatdata[layer_long]  # = torch.load(join(rootdir, f"{netname}_invariance_feattsrs.pt"))
-    INrespmat = feattsrs[layer_long]  # = torch.load(join(rootdir, f"{netname}_INvalid_feattsrs.pt"))
-    tuning_tsr = invrespmat.reshape([Nobj, Ntfm, -1])
-    #%%
-    maxresp_per_obj = tuning_tsr.max(dim=1, keepdim=True).values
-    # Tfmtoler = (tuning_tsr / maxresp_per_obj).nanmean(dim=[0,1])
-    if "fc" in layer_long:
-        minresp_thr = INrespmat.quantile(0.5, dim=0, keepdim=True) # .values
-        Tfmtoler = (torch.clamp(tuning_tsr - minresp_thr.unsqueeze(1), 0) /
-                     torch.clamp(maxresp_per_obj - minresp_thr.unsqueeze(1), 0)).nanmean(dim=[0]).sum(dim=0) / (Ntfm - 1)
-        clamp_resp = torch.clamp(INrespmat - minresp_thr,0)
-        sparseness = 1 - (clamp_resp.mean(dim=0) ** 2) / (clamp_resp ** 2).mean(dim=0)
-    else:
-        # Tfmtoler = ((tuning_tsr / maxresp_per_obj).nansum(dim=[0, 1]) - Nobj) / Nobj / (Ntfm - 1)
-        Tfmtoler = (tuning_tsr / maxresp_per_obj).nanmean(dim=[0]).sum(dim=0) / (Ntfm - 1)
-        sparseness = 1 - (INrespmat.mean(dim=0)**2)/(INrespmat**2).mean(dim=0)
-    #%%
-    valmsk = ~sparseness.isnan()
-    rho, pval = pearsonr(sparseness[valmsk], Tfmtoler[valmsk])
-    plt.figure(figsize=(5, 5))
-    sns.scatterplot(x=sparseness, y=Tfmtoler, )
-    plt.ylabel("Abs. Tolerence to Transforms (in inv img)")
-    plt.xlabel("Sparseness (in ImageNet 50k)")
-    plt.title(f"{netname} {layer_short}\nrho={rho:.2f} (p={pval:.1e})")
-    plt.tight_layout()
-    saveallforms(figdir, f"sparseness_vs_toler_{netname}_{layer_short}")
-    plt.show()
-    #%%
-    print(f"{netname} {layer_short} Sparseness{sparseness.nanmean():.2f}+-{sparseness.std():.2f}"
-          f"\nTolerence {Tfmtoler.mean():.2f}+-{Tfmtoler.std():.2f}")

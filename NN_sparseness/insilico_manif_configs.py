@@ -9,6 +9,7 @@ RN50_config = {
             '.layer1.Bottleneck1': {"layer": '.layer1.Bottleneck1', "unit_pos": [28, 28], "imgsize": [23, 23], "corner": [101, 101], "RFfit": True,},
             '.layer2.Bottleneck0': {"layer": '.layer2.Bottleneck0', "unit_pos": [14, 14], "imgsize": [29, 29], "corner": [99, 99], "RFfit": True,},
             '.layer2.Bottleneck2': {"layer": '.layer2.Bottleneck2', "unit_pos": [14, 14], "imgsize": [49, 49], "corner": [89, 90], "RFfit": True,},
+            '.layer2.Bottleneck3': {"layer": '.layer2.Bottleneck3', "unit_pos": [14, 14], "imgsize": [49, 49], "corner": [89, 90], "RFfit": True,},
             '.layer3.Bottleneck0': {"layer": '.layer3.Bottleneck0', "unit_pos": [7, 7], "imgsize": [75, 75], "corner": [77, 78], "RFfit": True,},
             '.layer3.Bottleneck2': {"layer": '.layer3.Bottleneck2', "unit_pos": [7, 7], "imgsize": [137, 137], "corner": [47, 47], "RFfit": True,},
             '.layer3.Bottleneck4': {"layer": '.layer3.Bottleneck4', "unit_pos": [7, 7], "imgsize": [185, 185], "corner": [25, 27], "RFfit": True,},

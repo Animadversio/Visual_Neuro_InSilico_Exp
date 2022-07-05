@@ -7,6 +7,7 @@ from Manifold.Kent_fit_utils import fit_Kent_Stats, SO3
 from sklearn.decomposition import PCA
 from ZOHA_Optimizer import ZOHA_Sphere_lr_euclid, ZOHA_Sphere_lr_euclid_ReducDim
 from os.path import join
+from stats_utils import saveallforms
 figdir = r"E:\OneDrive - Harvard University\Manifold_Toymodel\exps"
 theta_arr, phi_arr = np.linspace(-np.pi/2, np.pi/2, 21), np.linspace(-np.pi/2, np.pi/2, 21) #np.meshgrid(np.linspace(-90, 91, 21), np.linspace(-90, 91, 21))
 #%%
@@ -16,24 +17,26 @@ due to the number of tuned axes
 """
 
 #%%
-"""
-Model neuron as Quadratic function with a Sinusoid nonlinearity 
-"""
 #%%
 # from scipy.stats import special_ortho_group, ortho_group
 # Omat = ortho_group.rvs(4096)
-#%%
 # Hess = Omat.T @ np.diag(Hdiag) @ Omat
 #%%
+"""
+Model neuron as Quadratic function with a Sinusoid nonlinearity 
+"""
 def model_neruon_constructer(center, Hdiag, bandwidth, basis=None, code_len=4096,
                              thresh=0.0, sphere_norm=300):
+    """Linear
+        r = Sigmoid(- x^T H x_0)
+    """
     cvec = center[np.newaxis, :]
     Dvec = Hdiag[np.newaxis, :]
     normalizer = np.sum(cvec * Dvec * cvec, axis=1) / np.linalg.norm(cvec, axis=1) * sphere_norm
     def model_neuron(x, ):
         xarr = x.reshape((-1, code_len))
         if basis is None:
-            dotprod = np.sum(xarr  * Dvec * cvec, axis=1) / normalizer
+            dotprod = np.sum(xarr * Dvec * cvec, axis=1) / normalizer
         else:
             x_rot = xarr @ basis
             c_rot = cvec @ basis
@@ -44,6 +47,16 @@ def model_neruon_constructer(center, Hdiag, bandwidth, basis=None, code_len=4096
 
 def quad_model_neruon_constructer(center, Hdiag, bandwidth, basis=None, code_len=4096,
                              sphere_norm=300):
+    """
+    r = exp( -(x - x_0)^T H (x - x_0) / bandwidth ** 2)
+    :param center:
+    :param Hdiag:
+    :param bandwidth:
+    :param basis:
+    :param code_len:
+    :param sphere_norm:
+    :return:
+    """
     cvec = center[np.newaxis, :] / np.linalg.norm(center, axis=0) * sphere_norm
     Dvec = Hdiag[np.newaxis, :]
     normalizer = np.sum(cvec * Dvec * cvec, axis=1) / np.linalg.norm(cvec, axis=1) * sphere_norm
@@ -57,7 +70,7 @@ def quad_model_neruon_constructer(center, Hdiag, bandwidth, basis=None, code_len
         return np.exp(-dotprod)
     return model_neuron
 
-#%%
+#%
 def run_manifold(model, center, perturbvecs, interval=9, sphere_norm=300,
                  code_len=4096):
     unit_center = center / np.linalg.norm(center)
@@ -173,12 +186,13 @@ for thresh in [2.0, 0.5, 1.0, ]:
             plt.sca(axs[2])
             plt.scatter(generations, scores_arr.T, alpha=0.5)
             plt.tight_layout()
-            plt.savefig(join(figdir, f"model_{active_dim}_{bandwidth:.1f}_{thresh:.1f}.png"))
+            # plt.savefig(join(figdir, f"model_{active_dim}_{bandwidth:.1f}_{thresh:.1f}.png"))
+            saveallforms(figdir, f"model_{active_dim}_{bandwidth:.1f}_{thresh:.1f}")
             plt.show()
 #%%
 
 #%%
-for active_dim in [100]:  # 20, 100, 5, 10, 50, 200, 800
+for active_dim in [100, 5, 10, 20, 50, 200, 800]:  # 100,
     for bandwidth in [2, 5, 10, 20, 40, 80, 160, 320, ]:
         Hdiag = np.ones(4096)
         Hdiag[active_dim:] = 0.000001
@@ -226,7 +240,8 @@ for active_dim in [100]:  # 20, 100, 5, 10, 50, 200, 800
         plt.title(f"Reduced Dimension Evolution comparison")
         plt.suptitle(f"Neuron model act dim {active_dim} band {bandwidth:.1f}")
         plt.tight_layout()
-        plt.savefig(join(figdir, f"quadmodel_{active_dim}_{bandwidth:.1f}.png"))
+        # plt.savefig(join(figdir, f"quadmodel_{active_dim}_{bandwidth:.1f}.png"))
+        saveallforms(figdir, f"quadmodel_{active_dim}_{bandwidth:.1f}")
         plt.show()
 #%%
 active_dim = 50
