@@ -16,7 +16,7 @@ import seaborn as sns
 import pandas as pd
 from os.path import join
 from NN_sparseness.sparse_invariance_lib import shorten_layername
-from NN_sparseness.insilico_manif_configs import RN50_config, VGG16_config
+from NN_sparseness.insilico_manif_configs import RN50_config, VGG16_config, manifold_config, DenseNet169_config
 from collections import defaultdict
 from stats_utils import saveallforms
 figdir = r"E:\OneDrive - Harvard University\Manifold_Toymodel\tuning"
@@ -84,108 +84,15 @@ from NN_sparseness.insilico_manif_configs import VGG16_config, RN50_config
 """
 Attempt 3, using Lanczos iteration and HVP to compute the approximate Hessian
 """
-# netname = "resnet50_linf8"
-# netname = "resnet50"
-# netname = "densenet121"
-netname = "vgg16"
-scorer = TorchScorer(netname, rawlayername=False)
-scorer.set_unit("score", '.layer3.Bottleneck4', unit=(55, 7, 7,), ingraph=True)
-for chan in range(10, 20):
-    for layer, unit_dict in VGG16_config.items():#RN50_config.items():
-        if unit_dict["unit_pos"] is None:
-            scorer.set_unit("score", layer, unit=(chan,), ingraph=True)
-            unitstr = f"{netname}-{shorten_layername(layer)}-unit%d" % (chan)
-        else:
-            unit_x, unit_y = unit_dict["unit_pos"]
-            scorer.set_unit("score", layer, unit=(chan, unit_x, unit_y), ingraph=True)
-            unitstr = f"{netname}-{shorten_layername(layer)}-unit%d-%d-%d" % (chan, unit_x, unit_y)
-        #%%
-        z, act, failed_try = grad_evol_unit(scorer, eps=0.5)
-        if failed_try > 1500:
-            print("failed evolution, stop")
-            continue
-        #%%
-        activHVP = GANForwardHVPOperator(G, z[0].detach(),
-                                         lambda x: scorer.score_tsr_wgrad(x).mean(),
-                                         preprocess=lambda x: x, EPS=1E-2,)
-        t0 = time()
-        eigvals, eigvects = lanczos(activHVP, num_eigenthings=2000, use_gpu=True)
-        print(time() - t0)  # 146sec for 2000 eigens
-        eigvals = eigvals[::-1]
-        eigvects = eigvects[::-1, :]
-        np.savez(join(figdir, f"{unitstr}_Hess_data_ForwardHVP.pt"),{"z": z.detach().cpu().numpy(),
-                   "act": act.detach().cpu().numpy(),
-                  "eigvals": eigvals, "eigvects": eigvects, },
-                   )
-        #%%
-        plt.figure(figsize=(5, 5))
-        plt.semilogy(eigvals)
-        plt.title(f"SVD of Hessian matrix (Forward HVP)\n{unitstr}")
-        plt.savefig(join(figdir, f"{unitstr}_SVD_spectrum_ForwardHVP.png"))
-        plt.show()
-        #%%
-        scorer.cleanup()
 
-#%%
-#%%
-eigvals = eigvals[::-1]
-plt.figure()
-plt.semilogy(np.abs(eigvals), label="conv3_relu", linewidth=2, alpha=0.7)
-plt.show()
-# VGG16_config
-#%%
-#%%
-netname = "vgg16"# "resnet50_linf8"
-spect_HVP_dict = defaultdict(list)
-peakact_dict   = defaultdict(list)
-for layer, unit_dict in VGG16_config.items():#RN50_config.items():
-    for chan in range(10, 20):
-        if unit_dict["unit_pos"] is None:
-            unitstr = f"{netname}-{shorten_layername(layer)}-unit%d" % (chan)
-        else:
-            unit_x, unit_y = unit_dict["unit_pos"]
-            unitstr = f"{netname}-{shorten_layername(layer)}-unit%d-%d-%d" % (chan, unit_x, unit_y)
-        try:
-            data = np.load(join(figdir, f"{unitstr}_Hess_data_ForwardHVP.pt.npz"), allow_pickle=True)
-            data = data['arr_0'].item()
-            spect_HVP_dict[layer].append(data["eigvals"])
-            peakact_dict[layer].append(data["act"])
-        except FileNotFoundError:
-            print(f"{unitstr} not found")
-
-#%%
-
-#%%
-plt.figure(figsize=(6, 6))
-for layer, spect_col in spect_HVP_dict.items():
-    spect_arr = np.array(spect_col)
-    act_arr = np.array(peakact_dict[layer])
-    norm_spect_arr = spect_arr / np.nanmax(spect_arr, axis=1, keepdims=True)# / act_arr  #
-    norm_spect_arr = spect_arr
-    norm_spect_range = np.nanpercentile(norm_spect_arr, [25, 75], axis=0)
-    plt.semilogy(np.nanmean(norm_spect_arr, axis=0),
-                 label=shorten_layername(layer), linewidth=2, alpha=0.7)
-    # plt.fill_between(range(len(norm_spect_range[0])),
-    #                  norm_spect_range[0],
-    #                  norm_spect_range[1], alpha=0.2)
-    # plt.plot(np.log10(np.nanmedian(norm_spect_arr, axis=0)), label=layer)
-
-# plt.semilogy(data["eigvals"], alpha=0.3, label=shorten_layername(layer))
-plt.xlim([0, 300])
-plt.ylim([1E-3, 5E-1])
-plt.xlim([0, 2000])
-plt.ylim([1E-7, 5E-1])
-plt.legend()
-plt.title(f"Network: {netname} \n Eigen Spectrum of Hessian matrix (Forward HVP)")
-saveallforms(sumdir, f"{netname}_spectrum_cmp_ForwardHVP")
-plt.show()
 #%%
 savedir = r"E:\OneDrive - Harvard University\Manifold_Toymodel\gradHess"
-netname = "vgg16"
+netname = "densenet169" #"vgg16"
 scorer = TorchScorer(netname, rawlayername=False)
+confg = manifold_config(netname)
 # scorer.set_unit("score", '.layer3.Bottleneck4', unit=(55, 7, 7,), ingraph=True)
 for chan in range(10, 20):
-    for layer, unit_dict in VGG16_config.items():#RN50_config.items():
+    for layer, unit_dict in confg.items():#RN50_config.items():
         if unit_dict["unit_pos"] is None:
             scorer.set_unit("score", layer, unit=(chan,), ingraph=True)
             unitstr = f"{netname}-{shorten_layername(layer)}-unit%d" % (chan)
@@ -316,7 +223,102 @@ plt.title(f"Network: {netname} \n Eigen Spectrum of Hessian matrix (Forward HVP_
 saveallforms(sumdir, f"{netname}_spectrum_cmp_ForwardHVP_multiscale2")
 plt.show()
 
+#%%
+# netname = "resnet50_linf8"
+# netname = "resnet50"
+# netname = "densenet121"
+netname = "vgg16"
+scorer = TorchScorer(netname, rawlayername=False)
+scorer.set_unit("score", '.layer3.Bottleneck4', unit=(55, 7, 7,), ingraph=True)
+for chan in range(10, 20):
+    for layer, unit_dict in VGG16_config.items():#RN50_config.items():
+        if unit_dict["unit_pos"] is None:
+            scorer.set_unit("score", layer, unit=(chan,), ingraph=True)
+            unitstr = f"{netname}-{shorten_layername(layer)}-unit%d" % (chan)
+        else:
+            unit_x, unit_y = unit_dict["unit_pos"]
+            scorer.set_unit("score", layer, unit=(chan, unit_x, unit_y), ingraph=True)
+            unitstr = f"{netname}-{shorten_layername(layer)}-unit%d-%d-%d" % (chan, unit_x, unit_y)
+        #%%
+        z, act, failed_try = grad_evol_unit(scorer, eps=0.5)
+        if failed_try > 1500:
+            print("failed evolution, stop")
+            continue
+        #%%
+        activHVP = GANForwardHVPOperator(G, z[0].detach(),
+                                         lambda x: scorer.score_tsr_wgrad(x).mean(),
+                                         preprocess=lambda x: x, EPS=1E-2,)
+        t0 = time()
+        eigvals, eigvects = lanczos(activHVP, num_eigenthings=2000, use_gpu=True)
+        print(time() - t0)  # 146sec for 2000 eigens
+        eigvals = eigvals[::-1]
+        eigvects = eigvects[::-1, :]
+        np.savez(join(figdir, f"{unitstr}_Hess_data_ForwardHVP.pt"),{"z": z.detach().cpu().numpy(),
+                   "act": act.detach().cpu().numpy(),
+                  "eigvals": eigvals, "eigvects": eigvects, },
+                   )
+        #%%
+        plt.figure(figsize=(5, 5))
+        plt.semilogy(eigvals)
+        plt.title(f"SVD of Hessian matrix (Forward HVP)\n{unitstr}")
+        plt.savefig(join(figdir, f"{unitstr}_SVD_spectrum_ForwardHVP.png"))
+        plt.show()
+        #%%
+        scorer.cleanup()
 
+#%%
+#%%
+eigvals = eigvals[::-1]
+plt.figure()
+plt.semilogy(np.abs(eigvals), label="conv3_relu", linewidth=2, alpha=0.7)
+plt.show()
+# VGG16_config
+#%%
+#%%
+netname = "vgg16"# "resnet50_linf8"
+spect_HVP_dict = defaultdict(list)
+peakact_dict   = defaultdict(list)
+for layer, unit_dict in VGG16_config.items():#RN50_config.items():
+    for chan in range(10, 20):
+        if unit_dict["unit_pos"] is None:
+            unitstr = f"{netname}-{shorten_layername(layer)}-unit%d" % (chan)
+        else:
+            unit_x, unit_y = unit_dict["unit_pos"]
+            unitstr = f"{netname}-{shorten_layername(layer)}-unit%d-%d-%d" % (chan, unit_x, unit_y)
+        try:
+            data = np.load(join(figdir, f"{unitstr}_Hess_data_ForwardHVP.pt.npz"), allow_pickle=True)
+            data = data['arr_0'].item()
+            spect_HVP_dict[layer].append(data["eigvals"])
+            peakact_dict[layer].append(data["act"])
+        except FileNotFoundError:
+            print(f"{unitstr} not found")
+
+#%%
+
+#%%
+plt.figure(figsize=(6, 6))
+for layer, spect_col in spect_HVP_dict.items():
+    spect_arr = np.array(spect_col)
+    act_arr = np.array(peakact_dict[layer])
+    norm_spect_arr = spect_arr / np.nanmax(spect_arr, axis=1, keepdims=True)# / act_arr  #
+    norm_spect_arr = spect_arr
+    norm_spect_range = np.nanpercentile(norm_spect_arr, [25, 75], axis=0)
+    plt.semilogy(np.nanmean(norm_spect_arr, axis=0),
+                 label=shorten_layername(layer), linewidth=2, alpha=0.7)
+    # plt.fill_between(range(len(norm_spect_range[0])),
+    #                  norm_spect_range[0],
+    #                  norm_spect_range[1], alpha=0.2)
+    # plt.plot(np.log10(np.nanmedian(norm_spect_arr, axis=0)), label=layer)
+
+# plt.semilogy(data["eigvals"], alpha=0.3, label=shorten_layername(layer))
+plt.xlim([0, 300])
+plt.ylim([1E-3, 5E-1])
+plt.xlim([0, 2000])
+plt.ylim([1E-7, 5E-1])
+plt.legend()
+plt.title(f"Network: {netname} \n Eigen Spectrum of Hessian matrix (Forward HVP)")
+saveallforms(sumdir, f"{netname}_spectrum_cmp_ForwardHVP")
+plt.show()
 
 #%% Dev zone
 #%% Experiment on the spatial scale of hessian
