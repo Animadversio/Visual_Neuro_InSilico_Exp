@@ -107,7 +107,7 @@ def place_img_on_canvas(img, img_size, img_pos, canvas_size=227,
     return img_canvas
 
 
-def _load_proto_info_rf(tabrow, layerdir, layerfulldir, ):
+def _load_proto_info_rf(tabrow, layerdir, layerfulldir, netname="resnet50"):
     """
     Example:
         proto_dir = r"E:\Cluster_Backup\manif_allchan\prototypes"
@@ -133,8 +133,15 @@ def _load_proto_info_rf(tabrow, layerdir, layerfulldir, ):
 
     # filenametemplate = glob(join(layerdir, f"*_{suffix}.png"))[0]
     # unitpos = filenametemplate.split("\\")[-1].split("_")[3:5]
-    cfg = RN50_config  # manifold_config() RN50_config
-    layercfg = edict(cfg[layer_long])
+    # cfg = RN50_config  # manifold_config() RN50_config
+    cfg = manifold_config(netname)
+    if layer_long in cfg:
+        layercfg = edict(cfg[layer_long])
+    elif layer in cfg:
+        layercfg = edict(cfg[layer])
+    else:
+        print([*cfg.keys()])
+        raise ValueError(f"layer {layer} not found in config")
     suffix = "rf_fit" if layercfg["RFfit"] else "original"
     unitpos = layercfg["unit_pos"]
     unit = unitid

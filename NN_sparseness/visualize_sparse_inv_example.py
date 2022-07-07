@@ -80,11 +80,14 @@ def visualize_unit_data_montage(unitrow, netname, Invfeatdata,
     INet_resps = feattsrs[layer_x][:, unitid]
     if netname == "resnet50_linf8":
         netname = "resnet50_linf_8"
-
-    layerdir = join(proto_root, "prototypes", f"{netname}_{layer_x}_manifold-")
-    layerfulldir = join(proto_root, f"{netname}_{layer_x}_manifold-")
+    if netname is "vgg16":
+        pathlayernm = layer
+    else:
+        pathlayernm = layer_x
+    layerdir = join(proto_root, "prototypes", f"{netname}_{pathlayernm}_manifold-")
+    layerfulldir = join(proto_root, f"{netname}_{pathlayernm}_manifold-")
     protoimg, protoimg_rffit, protoimg_padded, Edata, Mdata, layercfg = \
-        _load_proto_info_rf(unitrow, layerdir, layerfulldir, )
+        _load_proto_info_rf(unitrow, layerdir, layerfulldir, netname=netname)
     evollastgen = Edata.evol_score[Edata.evol_gen == 99].mean()
     evolmax = Edata.evol_score.max()
     natimgtsr, _ = INdataset[INet_resps.argmax()]
@@ -121,6 +124,7 @@ def visualize_unit_data_montage(unitrow, netname, Invfeatdata,
     return fig, protoimg, Edata, Mdata, natimg
 
 proto_root = r"E:\Cluster_Backup\manif_allchan"
+#%%
 if __name__ == "__main__":
     #%%
     rootdir = r"E:\OneDrive - Harvard University\Manifold_Sparseness"
@@ -133,6 +137,7 @@ if __name__ == "__main__":
     Invfeatdata = torch.load(join(rootdir, f"{netname}_invariance_feattsrs.pt"))
     feattsrs = torch.load(join(rootdir, f"{netname}_INvalid_feattsrs.pt"))
     INdataset = create_imagenet_valid_dataset(normalize=False)
+    #%%
     df_merge_all = pd.read_csv(join(sumdir, f"{netname}_sparse_invar_prctl_merge.csv"), index_col=0)
     #%%
     unitrow = df_merge_all[df_merge_all.layer_s != 'layer2.B3'].sample().iloc[0]
@@ -183,3 +188,19 @@ if __name__ == "__main__":
     sns.pointplot(x="layer_s", y="pop_inv", data=df_inv_all_pop, legend=True, color="black")
     plt.xticks(rotation=30)
     plt.show()
+    #%%
+    # %%
+    netname = "vgg16"
+    exampledir = join(rootdir, f"tuning_map_examples_{netname}")
+
+    Invfeatdata = torch.load(join(rootdir, f"{netname}_invariance_feattsrs.pt"))
+    feattsrs = torch.load(join(rootdir, f"{netname}_INvalid_feattsrs.pt"))
+    INdataset = create_imagenet_valid_dataset(normalize=False)
+    #%%
+    df_merge_all = pd.read_csv(join(sumdir, f"{netname}_kent_sparse_invar_prctl_merge.csv"), index_col=0)
+    df_merge_all = df_merge_all.rename(columns = {"layer_s_x": "layer_s"})
+    #%%
+    unitrow = df_merge_all[df_merge_all.space == 0].sample().iloc[0]
+    # fig, protoimg, Edata, Mdata, natimg = visualize_unit_data(unitrow, netname, Invfeatdata, feattsrs, INdataset)
+    fig, protoimg, Edata, Mdata, natimg = visualize_unit_data_montage(unitrow, netname,
+                                  Invfeatdata, feattsrs, INdataset)
