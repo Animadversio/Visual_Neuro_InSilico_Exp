@@ -1,5 +1,7 @@
 from insilico_Exp_torch import ExperimentManifold
 from ZO_HessAware_Optimizers import CholeskyCMAES
+from easydict import EasyDict as edict
+import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -8,6 +10,8 @@ from sklearn.decomposition import PCA
 from ZOHA_Optimizer import ZOHA_Sphere_lr_euclid, ZOHA_Sphere_lr_euclid_ReducDim
 from os.path import join
 from stats_utils import saveallforms
+from Manifold.Manifold_Tuning_lib import integrate_VUS
+
 figdir = r"E:\OneDrive - Harvard University\Manifold_Toymodel\exps"
 theta_arr, phi_arr = np.linspace(-np.pi/2, np.pi/2, 21), np.linspace(-np.pi/2, np.pi/2, 21) #np.meshgrid(np.linspace(-90, 91, 21), np.linspace(-90, 91, 21))
 #%%
@@ -190,59 +194,218 @@ for thresh in [2.0, 0.5, 1.0, ]:
             saveallforms(figdir, f"model_{active_dim}_{bandwidth:.1f}_{thresh:.1f}")
             plt.show()
 #%%
-
+"""Exp Quadratic model (Gaussian)"""
+figdir = r"E:\OneDrive - Harvard University\Manifold_Toymodel\expdata"
 #%%
-for active_dim in [100, 5, 10, 20, 50, 200, 800]:  # 100,
-    for bandwidth in [2, 5, 10, 20, 40, 80, 160, 320, ]:
-        Hdiag = np.ones(4096)
-        Hdiag[active_dim:] = 0.000001
-        center = np.random.randn(4096)
-        qmodel = quad_model_neruon_constructer(center, Hdiag,
-                                bandwidth=bandwidth, sphere_norm=300)
-        codes_arr, scores_arr, generations = run_evol(qmodel, init_sigma=3.0, maxgen=50)
-        PC_vectors, PC_Proj_codes, code_pca = analyze_evol(codes_arr)
-        score_mat = run_manifold(qmodel, PC_vectors[0, :], PC_vectors[1:3, :],
-                                 interval=9, sphere_norm=300, code_len=4096)
-        score_mat_RND = run_manifold(qmodel, center, None, interval=9, sphere_norm=300, code_len=4096)
-        # %%
-        param_RND, sigmas, res, R2_RND = fit_Kent_Stats(theta_arr, phi_arr, score_mat_RND, )
-        theta_RND, phi_RND, psi_RND, kappa_RND, beta_RND, A_RND, bsl_RND = param_RND
-        param, sigmas, res, R2 = fit_Kent_Stats(theta_arr, phi_arr, score_mat, )
-        theta, phi, psi, kappa, beta, A, bsl = param
-        #%%
-        optim = ZOHA_Sphere_lr_euclid(4096, population_size=40, select_size=20)
-        optim.lr_schedule(n_gen=50, mode="exp")
-        codes_arr_sph, scores_arr_sph, generations_sph = run_evol(qmodel, maxgen=50, optim=optim)
-        optim_RD = ZOHA_Sphere_lr_euclid_ReducDim(4096, 50, population_size=40, select_size=20)
-        optim_RD.lr_schedule(n_gen=50, mode="exp")
-        optim_RD.get_basis("rand")
-        codes_arr_RD, scores_arr_RD, generations_RD = run_evol(qmodel, maxgen=50, optim=optim_RD)
-        #%%
-        figh, axs = plt.subplots(1, 4, figsize=(15.5, 4.5))
-        plt.sca(axs[0])
-        sns.heatmap(score_mat, cmap='coolwarm', vmin=0, )  # vmax=1
-        plt.axis('image')
-        plt.title(f"Manifold in PC123 space\n"
-                  f"R2: {R2:.2f} kappa {kappa:.2f} beta {beta:.2f}\n A {A:.2f} bsl {bsl:.2f}")
-        plt.sca(axs[1])
-        sns.heatmap(score_mat_RND, cmap='coolwarm', vmin=0, )  # vmax=1
-        plt.axis('image')
-        plt.title(
-            f"Random Manifold from true center\n"
-            f"R2: {R2_RND:.2f} kappa {kappa_RND:.2f} beta {beta_RND:.2f}\n A {A_RND:.2f} bsl {bsl_RND:.2f}")
-        plt.sca(axs[2])
-        plt.scatter(generations, scores_arr.T, alpha=0.5)
-        plt.title(f"CMA Evolution")
-        plt.sca(axs[3])
-        plt.scatter(generations_sph, scores_arr_sph.T, alpha=0.3, label="full")
-        plt.scatter(generations_RD, scores_arr_RD.T, alpha=0.3, label="50D")
-        plt.legend()
-        plt.title(f"Reduced Dimension Evolution comparison")
-        plt.suptitle(f"Neuron model act dim {active_dim} band {bandwidth:.1f}")
-        plt.tight_layout()
-        # plt.savefig(join(figdir, f"quadmodel_{active_dim}_{bandwidth:.1f}.png"))
-        saveallforms(figdir, f"quadmodel_{active_dim}_{bandwidth:.1f}")
-        plt.show()
+# for active_dim in [5, 10, 20, 50, 100, 200, 400, 800]:  # 100,
+#     for bandwidth in [2, 5, 10, 20, 40, 80, 160, 320, ]:
+for rep in range(5):
+    for active_dim in [5, 10, 20, 40, 80, 160]:  # 100,
+        for bandwidth in [2, 5, 10, 20, 40, 80, ]:
+            Hdiag = np.ones(4096)
+            Hdiag[active_dim:] = 0.000001
+            center = np.random.randn(4096)
+            qmodel = quad_model_neruon_constructer(center, Hdiag,
+                                    bandwidth=bandwidth, sphere_norm=300)
+            codes_arr, scores_arr, generations = run_evol(qmodel, init_sigma=3.0, maxgen=50)
+            PC_vectors, PC_Proj_codes, code_pca = analyze_evol(codes_arr)
+            score_mat = run_manifold(qmodel, PC_vectors[0, :], PC_vectors[1:3, :],
+                                     interval=9, sphere_norm=300, code_len=4096)
+            score_mat_RND = run_manifold(qmodel, center, None, interval=9, sphere_norm=300, code_len=4096)
+            # %%
+            param_RND, sigmas, res, R2_RND = fit_Kent_Stats(theta_arr, phi_arr, score_mat_RND, )
+            theta_RND, phi_RND, psi_RND, kappa_RND, beta_RND, A_RND, bsl_RND = param_RND
+            param, sigmas, res, R2 = fit_Kent_Stats(theta_arr, phi_arr, score_mat, )
+            theta, phi, psi, kappa, beta, A, bsl = param
+            #%%
+            optim = ZOHA_Sphere_lr_euclid(4096, population_size=40, select_size=20)
+            optim.lr_schedule(n_gen=50, mode="exp")
+            codes_arr_sph, scores_arr_sph, generations_sph = run_evol(qmodel, maxgen=50, optim=optim)
+            optim_RD = ZOHA_Sphere_lr_euclid_ReducDim(4096, 50, population_size=40, select_size=20)
+            optim_RD.lr_schedule(n_gen=50, mode="exp")
+            optim_RD.get_basis("rand")
+            codes_arr_RD, scores_arr_RD, generations_RD = run_evol(qmodel, maxgen=50, optim=optim_RD)
+            #%%
+            np.savez(join(figdir, f"quadmodel_{active_dim}_{bandwidth:.1f}_rep{rep:d}_data"),
+                     center=center, Hdiag=Hdiag, active_dim=active_dim, bandwidth=bandwidth,
+                     scores_arr=scores_arr, generations=generations,
+                     scores_arr_sph=scores_arr_sph, generations_sph=generations_sph,
+                     scores_arr_RD=scores_arr_RD, generations_RD=generations_RD,
+                     theta_arr=theta_arr, phi_arr=phi_arr,
+                     score_mat=score_mat, score_mat_RND=score_mat_RND,
+                     param_RND=param_RND, R2_RND=R2_RND, param=param, R2=R2,
+            )
+            #%%
+            figh, axs = plt.subplots(1, 4, figsize=(15.5, 4.5))
+            plt.sca(axs[0])
+            sns.heatmap(score_mat, cmap='coolwarm', vmin=0, )  # vmax=1
+            plt.axis('image')
+            plt.title(f"Manifold in PC123 space\n"
+                      f"R2: {R2:.2f} kappa {kappa:.2f} beta {beta:.2f}\n A {A:.2f} bsl {bsl:.2f}")
+            plt.sca(axs[1])
+            sns.heatmap(score_mat_RND, cmap='coolwarm', vmin=0, )  # vmax=1
+            plt.axis('image')
+            plt.title(
+                f"Random Manifold from true center\n"
+                f"R2: {R2_RND:.2f} kappa {kappa_RND:.2f} beta {beta_RND:.2f}\n A {A_RND:.2f} bsl {bsl_RND:.2f}")
+            plt.sca(axs[2])
+            plt.scatter(generations, scores_arr.T, alpha=0.5)
+            plt.title(f"CMA Evolution")
+            plt.sca(axs[3])
+            plt.scatter(generations_sph, scores_arr_sph.T, alpha=0.3, label="full")
+            plt.scatter(generations_RD, scores_arr_RD.T, alpha=0.3, label="50D")
+            plt.legend()
+            plt.title(f"Reduced Dimension Evolution comparison")
+            plt.suptitle(f"Neuron model act dim {active_dim} band {bandwidth:.1f}")
+            plt.tight_layout()
+            # plt.savefig(join(figdir, f"quadmodel_{active_dim}_{bandwidth:.1f}.png"))
+            saveallforms(figdir, f"quadmodel_{active_dim}_{bandwidth:.1f}_rep{rep:d}")
+            plt.show()
+#%%
+
+datacol = []
+for active_dim in [5, 10, 20, 40, 80, 160]:  # 100,
+    for bandwidth in [2, 5, 10, 20, 40, 80, ]:
+        for rep in range(5):
+            data = edict(np.load(join(figdir,
+              join(figdir, f"quadmodel_{active_dim}_{bandwidth:.1f}_rep{rep:d}_data.npz"))))
+            kappa = data.param[3]
+            kappa_RND = data.param_RND[3]
+            meanscore = [data.scores_arr[data.generations == i].mean() for i in range(50)]
+            meanscore_RD = [data.scores_arr_RD[data.generations_RD == i].mean() for i in range(50)]
+            meanscore_sph = [data.scores_arr_sph[data.generations_sph == i].mean() for i in range(50)]
+            ratio = (meanscore_RD[-1] - meanscore_RD[0]) / (meanscore_sph[-1] - meanscore_sph[0])
+            convergtime = np.array(meanscore) < (meanscore[0] + 0.632 * (meanscore[-1] - meanscore[0])).sum()
+            convergtime = convergtime.sum()
+            if meanscore[-1] - meanscore[0] < 1E-6:
+                convergtime = np.nan
+            maxact = np.max(meanscore)
+            VUS_int, norm_VUS = integrate_VUS(data.score_mat)
+            VUS_int_RND, norm_VUS_RND = integrate_VUS(data.score_mat_RND)
+            datacol.append(edict(active_dim=active_dim, bandwidth=bandwidth, rep=rep,
+                                 kappa=kappa, kappa_RND=kappa_RND,
+                                 ratio=ratio, convergtime=convergtime,
+                                 maxact=maxact, norm_VUS=norm_VUS, norm_VUS_RND=norm_VUS_RND,))
+df = pd.DataFrame(datacol)
+#%% Summary figures
+sumdir = r"E:\OneDrive - Harvard University\Manifold_Toymodel\summary"
+#%%
+sns.heatmap(df.groupby(["active_dim", "bandwidth"])["kappa"].mean().unstack(),
+            annot=True, fmt=".1f")
+plt.title("kappa (manifold peak)")
+saveallforms(sumdir, "toy_synopsis-kappa_manifold_annot")
+plt.show()
+
+sns.heatmap(df.groupby(["active_dim", "bandwidth"])["kappa_RND"].mean().unstack(),
+            annot=True, fmt=".1f")
+plt.title("kappa (random direction)")
+saveallforms(sumdir, "toy_synopsis-kappa_random_annot")
+plt.show()
+#
+sns.heatmap(df.groupby(["active_dim", "bandwidth"])["ratio"].mean().unstack(),
+            annot=True, fmt=".1f")
+plt.title("50-D full space ratio")
+saveallforms(sumdir, "toy_synopsis-ratio_full50D_annot")
+plt.show()
+#%
+sns.heatmap(df.groupby(["active_dim", "bandwidth"])["convergtime"].mean().unstack(),
+            annot=True, fmt=".0f")
+plt.title("Converge Time")
+saveallforms(sumdir, "toy_synopsis-convergtime_annot")
+plt.show()
+#%
+sns.heatmap(df.groupby(["active_dim", "bandwidth"])["maxact"].mean().unstack(),
+            annot=True, fmt=".1f")
+plt.title("Max activation")
+saveallforms(sumdir, "toy_synopsis-maxactiv_annot")
+plt.show()
+#%
+sns.heatmap(df.groupby(["active_dim", "bandwidth"])["norm_VUS"].mean().unstack(),
+            annot=True, fmt=".1f")
+plt.title("Normed Volume under Surface")
+saveallforms(sumdir, "toy_synopsis-normVUS_manif_annot")
+plt.show()
+#%
+sns.heatmap(df.groupby(["active_dim", "bandwidth"])["norm_VUS_RND"].mean().unstack(),
+            annot=True, fmt=".1f")
+plt.title("Normed Volume under Surface (Random Direction)")
+saveallforms(sumdir, "toy_synopsis-normVUS_rand_annot")
+plt.show()
+
+
+#%% Best examples
+from scipy.stats import sem
+outdir = r"E:\OneDrive - Harvard University\Manuscript_Manifold\Figure6Toy\source"
+figdir = r"E:\OneDrive - Harvard University\Manifold_Toymodel\expdata"
+def visualize_toymodel_exp(active_dim, bandwidth, rep):
+    data = edict(np.load(join(figdir,
+              f"quadmodel_{active_dim}_{bandwidth:.1f}_rep{rep:d}_data.npz")))
+    kappa = data.param[3]
+    beta  = data.param[4]
+    kappa_RND = data.param_RND[3]
+    meanscore = np.array([data.scores_arr[data.generations == i].mean() for i in range(50)])
+    semscore = np.array([np.std(data.scores_arr[data.generations == i]) for i in range(50)])
+    meanscore_RD = np.array([data.scores_arr_RD[data.generations_RD == i].mean() for i in range(50)])
+    semscore_RD = np.array([np.std(data.scores_arr_RD[data.generations_RD == i]) for i in range(50)])
+    meanscore_sph = np.array([data.scores_arr_sph[data.generations_sph == i].mean() for i in range(50)])
+    semscore_sph = np.array([np.std(data.scores_arr_sph[data.generations_sph == i]) for i in range(50)])
+    ratio = (meanscore_RD[-1] - meanscore_RD[0]) / (meanscore_sph[-1] - meanscore_sph[0])
+    maxact = np.max(meanscore)
+    convergtime = meanscore < (meanscore[0] + 0.632 * (meanscore[-1] - meanscore[0])).sum()
+    convergtime = convergtime.sum()
+    if meanscore[-1] - meanscore[0] < 1E-6:
+        convergtime = np.nan
+    VUS_int, norm_VUS = integrate_VUS(data.score_mat)
+    VUS_int_RND, norm_VUS_RND = integrate_VUS(data.score_mat_RND)
+    figh, axs = plt.subplots(1, 3, figsize=(12.5, 4.5))
+    plt.sca(axs[0])
+    sns.heatmap(data.score_mat, cmap='coolwarm', vmin=0,)
+                # xticklabels=np.arange(-90,91,9), yticklabels=np.arange(-90,91,9))  # vmax=1
+    plt.xticks([0, 10, 20], [-90, 0, 90])
+    plt.yticks([0, 10, 20], [-90, 0, 90])
+    plt.axis('image')
+    plt.title(f"Manifold in PC123 space\n  normVUS {norm_VUS:.2f}\n"
+              f"R2: {data.R2:.2f} kappa {kappa:.2f} beta {beta:.2f}") #\n A {A:.2f} bsl {bsl:.2f}
+    # plt.sca(axs[1])
+    # sns.heatmap(score_mat_RND, cmap='coolwarm', vmin=0, )  # vmax=1
+    # plt.axis('image')
+    # plt.title(
+    #     f"Random Manifold from true center\n"
+    #     f"R2: {R2_RND:.2f} kappa {kappa_RND:.2f} beta {beta_RND:.2f}\n A {A_RND:.2f} bsl {bsl_RND:.2f}")
+    plt.sca(axs[1])
+    # plt.scatter(data.generations, data.scores_arr.T, alpha=0.2)
+    plt.plot(range(len(meanscore)), meanscore, 'r', color="k", lw=1.5)
+    plt.fill_between(range(len(meanscore)),
+                     meanscore - semscore, meanscore + semscore,alpha=0.4)
+    plt.title(f"CMA Evolution\nConvergence Time: {convergtime:.0f}")
+    plt.ylim(0, 1)
+    plt.sca(axs[2])
+    # plt.scatter(data.generations_sph, data.scores_arr_sph.T, alpha=0.2, label="full")
+    # plt.scatter(data.generations_RD, data.scores_arr_RD.T, alpha=0.2, label="50D")
+    plt.plot(range(len(meanscore_sph)), meanscore_sph, 'r', color="k", lw=1.5, label="full")
+    plt.fill_between(range(len(meanscore_sph)),
+                     meanscore_sph - semscore_sph, meanscore_sph + semscore_sph, alpha=0.4)
+    plt.plot(range(len(meanscore_RD)), meanscore_RD, 'r', color="r", lw=1.5, label="50D")
+    plt.fill_between(range(len(meanscore_RD)),
+                     meanscore_RD - semscore_RD, meanscore_RD + semscore_RD, alpha=0.4)
+    plt.ylim(0, 1)
+    plt.legend()
+    plt.title(f"Reduced Dimension Evolution comparison\nRatio: {ratio:.2f}")
+    plt.suptitle(f"Neuron model Tuned dim D={active_dim} tuning width $\sigma$={bandwidth:.1f}")
+    plt.tight_layout()
+    # plt.savefig(join(figdir, f"quadmodel_{active_dim}_{bandwidth:.1f}.png"))
+    saveallforms(outdir, f"quadmodel_{active_dim}_{bandwidth:.1f}_rep{rep:d}")
+    plt.show()
+    return figh, axs
+
+
+visualize_toymodel_exp(20, 20, 0)
+# visualize_toymodel_exp(40, 40, 0)
+visualize_toymodel_exp(40, 20, 0)
+visualize_toymodel_exp(40, 40, 0)
+visualize_toymodel_exp(80, 40, 2)
+visualize_toymodel_exp(80, 80, 0)
+
 #%%
 active_dim = 50
 Hdiag = np.ones(4096)
