@@ -53,16 +53,27 @@ def scatter_by_layer(PC12tab, xvar="kappa", yvar="sparseness", groupvar="layer",
     return cval, pval
 
 
-def annotate_corrfunc(x, y, hue=None, ax=None, **kws):
+def annotate_corrfunc(x, y, hue=None, xy=(.1, .9), method="spearman", ax=None, **kws):
     """util function to annotate PairGrid with corr value and p-value"""
     # r, _ = pearsonr(x, y)
-    r, pval = spearmanr(x, y, nan_policy='omit')
+    if method == "spearman":
+        r, pval = spearmanr(x, y, nan_policy='omit')
+    elif method == "pearson":
+        r, pval = pearsonr(x, y, )  # nan_policy='omit'
+    else:
+        raise ValueError(f"method {method} not supported")
     ax = ax or plt.gca()
-    ax.annotate("ρ = {:.3f} ({:.1e})".format(r, pval), color="red", fontsize=12,
-                xy=(.1, .9), xycoords=ax.transAxes)  # xycoords='subfigure fraction')
+    N = len(x)
+    ax.annotate("ρ = {:.3f} (P={:.1e},N={:d})".format(r, pval, N), color="red", fontsize=12,
+                xy=xy, xycoords=ax.transAxes)  # xycoords='subfigure fraction')
 
 
 def scatter_density_grid(df_layer, cols, ):
+    """Square grid of
+        Upper trig: scatter plots
+        Lower trig: 2d kde density estimate
+        Diagonal: histogram of each variable
+    """
     plt.figure()
     g = sns.PairGrid(df_layer[cols], diag_sharey=False, )
     g.map_upper(sns.scatterplot, alpha=0.5)
