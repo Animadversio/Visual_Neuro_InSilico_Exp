@@ -84,7 +84,6 @@ from NN_sparseness.insilico_manif_configs import VGG16_config, RN50_config
 """
 Attempt 3, using Lanczos iteration and HVP to compute the approximate Hessian
 """
-
 #%%
 savedir = r"E:\OneDrive - Harvard University\Manifold_Toymodel\gradHess"
 netname = "densenet169" #"vgg16"
@@ -134,6 +133,28 @@ for chan in range(10, 20):
         #%%
         scorer.cleanup()
 
+#%%
+savedir = r"E:\OneDrive - Harvard University\Manifold_Toymodel\gradHess"
+spect_HVP_dict = defaultdict(list)
+peakact_dict   = defaultdict(list)
+z_dict         = defaultdict(list)
+netname = "densenet169" #"vgg16"
+confg = manifold_config(netname)
+
+for layer, unit_dict in confg.items():
+    for chan in range(10, 20):
+        if unit_dict["unit_pos"] is None:
+            unitstr = f"{netname}-{shorten_layername(layer)}-unit%d" % (chan)
+        else:
+            unit_x, unit_y = unit_dict["unit_pos"]
+            unitstr = f"{netname}-{shorten_layername(layer)}-unit%d-%d-%d" % (chan, unit_x, unit_y)
+        try:
+            data = np.load(join(savedir, f"{unitstr}_Hess_data_ForwardHVP_multiscale.pt.npz"), allow_pickle=True)
+            spect_HVP_dict[layer].append(data["eigvals"])
+            peakact_dict[layer].append(data["act"])
+            z_dict[layer].append(data["z"])
+        except FileNotFoundError:
+            print(f"{unitstr} not found")
 
 
 #%%
@@ -177,7 +198,9 @@ for layer, unit_dict in VGG16_config.items():#RN50_config.items():
         except FileNotFoundError:
             print(f"{unitstr} not found")
 #%%
-
+"""
+Plot activation as a function of random perturbation size
+"""
 for layer, unit_dict in VGG16_config.items():
     plt.figure(figsize=(5, 5))
     actdicts = tune_dict[layer]
@@ -197,6 +220,9 @@ for layer, unit_dict in VGG16_config.items():
     # plt.legend()
     plt.show()
 #%%
+"""
+Plot Hessian spectrum 
+"""
 plt.figure(figsize=(6, 6))
 for layer, spect_col in spect_HVP_dict.items():
     spect_arr = np.array(spect_col)
@@ -222,6 +248,34 @@ plt.legend()
 plt.title(f"Network: {netname} \n Eigen Spectrum of Hessian matrix (Forward HVP_multiscale)")
 saveallforms(sumdir, f"{netname}_spectrum_cmp_ForwardHVP_multiscale2")
 plt.show()
+#%%
+"""Alternative ways to summarize the spectrum"""
+plt.figure(figsize=(6, 6))
+for layer, spect_col in spect_HVP_dict.items():
+    spect_arr = np.array(spect_col)
+    act_arr = np.array(peakact_dict[layer])
+    z_arr = np.array(z_dict[layer])
+    znorm = np.linalg.norm(z_arr, axis=1)
+    spect_arr = np.sort(np.abs(spect_arr), axis=1)[:, ::-1]
+    # norm_spect_arr = spect_arr / np.nanmax(spect_arr, axis=1, keepdims=True)# / act_arr  #
+    norm_spect_arr = spect_arr / act_arr #/ znorm
+    norm_spect_range = np.nanpercentile(norm_spect_arr, [25, 75], axis=0)
+    plt.plot(np.nanmean(norm_spect_arr, axis=0),
+                 label=shorten_layername(layer), linewidth=2, alpha=0.7)
+    # print(f"{layer}: znorm {znorm} activation {act_arr}") # sanity check
+    plt.fill_between(range(len(norm_spect_range[0])),
+                     norm_spect_range[0],
+                     norm_spect_range[1], alpha=0.2)
+    # plt.plot(np.log10(np.nanmedian(norm_spect_arr, axis=0)), label=layer)
+
+# plt.semilogy(data["eigvals"], alpha=0.3, label=shorten_layername(layer))
+plt.xlim([-25, 500])
+plt.ylim([1E-8, 0.005])
+plt.legend()
+plt.title(f"Network: {netname} \n Eigen Spectrum of Hessian matrix (Forward HVP_multiscale)")
+saveallforms(sumdir, f"{netname}_spectrum_cmp_ForwardHVP_multiscale2_lin")
+plt.show()
+
 
 #%%
 # netname = "resnet50_linf8"
@@ -267,13 +321,11 @@ for chan in range(10, 20):
         scorer.cleanup()
 
 #%%
-#%%
 eigvals = eigvals[::-1]
 plt.figure()
 plt.semilogy(np.abs(eigvals), label="conv3_relu", linewidth=2, alpha=0.7)
 plt.show()
 # VGG16_config
-#%%
 #%%
 netname = "vgg16"# "resnet50_linf8"
 spect_HVP_dict = defaultdict(list)
@@ -292,8 +344,6 @@ for layer, unit_dict in VGG16_config.items():#RN50_config.items():
             peakact_dict[layer].append(data["act"])
         except FileNotFoundError:
             print(f"{unitstr} not found")
-
-#%%
 
 #%%
 plt.figure(figsize=(6, 6))
@@ -319,6 +369,12 @@ plt.legend()
 plt.title(f"Network: {netname} \n Eigen Spectrum of Hessian matrix (Forward HVP)")
 saveallforms(sumdir, f"{netname}_spectrum_cmp_ForwardHVP")
 plt.show()
+
+
+
+
+
+
 
 #%% Dev zone
 #%% Experiment on the spatial scale of hessian
