@@ -30,16 +30,21 @@ def pair_compare_plot(df, name1, name2, valrange=(0, None), titstr="", figdir=fi
     return tval, pval, fig, ax
 
 
-def pair_strip_plot(df, name1, name2, valrange=(0, None), titstr="", figdir=figdir, figsize=(3.5, 6)):
+def pair_strip_plot(df, name1, name2, valrange=(0, None), titstr="",
+                    figdir=figdir, figsize=(3.5, 6), ax=None,):
     valmsk = ~df[[name1, name2]].isna().any(axis=1)
     tval, pval = ttest_rel(df[name1], df[name2], nan_policy="omit")
     m1, s1 = df[name1][valmsk].mean(), df[name1][valmsk].sem()
     m2, s2 = df[name2][valmsk].mean(), df[name2][valmsk].sem()
-    fig, ax = plt.subplots(1, 1, figsize=figsize)
+    if ax is None:
+        fig, ax = plt.subplots(1, 1, figsize=figsize)
+    else:
+        fig = ax.get_figure()
+    plt.sca(ax)
     xjitter = np.random.uniform(-0.1, 0.1, len(df[valmsk]))
-    plt.scatter(xjitter, df[name1][valmsk], )
-    plt.scatter(xjitter+1, df[name2][valmsk], )
-    plt.plot(xjitter[np.newaxis,:]+
+    ax.scatter(xjitter, df[name1][valmsk], )
+    ax.scatter(xjitter+1, df[name2][valmsk], )
+    ax.plot(xjitter[np.newaxis,:]+
              np.arange(2)[:,np.newaxis],
              df[[name1, name2]][valmsk].T,
              color="k", alpha=0.2)
@@ -50,8 +55,9 @@ def pair_strip_plot(df, name1, name2, valrange=(0, None), titstr="", figdir=figd
     ax.set_title(f"{titstr}  "
                  f"{name1} {m1:.2f}+-{s1:.2f} \n vs {name2} {m2:.2f}+-{s2:.2f} \ntval={tval:.2f}, pval={pval:.1e} (N={len(df[valmsk])})")
     # ax.set_aspect("equal")
+
     plt.show()
-    if figdir is not None:
+    if figdir is not None and ax is None:
         saveallforms(figdir, f"{titstr}_{name1}_vs_{name2}_strip", fig)
     return tval, pval, fig, ax
 #%%
@@ -75,4 +81,16 @@ tval, pval, fig, ax = pair_strip_plot(df_all[V4msk], "AUC_mani", "AUC_pasu", (0,
 tval, pval, fig, ax = pair_strip_plot(df_all[V1msk], "normAUC_mani", "normAUC_gab", (0, 0.6), "V1")
 tval, pval, fig, ax = pair_strip_plot(df_all[V1msk], "peak_mani", "peak_gab", (0, 800), "V1")
 tval, pval, fig, ax = pair_strip_plot(df_all[V1msk], "AUC_mani", "AUC_gab", (0, 450), "V1")
+#%%
 
+figh, axs = plt.subplots(2, 3, figsize=(9, 10))
+pair_strip_plot(df_all[V4msk], "peak_mani", "peak_pasu", (0, 650), "V4", ax=axs[0, 0])
+pair_strip_plot(df_all[V4msk], "normAUC_mani", "normAUC_pasu", (0, 0.6), "V4", ax=axs[0, 1])
+pair_strip_plot(df_all[V4msk], "AUC_mani", "AUC_pasu", (0, 200), "V4", ax=axs[0, 2])
+pair_strip_plot(df_all[V1msk], "peak_mani", "peak_gab", (0, 800), "V1", ax=axs[1, 0])
+pair_strip_plot(df_all[V1msk], "normAUC_mani", "normAUC_gab", (0, 0.6), "V1", ax=axs[1, 1])
+pair_strip_plot(df_all[V1msk], "AUC_mani", "AUC_gab", (0, 450), "V1", ax=axs[1, 2])
+figh.suptitle("Manifold vs Classic Image spaces for V1, V4", fontsize=15)
+figh.tight_layout()
+saveallforms(figdir, "RadialTuning_V1V4_manif_classicspace_cmp", figh)
+figh.show()
