@@ -2,8 +2,6 @@
 This folder devotes to test the hypothesis, whether the prorotypes matter
 or it could be rotated arbitrarily.
 """
-from scipy.stats import special_ortho_group, ortho_group
-Mrot = special_ortho_group.rvs(dim=2048)
 #%%
 import torch
 import numpy as np
@@ -11,34 +9,43 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from tqdm import tqdm
-from featvis_lib import load_featnet
+# from featvis_lib import load_featnet
+from insilico_Exp_torch import load_featnet
 from layer_hook_utils import featureFetcher
 from GAN_utils import upconvGAN
 from torchvision.transforms import ToTensor, Normalize, ToPILImage, Compose
 from torch_utils import show_imgrid, save_imgrid
 from os.path import join
 import pickle as pkl
-featnet, net = load_featnet("resnet50_linf8")
+from scipy.stats import special_ortho_group, ortho_group
+
+featnet, net = load_featnet("resnet50_linf8") #
 G = upconvGAN().cuda().eval()
 G.requires_grad_(False)
 preprocess = Normalize(mean=[0.485, 0.456, 0.406],
                       std=[0.229, 0.224, 0.225])  # Imagenet normalization RGB
 #%%
-rotMat = torch.tensor(Mrot).float().cuda()
-# rot_layer = nn.Linear(2048, 2048, bias=False)
-# rot_layer.weight = nn.Parameter(torch.tensor(Mrot).float().cuda())
-# rot_layer.weight.requires_grad_(False)
 #%%
+featkey = ".Linearfc"
+channum = 2048
 fetcher = featureFetcher(featnet, input_size=(3, 256, 256))
 # fetcher.record(".AdaptiveAvgPool2davgpool", ingraph=True)
-featkey = ".Linearfc"
 fetcher.record(featkey, ingraph=True, return_input=True)
+Mrot = special_ortho_group.rvs(dim=channum)
+rotMat = torch.tensor(Mrot).float().cuda()
+#%%
+featkey = ".Linearfc"
+channum = 1000
+fetcher = featureFetcher(featnet, input_size=(3, 256, 256))
+fetcher.record(featkey, ingraph=True, return_input=False)
+Mrot = special_ortho_group.rvs(dim=channum)
+rotMat = torch.tensor(Mrot).float().cuda()
 #%%
 rootdir = r"E:\OneDrive - Harvard University\CNN_rotated_prototypes"
-figdir = r"E:\OneDrive - Harvard University\CNN_rotated_prototypes\resnet50_linf8\Linearfc_input"
+# figdir = r"E:\OneDrive - Harvard University\CNN_rotated_prototypes\resnet50_linf8\Linearfc_input"
+figdir = r"E:\OneDrive - Harvard University\CNN_rotated_prototypes\resnet50_linf8\Linearfc_output"
 torch.save(rotMat, join(figdir, "rotMat.pt"))
-unit_i = 500
-for unit_i in range(2048):
+for unit_i in range(channum):
     print("Pooling layer rotated unit {}".format(unit_i))
     zs = torch.randn(5, 4096).cuda()
     zs.requires_grad_(True)
@@ -47,7 +54,8 @@ for unit_i in range(2048):
     for i in pbar:
         imgs = G.visualize(zs)
         net(imgs)
-        activation = fetcher[featkey][0] @ rotMat[:, unit_i]
+        # activation = fetcher[featkey][0] @ rotMat[:, unit_i]
+        activation = fetcher[featkey] @ rotMat[:, unit_i]
         loss = - activation.sum()
         loss.backward()
         optimizer.step()
@@ -60,7 +68,7 @@ for unit_i in range(2048):
     zs = zs[idxs, :]
     save_imgrid(imgs, join(figdir, f"rotate_unit_{unit_i}_proto.png"))
     torch.save({"zs":zs, "scores":scores}, join(figdir, f"rotate_unit_{unit_i}_data.pt"))
-    break
+    # break
 #%%
 show_imgrid(imgs)
 

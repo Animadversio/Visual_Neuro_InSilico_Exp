@@ -59,14 +59,21 @@ def fit_Kent(theta_arr, phi_arr, act_map):
         return np.ones(6)*np.nan, np.ones(6)*np.nan
 
 def fit_Kent_bsl(theta_arr, phi_arr, act_map):
+    """ Fit Kent function with baseline
+    : param = [theta, phi, psi, kappa, beta, A, bsl]
+    """
     phi_grid, theta_grid = meshgrid(phi_arr, theta_arr)
     Xin = np.array([theta_grid.flatten(), phi_grid.flatten()]).T
     fval = act_map.flatten()
     try:  # avoid fitting failure to crash the whole thing.
+        # param, pcov = curve_fit(KentFunc_bsl, Xin, fval,
+        #                         p0=[0, 0, pi / 2, 0.1, 0.1, 1, 0.001],
+        #                         bounds=([-pi, -pi / 2, 0, 0, 0, 0, 0],
+        #                                 [pi, pi / 2, pi, np.inf, np.inf, np.inf, np.inf]))
         param, pcov = curve_fit(KentFunc_bsl, Xin, fval,
                                 p0=[0, 0, pi / 2, 0.1, 0.1, 1, 0.001],
-                                bounds=([-pi, -pi / 2, 0, 0, 0, 0, 0],
-                                        [pi, pi / 2, pi, np.inf, np.inf, np.inf, np.inf]))
+                                bounds=([-pi/2, -pi / 2, 0, 0, 0, 0, 0],
+                                        [pi/2, pi / 2, pi, np.inf, np.inf, np.inf, np.inf]))
         sigmas = np.diag(pcov) ** 0.5
         return param, sigmas
     except RuntimeError as err:
@@ -86,10 +93,13 @@ def fit_stats(theta_arr, phi_arr, act_map, param, func=KentFunc):
 
 
 def fit_Kent_Stats(theta_arr, phi_arr, act_map, func=KentFunc_bsl):
+    """ Combine function fitting and getting statistics """
     if func is KentFunc:
         param, sigmas = fit_Kent(theta_arr, phi_arr, act_map)
     elif func is KentFunc_bsl:
         param, sigmas = fit_Kent_bsl(theta_arr, phi_arr, act_map)
+    else:
+        raise ValueError('Unknown fitting function')
     if np.any(np.isnan(param)):
         res, R2 = np.ones_like(act_map)*np.nan, np.nan
     else:

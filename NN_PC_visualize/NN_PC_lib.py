@@ -24,11 +24,17 @@ normalize = Normalize(RGB_mean, RGB_std)
 def create_imagenet_valid_dataset(imgpix=256, normalize=True,):
     RGB_mean = torch.tensor([0.485, 0.456, 0.406]) #.view(1,-1,1,1).cuda()
     RGB_std  = torch.tensor([0.229, 0.224, 0.225]) #.view(1,-1,1,1).cuda()
-    preprocess = Compose([ToTensor(),
-                          Resize(imgpix, ),
-                          CenterCrop((imgpix, imgpix), ),
-                          Normalize(RGB_mean, RGB_std) if normalize else lambda x: x
-                          ])
+    if normalize:
+        preprocess = Compose([ToTensor(),
+                              Resize(imgpix, ),
+                              CenterCrop((imgpix, imgpix), ),
+                              Normalize(RGB_mean, RGB_std) #if normalize else lambda x: x
+                              ])
+    else:
+        preprocess = Compose([ToTensor(),
+                              Resize(imgpix, ),
+                              CenterCrop((imgpix, imgpix), ),
+                              ])
     dataset = ImageFolder(r"E:\Datasets\imagenet-valid", transform=preprocess)
     return dataset
 
@@ -66,7 +72,7 @@ def record_dataset(model, reclayers, dataset, return_input=False,
     loader = DataLoader(dataset, shuffle=False, drop_last=False,
                         batch_size=batch_size, num_workers=num_workers)
 
-    fetcher = featureFetcher(model, device="cuda", store_device="cpu")
+    fetcher = featureFetcher(model, device="cuda", store_device="cpu", print_module=False)
     for layer in reclayers:
         fetcher.record(layer, return_input=return_input, ingraph=False)
     feat_col = defaultdict(list)
@@ -86,6 +92,34 @@ def record_dataset(model, reclayers, dataset, return_input=False,
     for layer in reclayers:
         feattsrs[layer] = torch.cat(tuple(feat_col[layer]), dim=0)
 
+    fetcher.cleanup()
+    return feattsrs
+
+
+def record_imgtsrs_dataset(model, reclayers, imgtsrs, return_input=False,
+                   batch_size=125, ):
+    fetcher = featureFetcher(model, device="cuda", store_device="cpu", print_module=False)
+    for layer in reclayers:
+        fetcher.record(layer, return_input=return_input, ingraph=False)
+    feat_col = defaultdict(list)
+    feattsrs = {}
+    for csr in range(0, len(imgtsrs), batch_size):
+        imgtsr = imgtsrs[csr:csr+batch_size]
+        with torch.no_grad():
+            model(imgtsr.cuda())
+
+        for layer in reclayers:
+            if return_input:
+                feats_full = fetcher[layer][0].cpu()
+            else:
+                feats_full = fetcher[layer].cpu()
+            feats = slice_center_col(feats_full, ingraph=False)
+            feat_col[layer].append(feats)
+
+    for layer in reclayers:
+        feattsrs[layer] = torch.cat(tuple(feat_col[layer]), dim=0)
+
+    fetcher.cleanup()
     return feattsrs
 
 
