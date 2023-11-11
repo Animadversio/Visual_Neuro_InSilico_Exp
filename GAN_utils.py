@@ -61,7 +61,7 @@ model_urls = {"pool5" : "https://onedrive.live.com/download?cid=9CFFF6BCB39F6829
     "fc8": "https://onedrive.live.com/download?cid=9CFFF6BCB39F6829&resid=9CFFF6BCB39F6829%2145340&authkey=AKIfNk7s5MGrRkU"}
 
 def load_statedict_from_online(name="fc6"):
-    torchhome = torch.hub._get_torch_home()
+    torchhome = torch.hub.get_dir() # torch.hub._get_torch_home()
     ckpthome = join(torchhome, "checkpoints")
     os.makedirs(ckpthome, exist_ok=True)
     filepath = join(ckpthome, "upconvGAN_%s.pt"%name)

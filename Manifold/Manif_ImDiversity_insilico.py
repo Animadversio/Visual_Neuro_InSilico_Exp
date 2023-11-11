@@ -35,7 +35,7 @@ def compute_distmat(Dist, imgtsr, batch=40, space=False):
 savedir = r"E:\OneDrive - Harvard University\Manuscript_Manifold\Response\Manif_imdiversity\insilico"
 #%%
 Dist = LPIPS(net='squeeze').cuda()
-#%% Calcluate diversity of images on the Manifold image space. 
+#%% Calcluate diversity of images on the Manifold image space.
 exp = ExperimentManifold(('resnet50_linf8', '.layer3.Bottleneck5', 5, 7, 7),
                          max_step=50, imgsize=(227, 227))
 layername = ".layer4.Bottleneck2"

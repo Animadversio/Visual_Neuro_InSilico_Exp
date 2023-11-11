@@ -8,9 +8,11 @@ from torchvision.transforms.functional import rotate, affine, resize, center_cro
 import seaborn as sns
 from stats_utils import saveallforms
 
+savedir = r"E:\OneDrive - Harvard University\Manuscript_Manifold\Response\ImageNet_imdist"
 
 figdir = r"E:\OneDrive - Harvard University\Manifold_Sparseness\actlevel_tolerence_evol"
-INdataset = create_imagenet_valid_dataset(normalize=True)
+# INdataset = create_imagenet_valid_dataset(normalize=True)
+INdataset = create_imagenet_valid_dataset(normalize=False)
 #%%
 D = LPIPS(net="squeeze").cuda()
 D.requires_grad_(False)
@@ -19,11 +21,14 @@ loader1 = DataLoader(INdataset, num_workers=8, shuffle=False, batch_size=64)
 loader2 = DataLoader(INdataset, num_workers=8, shuffle=False, batch_size=64)
 #%%
 
-D.forward_distmat(batch_size=64)
+disttmp = D.forward_distmat(imgtsr1.cuda(), batch_size=24).flatten(start_dim=1)
+distmatvals = disttmp[torch.triu_indices(*disttmp.shape, 1).unbind()]
+
 #%%
 distmat_all = []
 for i, (imgtsr1, _) in enumerate(tqdm(loader1)):
     distmat_row = []
+    # raise Exception("Stop")
     for imgtsr2, _ in tqdm(loader2):
         with torch.no_grad():
             distmat = D.forward_distmat(imgtsr1.cuda(), imgtsr2.cuda(), batch_size=24).cpu()
@@ -34,7 +39,8 @@ for i, (imgtsr1, _) in enumerate(tqdm(loader1)):
         raise Exception
 #%
 savedir = r"E:\OneDrive - Harvard University\Manuscript_Manifold\Response\ImageNet_imdist"
-torch.save(distmat_all, join(savedir,"INet_imgdistmat.pt"))
+# torch.save(distmat_all, join(savedir,"INet_imgdistmat.pt"))
+torch.save(distmat_all, join(savedir,"INet_imgdistmat_nonnorm.pt")) # this version is used in the Manfiold paper
 #%%
 distmat_all = torch.load(join(savedir,"INet_imgdistmat.pt"))
 #%%
@@ -53,7 +59,8 @@ dist_mat = torch.load(join(savedir, "INet_imgdistmat_cat.pt"))
 #%%
 dist_mat_sort, dist_mat_idx = torch.sort(dist_mat, dim=1)
 #%%
-
+distmat_sq = dist_mat[:, :dist_mat.shape[0]]
+distmatvals = distmat_sq[torch.triu_indices(1088, 1088, 1).unbind()]
 #%%
 NN_dist = dist_mat_sort[:,1]
 NNmean = torch.mean(NN_dist)
