@@ -335,14 +335,23 @@ plt.show()
 
 #%% Best examples
 from scipy.stats import sem
-outdir = r"E:\OneDrive - Harvard University\Manuscript_Manifold\Figure6Toy\source"
+outdir = r"E:\OneDrive - Harvard University\Manuscript_Manifold\Figure6_Toy\source"
 figdir = r"E:\OneDrive - Harvard University\Manifold_Toymodel\expdata"
 def visualize_toymodel_exp(active_dim, bandwidth, rep):
+    """Visualize a toy model experiment
+    Generate a three panel figure:
+    1) the manifold,
+    2) the evolution of the CMA-ES in full space
+    3) the Spherical RD evolution.
+    """
     data = edict(np.load(join(figdir,
               f"quadmodel_{active_dim}_{bandwidth:.1f}_rep{rep:d}_data.npz")))
     kappa = data.param[3]
     beta  = data.param[4]
     kappa_RND = data.param_RND[3]
+    # Note: It's called semscore, but it's actually the standard deviation (std).
+    #       Misnomer / bug from the original implementation.
+    #       It's not divided by sqrt(n).
     meanscore = np.array([data.scores_arr[data.generations == i].mean() for i in range(50)])
     semscore = np.array([np.std(data.scores_arr[data.generations == i]) for i in range(50)])
     meanscore_RD = np.array([data.scores_arr_RD[data.generations_RD == i].mean() for i in range(50)])

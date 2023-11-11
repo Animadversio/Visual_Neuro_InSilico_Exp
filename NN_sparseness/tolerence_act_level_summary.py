@@ -102,7 +102,8 @@ msk = ~df_all['corr_Evol_Up'].isna()
 tval, pval = ttest_rel(df_all['corr_Evol_Lw'][msk], df_all['corr_Evol_Up'][msk])
 print("corr Evol Lower (<99%%ile) vs. Upper (>99%%ile) %.3f ~ %.3f t=%.3f (P=%.1e)" %
       (df_all['corr_Evol_Lw'].mean(), df_all['corr_Evol_Up'].mean(), tval, pval))
-
+#%%
+ttest_rel(df_all.corr_INet_Lw, df_all.corr_Evol_Lw,)
 #%%
 df_long.groupby("variable").agg({"value": ["mean", "sem", "count"]})
 #%%

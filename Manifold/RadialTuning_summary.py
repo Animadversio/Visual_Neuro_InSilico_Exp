@@ -61,7 +61,9 @@ def pair_strip_plot(df, name1, name2, valrange=(0, None), titstr="",
         saveallforms(figdir, f"{titstr}_{name1}_vs_{name2}_strip", fig)
     return tval, pval, fig, ax
 #%%
-
+V4msk = (df_all["area"] == "V4")
+V1msk = (df_all["area"] == "V1")
+#%%
 V4msk = (df_all["area"] == "V4")
 tval, pval, fig, ax = pair_compare_plot(df_all[V4msk], "normAUC_mani", "normAUC_pasu", (0, 0.6), "V4")
 tval, pval, fig, ax = pair_compare_plot(df_all[V4msk], "peak_mani", "peak_pasu", (0, 650), "V4")
@@ -82,7 +84,7 @@ tval, pval, fig, ax = pair_strip_plot(df_all[V1msk], "normAUC_mani", "normAUC_ga
 tval, pval, fig, ax = pair_strip_plot(df_all[V1msk], "peak_mani", "peak_gab", (0, 800), "V1")
 tval, pval, fig, ax = pair_strip_plot(df_all[V1msk], "AUC_mani", "AUC_gab", (0, 450), "V1")
 #%%
-
+outdir = r"E:\OneDrive - Harvard University\Manuscript_Manifold\Response\RadialTuning_V1V4"
 figh, axs = plt.subplots(2, 3, figsize=(9, 10))
 pair_strip_plot(df_all[V4msk], "peak_mani", "peak_pasu", (0, 650), "V4", ax=axs[0, 0])
 pair_strip_plot(df_all[V4msk], "normAUC_mani", "normAUC_pasu", (0, 0.6), "V4", ax=axs[0, 1])
@@ -92,5 +94,5 @@ pair_strip_plot(df_all[V1msk], "normAUC_mani", "normAUC_gab", (0, 0.6), "V1", ax
 pair_strip_plot(df_all[V1msk], "AUC_mani", "AUC_gab", (0, 450), "V1", ax=axs[1, 2])
 figh.suptitle("Manifold vs Classic Image spaces for V1, V4", fontsize=15)
 figh.tight_layout()
-saveallforms(figdir, "RadialTuning_V1V4_manif_classicspace_cmp", figh)
+saveallforms(outdir, "RadialTuning_V1V4_manif_classicspace_cmp", figh)
 figh.show()

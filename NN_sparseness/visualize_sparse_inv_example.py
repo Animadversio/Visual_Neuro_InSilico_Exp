@@ -204,3 +204,4 @@ if __name__ == "__main__":
     # fig, protoimg, Edata, Mdata, natimg = visualize_unit_data(unitrow, netname, Invfeatdata, feattsrs, INdataset)
     fig, protoimg, Edata, Mdata, natimg = visualize_unit_data_montage(unitrow, netname,
                                   Invfeatdata, feattsrs, INdataset)
+
