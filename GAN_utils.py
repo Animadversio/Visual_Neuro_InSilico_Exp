@@ -118,6 +118,7 @@ class upconvGAN(nn.Module):
                 ('deconv0', nn.ConvTranspose2d(32, 3, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1))),
             ]))
             self.codelen = self.G[0].in_features
+            self.latent_shape = (4096,)
         elif name == "fc8":
             self.G = nn.Sequential(OrderedDict([
                 ("defc7", nn.Linear(in_features=1000, out_features=4096, bias=True)),
@@ -146,6 +147,7 @@ class upconvGAN(nn.Module):
                 ("deconv0", nn.ConvTranspose2d(32, 3, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1))),
             ]))
             self.codelen = self.G[0].in_features
+            self.latent_shape = (1000,)
         elif name == "pool5":
             self.G = nn.Sequential(OrderedDict([
                 ('Rconv6', nn.Conv2d(256, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))),
