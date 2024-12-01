@@ -11,8 +11,10 @@ Find important Nuisanced + Class transformations in Noise + Class space for a Bi
 # Put the backup folder and the thread to analyze here 
 #backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-07-22-10-14-22"
 # backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2020-08-06-10-18-55"#2020-08-04-09-54-25"#
-backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2021-05-14-13-11-03"
+backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2022-01-12-12-05-00"
+backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2024-12-01-17-01-31"
 threadid = 1
+pil_show = False
 
 score_rank_avg = False  # If True, it will try to read "scores_record.mat", from the backup folder and read "scores_record"
                         # Else, it will use the unweighted mean code of the last generation as the center vector. 
@@ -37,6 +39,7 @@ elif os.environ['COMPUTERNAME'] == 'DESKTOP-MENSD6S':
 elif os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':
     Python_dir = r"D:\Github"
 
+sys.path.append(join(Python_dir,"Visual_Neuro_InSilico_Exp\Hessian"))
 sys.path.append(join(Python_dir,"Visual_Neuro_InSilico_Exp"))
 sys.path.append(join(Python_dir,"PerceptualSimilarity"))
 import torch
@@ -53,8 +56,10 @@ from IPython.display import clear_output
 from hessian_eigenthings.utils import progress_bar
 from tqdm import tqdm
 T00 = time()
-import models # from PerceptualSimilarity folder
-ImDist = models.PerceptualLoss(model='net-lin', net='squeeze', use_gpu=1, gpu_ids=[0])
+import lpips
+# import models # from PerceptualSimilarity folder
+# ImDist = models.PerceptualLoss(model='net-lin', net='squeeze', use_gpu=1, gpu_ids=[0])
+ImDist = lpips.LPIPS(net='squeeze') # model='net-lin', , use_gpu=1, gpu_ids=[0]
 # model_vgg = models.PerceptualLoss(model='net-lin', net='vgg', use_gpu=1, gpu_ids=[0])
 ImDist.cuda()
 for param in ImDist.parameters():
@@ -254,7 +259,7 @@ elif evolspace == "BigGAN":
 ref_vect = torch.from_numpy(np.concatenate((ref_noise_vec, ref_class_vec), axis=1)).float().cuda()
 refimg = G.visualize(ref_vect).cpu()
 centimg = ToPILImage()(refimg[0,:,:,:])
-centimg.show(title="Center Reference Image")
+if pil_show: centimg.show(title="Center Reference Image")
 #%% Visualize the Final Generation  together  with the center reference image. 
 VisFinalGen = True
 if VisFinalGen:
@@ -264,7 +269,8 @@ if VisFinalGen:
         imgs_final = G.visualize_batch_np(final_gen_codes[:,:])
     elif evolspace == "BigGAN_class":
         imgs_final = G.visualize_batch_np(np.concatenate((ref_noise_vec.repeat(25,axis=0), final_gen_codes[:,:]), axis=1))
-    ToPILImage()(make_grid(imgs_final,nrow=5)).show()
+    final_img_mtg = ToPILImage()(make_grid(imgs_final,nrow=5))
+    if pil_show: final_img_mtg.show()
     #G.visualize(torch.from_numpy(np.concatenate((ref_noise_vec.repeat(5,axis=0), final_gen_codes[:5,:]), axis=1)).float().cuda()).cpu()
     #ToPILImage()(make_grid(imgs.cpu())).show()
 #%% Compute Hessian decomposition and get the vectors
@@ -467,7 +473,7 @@ else:  # exact_distance by line search
         imgall = imgrow if imgall is None else torch.cat((imgall, imgrow))
 
     mtg1 = ToPILImage()(make_grid(imgall, nrow=2*len(target_distance)+1).cpu())  # 20sec for 13 rows not bad
-    mtg1.show()
+    if pil_show: mtg1.show()
     mtg1.save(join(summary_dir, "noise_space_all_var.jpg"))
     npimgs = imgall.permute([2, 3, 1, 0]).numpy()
     for imgi in range(npimgs.shape[-1]):  imwrite(join(newimg_dir, img_names[imgi]),
@@ -531,7 +537,7 @@ else:  # exact_distance by line search
         imgrow = torch.cat((torch.flip(stepimgs_neg, (0,)), refimg, stepimgs_pos)).cpu()
         xticks_row = xtar_neg[::-1] + [0.0] + xtar_pos
         dsim_row = list(ytar_neg[::-1]) + [0.0] + list(ytar_pos)
-        vecs_row = torch.tensor(xticks_row).cuda().view(-1, 1) @ tan_vec + ref_vect
+        vecs_row = torch.tensor(xticks_row).float().cuda().view(-1, 1) @ tan_vec + ref_vect
         xtick_col.append(xticks_row)
         dsim_col.append(dsim_row)
         vecs_col.append(vecs_row.cpu().numpy())
@@ -541,7 +547,7 @@ else:  # exact_distance by line search
         imgall = imgrow if imgall is None else torch.cat((imgall, imgrow))
 
     mtg2 = ToPILImage()(make_grid(imgall, nrow=2*len(target_distance)+1).cpu())  # 20sec for 13 rows not bad
-    mtg2.show()
+    if pil_show: mtg2.show()
     mtg2.save(join(summary_dir, "class_space_all_var.jpg"))
     npimgs = imgall.permute([2, 3, 1, 0]).numpy()
     for imgi in range(npimgs.shape[-1]):  imwrite(join(newimg_dir, img_names[imgi]),
