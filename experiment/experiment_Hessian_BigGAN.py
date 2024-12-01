@@ -8,22 +8,33 @@ Find important Nuisanced + Class transformations in Noise + Class space for a Bi
 """
 
 # backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_integrated\2020-06-01-09-46-37"
-# Put the backup folder and the thread to analyze here 
-#backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-07-22-10-14-22"
+# backup_dir = r"C:\Users\Poncelab-ML2a\Documents\monkeylogic2\generate_BigGAN\2020-07-22-10-14-22"
 # backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2020-08-06-10-18-55"#2020-08-04-09-54-25"#
-backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2022-01-12-12-05-00"
+
+# Hyper parameters:
+# Put the backup folder and the thread to analyze here 
 backup_dir = r"C:\Users\Ponce lab\Documents\ml2a-monk\generate_BigGAN\2024-12-01-17-01-31"
-threadid = 1
-pil_show = False
+# The thread id in monkey logic, usually 1. (2nd thread)
+threadid = 1  
 
-score_rank_avg = False  # If True, it will try to read "scores_record.mat", from the backup folder and read "scores_record"
-                        # Else, it will use the unweighted mean code of the last generation as the center vector. 
-                        # Need to run the BigGAN postHoc Analysis to save the `scores_record` mat and use this flag
+# score_rank_avg: 
+# If True, it will try to read "scores_record.mat", from the backup folder and read "scores_record"
+# Else, it will use the unweighted mean code of the last generation as the center vector. 
+# Need to run the BigGAN postHoc Analysis to save the `scores_record` mat and use this flag
+score_rank_avg = False  
 
-exact_distance = True   # Control if exact distance search is used or approximate heuristic rule is used.
+# Specify which eigen direction do we want to explore. could reduce to save time. 
+eiglist_noise = [0, 1, 2, 3, 4, 5, 6, 8, 10, 20, 30, 40, ]#[0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 20, 30, 40, 50, 60, 70, 80]
+eiglist_class = [0, 1, 2, 3, 6, 9, 13, 17, 21, 25, 30, 40, 60, ] #[0, 1, 2, 3, 6, 9, 11, 13, 15, 17, 19, 21, 25, 40, 50, 60, 70, 80]
+
+# `exact_distance``
+# Control if exact distance line search is used or approximate heuristic rule is used.
+# if exact_distance is True it will search for images with these
+# distance to reference image along each eigenvector.
+exact_distance = True   
 target_distance = [0.16, 0.24, 0.32, 0.40] # 0.08, 
-#target_distance = [0.09, 0.18, 0.27, 0.36, 0.45]  # if exact_distance is True it will search for images with these
-                                                  # distance to reference image along each eigenvector.
+#target_distance = [0.09, 0.18, 0.27, 0.36, 0.45]  
+pil_show = False
                                                   
 #%% Prepare the generator model and perceptual loss networks
 from time import time
@@ -41,7 +52,7 @@ elif os.environ['COMPUTERNAME'] == 'DESKTOP-9DDE2RH':
 
 sys.path.append(join(Python_dir,"Visual_Neuro_InSilico_Exp\Hessian"))
 sys.path.append(join(Python_dir,"Visual_Neuro_InSilico_Exp"))
-sys.path.append(join(Python_dir,"PerceptualSimilarity"))
+# sys.path.append(join(Python_dir,"PerceptualSimilarity"))
 import torch
 from pytorch_pretrained_biggan import BigGAN, truncated_noise_sample
 from GAN_utils import upconvGAN
@@ -54,13 +65,13 @@ from build_montages import build_montages
 from torchvision.transforms import ToPILImage, ToTensor
 from IPython.display import clear_output
 from hessian_eigenthings.utils import progress_bar
-from tqdm import tqdm
+from tqdm.auto import tqdm
 T00 = time()
 import lpips
 # import models # from PerceptualSimilarity folder
 # ImDist = models.PerceptualLoss(model='net-lin', net='squeeze', use_gpu=1, gpu_ids=[0])
-ImDist = lpips.LPIPS(net='squeeze') # model='net-lin', , use_gpu=1, gpu_ids=[0]
 # model_vgg = models.PerceptualLoss(model='net-lin', net='vgg', use_gpu=1, gpu_ids=[0])
+ImDist = lpips.LPIPS(net='squeeze') # model='net-lin', , use_gpu=1, gpu_ids=[0]
 ImDist.cuda()
 for param in ImDist.parameters():
     param.requires_grad_(False)
@@ -118,8 +129,8 @@ G = BigGAN_wrapper(BGAN)
 #print(time() - t0,"\n")  # 81.02 s 
 #%% Load the codes from the Backup folder 
 import os
-from  scipy.io import loadmat
 import re
+from  scipy.io import loadmat
 def load_codes_mat(backup_dir, threadnum=None, savefile=False):
     """ load all the code mat file in the experiment folder and summarize it into nparrays
     threadnum: can select one thread of the code if it's a parallel evolution. Usually, 0 or 1. 
@@ -381,7 +392,7 @@ if not exact_distance:
     img_names = []
     scale = 5
     expon = 2.5
-    eiglist_class = [0, 3, 6, 9, 11, 13, 15, 17, 19, 21, 25, 40,]
+    # eiglist_class = [0, 3, 6, 9, 11, 13, 15, 17, 19, 21, 25, 40,]
     for eigi in eiglist_class:#range(20):  # eigvects.shape[1] # 60, 80
         interp_class = LExpMap(classvec.cpu().numpy(), eigvects_clas[:, -eigi-1], 11, (-scale * eigvals_clas[-eigi-1] ** (-1/expon), scale * eigvals_clas[-eigi-1] ** (-1/expon)))
         interp_codes = np.hstack((noisevec.cpu().numpy().repeat(11, axis=0), interp_class, ))
@@ -409,7 +420,7 @@ if not exact_distance:
     img_names = []
     scale = 6
     expon = 3
-    eiglist_noise = [0, 1, 2, 3, 4, 6, 10, 15, 20, 40]
+    # eiglist_noise = [0, 1, 2, 3, 4, 6, 10, 15, 20, 40]
     for eigi in eiglist_noise:#range(20):#eigvects_nois.shape[1]
     #    interp_noise = LExpMap(noisevec.cpu().numpy(), eigvects_nois[:, -eigi-1], 11, (-4.5, 4.5))
         interp_noise = LExpMap(noisevec.cpu().numpy(), eigvects_nois[:, -eigi-1], 11, (-scale * eigvals_nois[-eigi-1] ** (-1/expon), scale * eigvals_nois[-eigi-1] ** (-1/expon)))
@@ -451,7 +462,6 @@ else:  # exact_distance by line search
     img_names = []
     tick_labels = list(-targ_val[::-1]) + [0] + list(targ_val)  # -0.5, -0.4 ...  0.4, 0.5
     t0 = time()
-    eiglist_noise = [0, 1, 2, 3, 4, 5, 6, 8, 10, 20, 30, 40, ]#[0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 20, 30, 40, 50, 60, 70, 80]
     for eigid in tqdm(eiglist_noise):  # range(128):  # #
         if space == "class":
             tan_vec = torch.cat((torch.zeros(1, 128).cuda(), evc_clas_tsr[:, eigid:eigid + 1].t()), dim=1)
@@ -523,7 +533,7 @@ else:  # exact_distance by line search
     img_names = []
     tick_labels = list(-targ_val[::-1]) + [0] + list(targ_val)
     t0 = time()
-    eiglist_class = [0, 1, 2, 3, 6, 9, 13, 17, 21, 25, 30, 40, 60, ] #[0, 1, 2, 3, 6, 9, 11, 13, 15, 17, 19, 21, 25, 40, 50, 60, 70, 80]
+    
     for eigid in tqdm(eiglist_class):  # [0,1,2,3,4,5,6,7,8,10,20,30,
         # 40]:#
         if space == "class":
