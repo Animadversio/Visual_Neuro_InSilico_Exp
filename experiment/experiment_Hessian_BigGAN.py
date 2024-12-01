@@ -34,6 +34,7 @@ eiglist_class = [0, 1, 2, 3, 6, 9, 13, 17, 21, 25, 30, 40, 60, ] #[0, 1, 2, 3, 6
 exact_distance = True   
 target_distance = [0.16, 0.24, 0.32, 0.40] # 0.08, 
 #target_distance = [0.09, 0.18, 0.27, 0.36, 0.45]  
+# On windows PIL show could hang the computer, so do False. 
 pil_show = False
                                                   
 #%% Prepare the generator model and perceptual loss networks
