@@ -25,8 +25,12 @@ score_rank_avg = False
 
 # `eiglist_noise`, `eiglist_class` 
 # Specify which eigen direction do we want to explore. could reduce to save time. 
-eiglist_noise = [0, 1, 2, 3, 4, 5, 6, 8, 10, 20, 30, 40, ]#[0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 20, 30, 40, 50, 60, 70, 80]
-eiglist_class = [0, 1, 2, 3, 6, 9, 13, 17, 21, 25, 30, 40, 60, ] #[0, 1, 2, 3, 6, 9, 11, 13, 15, 17, 19, 21, 25, 40, 50, 60, 70, 80]
+eiglist_noise = [0, 1, 2, 3, 5, 8, 10, 20, 40, ]
+#[0, 1, 2, 3, 4, 5, 6, 8, 10, 20, 30, 40, ]
+#[0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 20, 30, 40, 50, 60, 70, 80]
+eiglist_class = [0, 1, 2, 3, 6, 9, 13, 21, 30, 60, ]
+# [0, 1, 2, 3, 6, 9, 13, 17, 21, 25, 30, 40, 60, ] 
+# [0, 1, 2, 3, 6, 9, 11, 13, 15, 17, 19, 21, 25, 40, 50, 60, 70, 80]
 
 # `exact_distance``
 # Control if exact distance line search is used or approximate heuristic rule is used.
