@@ -19,26 +19,27 @@ threadid = 1
 
 # score_rank_avg: 
 # If True, it will try to read "scores_record.mat", from the backup folder and read "scores_record"
-# Else, it will use the unweighted mean code of the last generation as the center vector. 
+# If False (default), it will use the unweighted mean code of the last generation as the center vector. 
 # Need to run the BigGAN postHoc Analysis to save the `scores_record` mat and use this flag
 score_rank_avg = False  
 
 # `eiglist_noise`, `eiglist_class` 
 # Specify which eigen direction do we want to explore. could reduce to save time. 
 eiglist_noise = [0, 1, 2, 3, 5, 8, 10, 20, 40, ]
-#[0, 1, 2, 3, 4, 5, 6, 8, 10, 20, 30, 40, ]
-#[0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 20, 30, 40, 50, 60, 70, 80]
+# [0, 1, 2, 3, 4, 5, 6, 8, 10, 20, 30, 40, ]
+# [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 20, 30, 40, 50, 60, 70, 80]
 eiglist_class = [0, 1, 2, 3, 6, 9, 13, 21, 30, 60, ]
 # [0, 1, 2, 3, 6, 9, 13, 17, 21, 25, 30, 40, 60, ] 
 # [0, 1, 2, 3, 6, 9, 11, 13, 15, 17, 19, 21, 25, 40, 50, 60, 70, 80]
 
 # `exact_distance``
 # Control if exact distance line search is used or approximate heuristic rule is used.
-# if exact_distance is True it will search for images with these
+# if exact_distance is True (default) it will search for images with these
 # distance to reference image along each eigenvector.
 exact_distance = True   
 target_distance = [0.16, 0.24, 0.32, 0.40] # 0.08, 
 #target_distance = [0.09, 0.18, 0.27, 0.36, 0.45]  
+
 # On windows PIL show could hang the computer, so do False. 
 pil_show = False
                                                   
