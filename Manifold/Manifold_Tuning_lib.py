@@ -105,6 +105,122 @@ def load_fit_manif2table(unit_list, netname, dataroot, ang_step=9, save=True, lo
     return nettab
 
 
+def get_SphereIntegr_weights(ang_step=9, theta_range=(-90, 90), phi_range=(-90, 90)):
+    # currently it only supports the hemi-sphere, but not the more general integration region.
+    [phi_grid, theta_grid] = np.meshgrid(np.arange(-90, 90+0.5, ang_step), np.arange(-90, 90+0.5, ang_step))
+    phi1_grid = np.maximum(phi_grid - ang_step/2, -90) / 180 * np.pi
+    phi2_grid = np.minimum(phi_grid + ang_step/2, 90) / 180 * np.pi
+    theta1_grid = np.maximum(theta_grid - ang_step/2, -90) / 180 * np.pi
+    theta2_grid = np.minimum(theta_grid + ang_step/2, 90) / 180 * np.pi
+    Wgrid = abs(np.sin(phi2_grid) - np.sin(phi1_grid)) * (theta2_grid - theta1_grid);
+    return Wgrid
+
+
+def integrate_VUS(actmap, ang_step=9, Wgrid=None, baseline=None):
+    """Integrate the volume under surface on a hemisphere"""
+    if Wgrid is None:
+        Wgrid = get_SphereIntegr_weights(ang_step=ang_step)
+    if baseline is None:
+        actmap_thresh = actmap
+    else:
+        actmap_thresh = np.maximum(actmap, baseline)
+    VUS_int = np.sum(actmap_thresh * Wgrid, axis=(0, 1))
+    norm_VUS = np.sum(actmap_thresh * Wgrid, axis=(0, 1)) / actmap.max()
+    return VUS_int, norm_VUS
+    # [phi_grid, theta_grid] = meshgrid(-90:18: 90, -90: 18:90);
+    # XX = np.cosd(theta_grid) * np.cosd(phi_grid);
+    # YY = np.sind(theta_grid) * np.cosd(phi_grid);
+    # ZZ = np.sind(phi_grid);
+    # Integration Weight Matrix:
+    # Integrate the area of the patch that each node governs
+
+
+
+def load_nonparam_manif2table(unit_list, netname, dataroot, ang_step=9, save=True, load=False, GANname="", savestr=""):
+    """Load experiments into table, Algorithmic version
+    Esp. it load evolution information into the tab.
+    load: if true, it will load saved stats table instead of computing a new one.
+    """
+    if load:
+        nettab = pd.from_csv(join(dataroot, "summary", '%s_ManifExpFitSum%s.csv'%(netname, savestr)))
+        return nettab
+    theta_arr = np.arange(-90, 90.1, ang_step) / 180 * np.pi
+    phi_arr = np.arange(-90, 90.1, ang_step) / 180 * np.pi
+    Wgrid = get_SphereIntegr_weights(ang_step=ang_step)
+    stat_col = []
+    for unit in unit_list[:]:
+        layer = unit[1]
+        layerdir = "%s_%s_manifold-%s" % (netname, layer, GANname)
+        RFfit = unit[-1]
+        suffix = "rf_fit" if RFfit else "original"
+        npyfns = glob(join(dataroot, layerdir, "*.npy"))
+        if len(unit) == 6:
+            pattern = re.compile("Manifold_score_%s_(\d*)_%d_%d_%s.npy"%(layer, unit[3], unit[4], suffix))
+        else:
+            pattern = re.compile("Manifold_score_%s_(\d*)_%s.npy"%(layer, suffix))
+        matchpatt = [pattern.findall(fn) for fn in npyfns]
+        iChlist = [int(mat[0]) for mat in matchpatt if len(mat)==1]
+        fnlist = [fn for mat, fn in zip(matchpatt, npyfns) if len(mat) == 1]
+        print("Found %d units in %s - %s layer!"%(len(iChlist), netname, layer))
+        for iCh in iChlist: # range
+            if len(unit) == 6:
+                unit_lab = "%s_%d_%d_%d"%(layer, iCh, unit[3], unit[4])
+            elif len(unit) == 4:
+                unit_lab = "%s_%d" % (layer, iCh, )
+            else:
+                raise NotImplementedError
+            explabel = "%s_%s" % (unit_lab, suffix)
+            data = np.load(join(dataroot, layerdir, "Manifold_score_%s.npy"%(explabel)))
+            Mdata = np.load(join(dataroot, layerdir, "Manifold_set_%s.npz"%(explabel)))
+            # # final generation activation from Evolution
+            # gens = Mdata["evol_gen"]
+            # finalscores = Mdata["evol_score"][gens == gens.max()]
+            # initscores = Mdata["evol_score"][gens == (gens.min()+1)]
+            # tval, pval = ttest_1samp(finalscores, initscores.mean())
+            for spi in range(data.shape[0]):  # all spaces
+                unitstat = EasyDict()
+                if len(unit) == 6:
+                    unitstat.pos = (unit[3], unit[4])
+                elif len(unit) == 4:
+                    unitstat.pos = None
+                actmap = data[spi, :, :]  # PC2-3 space
+                # VUS_int, norm_VUS = integrate_VUS(actmap, ang_step=ang_step, Wgrid=Wgrid)
+                VUS_int = (actmap * Wgrid).sum()
+                normVUS_int = VUS_int / actmap.max()
+                manifsparseness = (1 - actmap.mean() ** 2 / (actmap**2).mean()) / (1 - 1 / actmap.size)
+                unitstat.VUS = VUS_int
+                unitstat.normVUS = normVUS_int
+                unitstat.manifsparseness = manifsparseness
+                # param, param_std, _, R2 = fit_Kent_Stats(theta_arr=theta_arr, phi_arr=phi_arr, act_map=actmap)
+                unitstat.netname = netname
+                unitstat.layer = layer
+                unitstat.iCh = iCh
+                unitstat.explabel = explabel
+                unitstat.RFfit = RFfit
+                unitstat.imgsize = Mdata["imgsize"]
+                unitstat.corner = Mdata["corner"]
+                unitstat.space = spi
+                # Maximal activation from Manifold,
+                unitstat.actmax = actmap.max()
+                unitstat.actmin = actmap.min()
+                # unitstat.evolfinact = finalscores.mean()
+                # unitstat.evolttest = tval
+                # unitstat.evolttest_p = pval
+                # Fitting stats
+                # unitstat.R2 = R2
+                # for i, pnm in enumerate(param_names):
+                #     unitstat[pnm] = param[i]
+                #     unitstat[pnm+"_std"] = param_std[i]
+                # Append to collection
+                stat_col.append(unitstat)
+
+    nettab = pd.DataFrame(stat_col)
+    if save:
+        os.makedirs(join(dataroot, "summary"), exist_ok=True)
+        nettab.to_csv(join(dataroot, "summary", '%s_ManifExpNonParamSum%s.csv'%(netname, savestr)))
+    return nettab
+
+
 def add_regcurve(ax, slope, intercept, **kwargs):
     XLIM = ax.get_xlim()
     ax.plot(XLIM, np.array(XLIM) * slope + intercept, **kwargs)

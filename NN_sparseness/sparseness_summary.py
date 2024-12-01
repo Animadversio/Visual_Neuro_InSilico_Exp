@@ -9,7 +9,7 @@ from dataset_utils import ImagePathDataset, ImageFolder
 from NN_PC_visualize.NN_PC_lib import *
 from scipy.stats import pearsonr, spearmanr
 from build_montages import make_grid_np, build_montages
-from NN_sparseness.EM_proto_utils import _load_proto_montage, _load_proto_info
+from NN_sparseness.insilico_EM_data_utils import _load_proto_montage, _load_proto_info
 proto_dir = r"E:\Cluster_Backup\manif_allchan\prototypes"
 sumdir = r"E:\OneDrive - Harvard University\Manifold_Sparseness\summary"
 figdir = r"E:\OneDrive - Harvard University\Manifold_Sparseness\summary_figs"

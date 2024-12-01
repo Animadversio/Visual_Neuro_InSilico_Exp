@@ -1345,7 +1345,7 @@ class HessAware_Gauss_Cylind_DC:
 #     def step_simple(self, scores, codes):
 
 
-if __name__ is "__main__":
+if __name__ == "__main__":
     from insilico_Exp import *
 #%%
     # savedir = r"C:\Users\ponce\OneDrive - Washington University in St. Louis\Optimizer_Tuning"

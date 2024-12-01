@@ -150,7 +150,7 @@ def build_montages(image_list, image_shape, montage_shape, transpose=True):
     if start_new_img is False:
         image_montages.append(montage_image)  # add unfinished montage
     return image_montages
-#%% Inspired from MakeGrid in torchvision.utils
+#%% Inspired from make_grid in torchvision.utils
 def make_grid_np(img_arr, nrow=8, padding=2, pad_value=0, rowfirst=True):
     if type(img_arr) is list:
         try:
